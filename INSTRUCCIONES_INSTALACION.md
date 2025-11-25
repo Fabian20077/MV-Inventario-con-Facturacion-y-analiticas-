@@ -10,12 +10,27 @@
    cd inventario-ropa
    ```
 
-2. **Iniciar Docker**
+2. **Crear el archivo `.env`** en la raíz del proyecto
+   
+   Crea un archivo llamado `.env` con el siguiente contenido:
+   ```env
+   JWT_SECRET=inventario_mv_secret_key_change_in_production
+   JWT_EXPIRES_IN=24h
+   ```
+   
+   > ⚠️ **IMPORTANTE:** Este archivo es necesario para la autenticación JWT. Sin él, el backend no funcionará.
+
+3. **Iniciar Docker**
    ```bash
    docker-compose up -d
    ```
 
-3. **⚠️ PASO CRÍTICO - Configurar la contraseña del admin**
+3. **Iniciar Docker**
+   ```bash
+   docker-compose up -d
+   ```
+
+4. **⚠️ PASO CRÍTICO - Configurar la contraseña del admin**
    
    Después de que Docker esté corriendo, **DEBES** ejecutar este comando:
    ```bash
@@ -24,11 +39,11 @@
    
    Este script configura la contraseña del usuario administrador en la base de datos.
 
-4. **Acceder a la aplicación**
+5. **Acceder a la aplicación**
    
    Abre tu navegador y ve a: `http://localhost:8081/login.html`
 
-5. **Iniciar sesión con estas credenciales:**
+6. **Iniciar sesión con estas credenciales:**
 
    | Campo | Valor |
    |-------|-------|
@@ -51,6 +66,25 @@ node set-password.mjs
 Luego intenta iniciar sesión nuevamente con:
 - Email: `admin@mv.com`
 - Contraseña: `admin123`
+
+---
+
+### Error "JWT_SECRET is required but not configured"
+
+**Causa:** No creaste el archivo `.env` con la variable `JWT_SECRET`.
+
+**Solución:**
+
+Crea un archivo llamado `.env` en la raíz del proyecto con este contenido:
+```env
+JWT_SECRET=inventario_mv_secret_key_change_in_production
+JWT_EXPIRES_IN=24h
+```
+
+Luego reinicia Docker:
+```bash
+docker-compose restart
+```
 
 ---
 

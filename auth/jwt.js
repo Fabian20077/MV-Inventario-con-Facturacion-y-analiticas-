@@ -1,8 +1,17 @@
 import jwt from 'jsonwebtoken';
 
-// Clave secreta para firmar tokens (en producción debe estar en variable de entorno)
-const JWT_SECRET = process.env.JWT_SECRET || 'inventario_mv_secret_key_change_in_production';
+// Clave secreta para firmar tokens (DEBE estar en variable de entorno .env)
+// IMPORTANTE: Asegúrate de tener JWT_SECRET definido en tu archivo .env
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+
+// Validar que JWT_SECRET esté configurado
+if (!JWT_SECRET) {
+    console.error('❌ ERROR: JWT_SECRET no está configurado en las variables de entorno');
+    console.error('Por favor, agrega JWT_SECRET a tu archivo .env');
+    console.error('Ejemplo: JWT_SECRET=tu_clave_secreta_aqui');
+    throw new Error('JWT_SECRET is required but not configured');
+}
 
 /**
  * Generar un token JWT para un usuario
