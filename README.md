@@ -79,14 +79,23 @@ docker-compose up -d
 # 3. Verificar estado
 docker-compose ps
 
-# 4. Acceder
-http://localhost:8081/login.html
-
-# 4b. Configurar contraseña admin (solo primera vez)
+# 4. Configurar contraseña admin (IMPORTANTE - solo primera vez)
 node set-password.mjs
+
+# 5. Acceder a la aplicación
+http://localhost:8081/login.html
 ```
 
-> **Nota:** Después de iniciar Docker por primera vez, ejecuta `node set-password.mjs` para configurar la contraseña del administrador.
+### 🔑 Credenciales de Acceso
+
+Después de ejecutar `node set-password.mjs`, usa estas credenciales para iniciar sesión:
+
+| Campo | Valor |
+|-------|-------|
+| **Email** | `admin@mv.com` |
+| **Contraseña** | `admin123` |
+
+> **⚠️ IMPORTANTE:** Debes ejecutar `node set-password.mjs` después del primer inicio de Docker para que las credenciales funcionen correctamente.
 
 ## 🎯 Funcionalidades
 
@@ -233,7 +242,7 @@ Si necesitas cambiar la contraseña del usuario admin:
 node -e "const bcrypt = require('bcryptjs'); console.log(bcrypt.hashSync('tu_nueva_contraseña', 10));"
 
 # 2. Actualizar en la BD
-docker exec inventario-db sh -c "mysql -u root -p<ROOT_PASSWORD> inventario_ropa -e \"UPDATE usuario SET password = 'HASH_GENERADO' WHERE email = 'admin@inventario.com';\""
+docker exec inventario-db sh -c "mysql -u root -p<ROOT_PASSWORD> inventario_ropa -e \"UPDATE usuario SET password = 'HASH_GENERADO' WHERE correo = 'admin@mv.com';\""
 
 # 3. Reiniciar Docker
 docker-compose restart
