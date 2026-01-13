@@ -7,8 +7,8 @@ class ProductoDAO {
     async crear(producto) {
         try {
             const sql = `
-                INSERT INTO producto (codigo, nombre, descripcion, precio_compra, precio_venta, cantidad, stock_minimo, ubicacion, id_categoria)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO producto (codigo, nombre, descripcion, precio_compra, precio_venta, cantidad, stock_minimo, ubicacion, id_categoria, fecha_vencimiento)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
             
             const params = [
@@ -20,7 +20,8 @@ class ProductoDAO {
                 producto.cantidad || 0,
                 producto.stock_minimo || 10,
                 producto.ubicacion || null,
-                producto.id_categoria
+                producto.id_categoria,
+                producto.fecha_vencimiento || null // Nuevo campo (opcional)
             ];
             
             const result = await query(sql, params);
@@ -103,9 +104,16 @@ async buscarPorId(id) {
 
     /**
      * Actualizar producto
+     * Nota: Llamar desde server.js pasando usuario_id para registrar en historial
      */
-    async actualizar(id, datos) {
+    async actualizar(id, datos, usuario_id = 1) {
         try {
+            // Primero obtener datos anteriores para comparar precios
+            const productoAnterior = await query('SELECT precio_compra, precio_venta FROM producto WHERE id = ?', [id]);
+            
+            console.log('📊 ProductoDAO.actualizar - Datos anteriores:', productoAnterior);
+            console.log('📊 ProductoDAO.actualizar - Datos nuevos:', datos);
+            
             const campos = [];
             const valores = [];
             
@@ -141,6 +149,10 @@ async buscarPorId(id) {
                 campos.push('ubicacion = ?');
                 valores.push(datos.ubicacion);
             }
+            if (datos.fecha_vencimiento !== undefined) {
+                campos.push('fecha_vencimiento = ?');
+                valores.push(datos.fecha_vencimiento);
+            }
             if (datos.id_categoria) {
                 campos.push('id_categoria = ?');
                 valores.push(datos.id_categoria);
@@ -158,6 +170,39 @@ async buscarPorId(id) {
             
             const sql = `UPDATE producto SET ${campos.join(', ')} WHERE id = ?`;
             const result = await query(sql, valores);
+
+            console.log('✏️ UPDATE resultado:', { affectedRows: result.affectedRows });
+
+            // Registrar cambio de precio en historial si corresponde
+            if (result.affectedRows > 0 && productoAnterior && productoAnterior.length > 0) {
+                const anterior = productoAnterior[0];
+                
+                console.log('🔎 Verificando cambios de precio:', {
+                    precio_compra_enviado: datos.precio_compra,
+                    precio_venta_enviado: datos.precio_venta,
+                    hay_cambio_compra: datos.precio_compra !== undefined,
+                    hay_cambio_venta: datos.precio_venta !== undefined
+                });
+                
+                if (datos.precio_compra !== undefined || datos.precio_venta !== undefined) {
+                    try {
+                        // Importar dinámicamente para evitar ciclos
+                        const { default: HistorialPrecioDAO } = await import('./HistorialPrecioDAO.js');
+                        
+                        await HistorialPrecioDAO.registrarCambio(
+                            id,
+                            Number(anterior.precio_compra),
+                            Number(datos.precio_compra !== undefined ? datos.precio_compra : anterior.precio_compra),
+                            Number(anterior.precio_venta),
+                            Number(datos.precio_venta !== undefined ? datos.precio_venta : anterior.precio_venta),
+                            usuario_id,
+                            datos.razon || 'Actualización de producto'
+                        );
+                    } catch (error) {
+                        console.error('Error al registrar historial:', error);
+                    }
+                }
+            }
             
             return {
                 success: result.affectedRows > 0,

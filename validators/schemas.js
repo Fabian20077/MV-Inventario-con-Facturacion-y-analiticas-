@@ -1,4 +1,4 @@
-﻿import { z } from 'zod';
+﻿﻿import { z } from 'zod';
 
 // ========================
 // SCHEMAS DE AUTENTICACIÓN
@@ -68,7 +68,10 @@ export const createProductSchema = z.object({
     categoria_nombre: z.string()
         .min(2, 'Nombre de categoría debe tener al menos 2 caracteres')
         .max(100, 'Nombre de categoría muy largo')
+        .optional(),
+    fecha_vencimiento: z.string()
         .optional()
+        .nullable()
 }).refine(
     data => data.precio_venta >= data.precio_compra,
     {
@@ -121,7 +124,10 @@ export const updateProductSchema = z.object({
     categoria_nombre: z.string()
         .min(2, 'Nombre de categoría debe tener al menos 2 caracteres')
         .max(100, 'Nombre de categoría muy largo')
+        .optional(),
+    fecha_vencimiento: z.string()
         .optional()
+        .nullable()
 }).refine(
     data => {
         if (data.precio_venta !== undefined && data.precio_compra !== undefined) {

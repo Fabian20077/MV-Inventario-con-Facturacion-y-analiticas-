@@ -1,0 +1,22 @@
+/* Estilos para el módulo de Historial de Precios */
+
+#modalHistorialPrecios .modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+#modalHistorialPrecios th {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background-color: #f8f9fa;
+}
+
+#modalHistorialPrecios td {
+    vertical-align: middle;
+}
+
+#modalHistorialPrecios .badge {
+    font-weight: 500;
+    font-size: 0.75rem;
+}

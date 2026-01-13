@@ -44,56 +44,45 @@ class UsuarioDAO {
     /**
      * Autenticar usuario (login) comparando contraseña con BCrypt
      */
-  async autenticar(correo, password) {
-    try {
-        console.log('🔍 UsuarioDAO.autenticar llamado con:', correo); // ← AGREGAR
-        
-        const sql = `
-            SELECT u.id, u.nombre, u.correo, u.password, u.activo, 
-                   u.fecha_creacion, u.ultimo_acceso,
-                   r.id as rol_id, r.nombre as rol_nombre
-            FROM usuario u
-            INNER JOIN rol r ON u.rol_id = r.id
-            WHERE u.correo = ?
-        `;
-        
-        const usuarios = await query(sql, [correo]);
-        console.log('📊 Usuarios encontrados:', usuarios.length); // ← AGREGAR
-        
-        if (usuarios.length === 0) {
-            console.log('❌ Usuario no encontrado'); // ← AGREGAR
-            return {
-                success: false,
-                message: 'Usuario no encontrado'
-            };
-        }
-        
-        const usuario = usuarios[0];
-        console.log('👤 Usuario encontrado:', usuario.correo, 'Activo:', usuario.activo); // ← AGREGAR
-        
-        // Verificar si el usuario está activo
-        if (!usuario.activo) {
-            console.log('❌ Usuario inactivo'); // ← AGREGAR
-            return {
-                success: false,
-                message: 'Usuario inactivo'
-            };
-        }
-        
-        // Comparar la contraseña ingresada con el hash almacenado
-        console.log('🔐 Verificando contraseña...'); // ← AGREGAR
-        const passwordValida = await bcrypt.compare(password, usuario.password);
-        console.log('🔐 Contraseña válida:', passwordValida); // ← AGREGAR
-        
-        if (!passwordValida) {
-            console.log('❌ Contraseña incorrecta'); // ← AGREGAR
-            return {
-                success: false,
-                message: 'Contraseña incorrecta'
-            };
-        }
-        
-        // ... resto del código
+    async autenticar(correo, password) {
+        try {
+            const sql = `
+                SELECT u.id, u.nombre, u.correo, u.password, u.activo, 
+                       u.fecha_creacion, u.ultimo_acceso,
+                       r.id as rol_id, r.nombre as rol_nombre
+                FROM usuario u
+                INNER JOIN rol r ON u.rol_id = r.id
+                WHERE u.correo = ?
+            `;
+            
+            const usuarios = await query(sql, [correo]);
+            
+            if (usuarios.length === 0) {
+                return {
+                    success: false,
+                    message: 'Usuario no encontrado'
+                };
+            }
+            
+            const usuario = usuarios[0];
+            
+            // Verificar si el usuario está activo
+            if (!usuario.activo) {
+                return {
+                    success: false,
+                    message: 'Usuario inactivo'
+                };
+            }
+            
+            // Comparar la contraseña ingresada con el hash almacenado
+            const passwordValida = await bcrypt.compare(password, usuario.password);
+            
+            if (!passwordValida) {
+                return {
+                    success: false,
+                    message: 'Contraseña incorrecta'
+                };
+            }
             
             // Actualizar último acceso
             await query('UPDATE usuario SET ultimo_acceso = CURRENT_TIMESTAMP WHERE id = ?', [usuario.id]);

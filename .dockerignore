@@ -1,9 +1,0 @@
-node_modules
-dist
-.git
-*.log
-coverage
-.vscode
-.idea
-*.md
-!README.md

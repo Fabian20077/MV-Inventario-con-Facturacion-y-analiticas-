@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Productos - Inventario</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>📦 Inventario Completo</h2>
+            <a href="/dashboard.html" class="btn btn-outline-secondary">Volver al Dashboard</a>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle" id="tablaProductos">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Código</th>
+                                <th>Producto</th>
+                                <th>Categoría</th>
+                                <th>Precio Compra</th>
+                                <th>Precio Venta</th>
+                                <th>Stock</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="listaProductos">
+                            <!-- Se llena dinámicamente -->
+                            <tr><td colspan="7" class="text-center">Cargando productos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar -->
+    <div class="modal fade" id="modalEditar" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">✏️ Editar Producto</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formEditar">
+                        <input type="hidden" id="editId">
+                        <div class="mb-3">
+                            <label class="form-label">Nombre</label>
+                            <input type="text" class="form-control" id="editNombre" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Precio Compra</label>
+                                <input type="number" class="form-control" id="editPrecioCompra" step="0.01" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Precio Venta</label>
+                                <input type="number" class="form-control" id="editPrecioVenta" step="0.01" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Stock Actual</label>
+                            <input type="number" class="form-control" id="editCantidad" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Razón del cambio (para historial)</label>
+                            <input type="text" class="form-control" id="editRazon" placeholder="Ej: Ajuste de mercado, Oferta...">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="guardarCambios()">Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        // Cargar productos al iniciar
+        document.addEventListener('DOMContentLoaded', cargarProductos);
+
+        async function cargarProductos() {
+            try {
+                const response = await fetch('/api/productos'); // Ajusta esta ruta si es diferente
+                const productos = await response.json();
+                
+                const tbody = document.getElementById('listaProductos');
+                tbody.innerHTML = '';
+
+                productos.forEach(p => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><span class="badge bg-secondary">${p.codigo}</span></td>
+                        <td>${p.nombre}</td>
+                        <td>${p.categoria_nombre || '-'}</td>
+                        <td>$${parseFloat(p.precio_compra).toFixed(2)}</td>
+                        <td>$${parseFloat(p.precio_venta).toFixed(2)}</td>
+                        <td>
+                            <span class="badge ${p.cantidad <= p.stock_minimo ? 'bg-danger' : 'bg-success'}">
+                                ${p.cantidad}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick='abrirEditar(${JSON.stringify(p)})'>
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="eliminarProducto(${p.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('listaProductos').innerHTML = '<tr><td colspan="7" class="text-danger text-center">Error al cargar productos</td></tr>';
+            }
+        }
+
+        let modalEditar;
+        function abrirEditar(producto) {
+            document.getElementById('editId').value = producto.id;
+            document.getElementById('editNombre').value = producto.nombre;
+            document.getElementById('editPrecioCompra').value = producto.precio_compra;
+            document.getElementById('editPrecioVenta').value = producto.precio_venta;
+            document.getElementById('editCantidad').value = producto.cantidad;
+            document.getElementById('editRazon').value = ''; // Limpiar razón
+            
+            modalEditar = new bootstrap.Modal(document.getElementById('modalEditar'));
+            modalEditar.show();
+        }
+
+        async function guardarCambios() {
+            const id = document.getElementById('editId').value;
+            const datos = {
+                nombre: document.getElementById('editNombre').value,
+                precio_compra: document.getElementById('editPrecioCompra').value,
+                precio_venta: document.getElementById('editPrecioVenta').value,
+                cantidad: document.getElementById('editCantidad').value,
+                razon: document.getElementById('editRazon').value || 'Edición manual desde inventario'
+            };
+
+            try {
+                const res = await fetch(`/api/productos/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(datos)
+                });
+                
+                if (res.ok) {
+                    modalEditar.hide();
+                    Swal.fire('¡Éxito!', 'Producto actualizado correctamente', 'success');
+                    cargarProductos(); // Recargar tabla
+                } else {
+                    Swal.fire('Error', 'No se pudo actualizar el producto', 'error');
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function eliminarProducto(id) {
+            if (!confirm('¿Estás seguro de eliminar este producto?')) return;
+            
+            await fetch(`/api/productos/${id}`, { method: 'DELETE' });
+            cargarProductos();
+        }
+    </script>
+</body>
+</html>

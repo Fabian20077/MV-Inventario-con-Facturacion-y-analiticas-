@@ -11,6 +11,9 @@ COPY package.json ./
 # Instalar dependencias
 RUN npm install --production
 
+# Instalar cliente de MySQL (mariadb-client) para backups
+RUN apk add --no-cache mariadb-client
+
 # Copiar archivos de configuración y DAOs
 COPY config ./config
 COPY dao ./dao

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="es-CO">
 
 <head>
@@ -219,7 +219,7 @@
                         <div class="text-center mb-6 md:mb-8">
                             <div
                                 class="w-20 h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 mx-auto mb-4 shadow-lg animate-glow flex items-center justify-center rounded-full overflow-hidden border-2 border-white/20">
-                                <img src="logo.jpg" alt="Logo MV Inventario" class="w-full h-full object-cover">
+                            <img id="loginLogoMain" src="logo.jpg" alt="Logo" class="w-full h-full object-cover" onerror="this.src='logo.jpg'">
                             </div>
 
                             <h2 class="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white mb-2">
@@ -318,6 +318,23 @@
     <script>
         const API_BASE_URL = 'http://127.0.0.1:3000';
         const LOGIN_ENDPOINT = `${API_BASE_URL}/api/auth/login`;
+
+        // Cargar configuración pública (Logo y Nombre)
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/configuracion`);
+                const result = await response.json();
+                if (result.success && result.data) {
+                    const logoPath = result.data['empresa.logo_path'];
+                    if (logoPath) {
+                        // Anti-Caché: Forzar recarga de imagen
+                        const src = `${logoPath}?t=${Date.now()}`;
+                        const logo2 = document.getElementById('loginLogoMain');
+                        if (logo2) logo2.src = src;
+                    }
+                }
+            } catch (e) { console.error('Error cargando config:', e); }
+        });
 
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();

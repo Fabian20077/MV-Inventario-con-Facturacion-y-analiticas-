@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+﻿﻿<!DOCTYPE html>
 <html lang="es-CO">
 
 <head>
@@ -255,7 +255,7 @@
                 <a href="dashboard.html" class="btn-back">
                     <i class="bi bi-arrow-left"></i> Volver al Dashboard
                 </a>
-                <h1 class="text-2xl font-bold text-white">📊 Análisis</h1>
+                <h1 class="text-2xl font-bold text-white">Análisis</h1>
             </div>
             <div class="flex items-center gap-4">
                 <a href="productos.html" class="btn-nav">
@@ -264,27 +264,32 @@
                 <a href="movimientos.html" class="btn-nav">
                     <i class="bi bi-arrow-left-right"></i> Movimientos
                 </a>
-                <div class="relative">
-                    <button onclick="toggleExportMenu()" class="btn-nav"
-                        style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                        <i class="bi bi-download"></i> Exportar Análisis
-                        <i class="bi bi-chevron-down text-xs"></i>
-                    </button>
-                    <div id="exportDropdown" class="dropdown-menu mt-2 right-0"
-                        style="display: none; position: absolute; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); min-width: 200px; z-index: 1000;">
-                        <a href="http://localhost:3000/api/reportes/analytics/excel" download
-                            style="display: flex; align-items: center; gap: 8px; padding: 12px 16px; color: #1e293b; text-decoration: none; transition: background 0.2s; border-bottom: 1px solid #e5e7eb;">
-                            <i class="bi bi-file-earmark-excel" style="color: #10b981;"></i> Descargar Excel
-                        </a>
-                        <a href="http://localhost:3000/api/reportes/analytics/pdf" download
-                            style="display: flex; align-items: center; gap: 8px; padding: 12px 16px; color: #1e293b; text-decoration: none; transition: background 0.2s;">
-                            <i class="bi bi-file-earmark-pdf" style="color: #ef4444;"></i> Descargar PDF
-                        </a>
-                    </div>
+                <div class="flex items-center gap-3">
+                    <a id="exportBackup" href="/api/admin/backup" download
+                        class="btn-nav"
+                        style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);">
+                        <i class="bi bi-database-down"></i> Copia de Seguridad (SQL Global)
+                    </a>
+                    <a id="exportPdf" href="/api/reportes/analytics/pdf" download
+                        class="btn-nav"
+                        style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                        <i class="bi bi-file-earmark-pdf"></i> Reporte de Análisis (PDF)
+                    </a>
                 </div>
-                <button onclick="toggleDarkMode()" class="toggle-dark" aria-label="Alternar modo oscuro">
-                    <i class="bi bi-moon" id="themeIcon"></i>
+                
+                <!-- Reiniciar Análisis (Solo Admin) -->
+                <button onclick="resetAnalytics()" id="adminResetLink"
+                    class="bg-red-500 hover:bg-red-600 p-2 rounded-lg flex items-center justify-center transition duration-300 hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] hidden text-white"
+                    title="Reiniciar Análisis (Borrar historial)">
+                    <i class="bi bi-trash3-fill text-xl"></i>
                 </button>
+
+                <!-- Configuración (Solo Admin) -->
+                <a href="settings.html" id="adminSettingsLink"
+                    class="bg-white/20 hover:bg-white/30 p-2 rounded-lg flex items-center justify-center transition duration-300 hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] hidden"
+                    title="Configuraciones del sistema">
+                    <i class="bi bi-gear-fill text-xl"></i>
+                </a>
                 <div class="text-white">
                     <i class="bi bi-person-circle"></i>
                     <span id="userName">ADMIN</span>
@@ -297,7 +302,7 @@
             <h2 class="text-3xl font-bold flex items-center gap-2">
                 <i class="bi bi-graph-up-arrow"></i> Análisis de Ventas y Rendimiento
             </h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div class="card p-6"
                     style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
                     <div class="flex items-center justify-between">
@@ -332,6 +337,13 @@
                             <p class="text-xs opacity-75 mt-1"><span id="comprasUnidades">0</span> unidades</p>
                         </div>
                         <i class="bi bi-bag-plus text-5xl opacity-20"></i>
+                    </div>
+                </div>
+                <!-- Nueva Tarjeta: Salud del Inventario -->
+                <div class="card p-4 flex flex-col items-center justify-center relative bg-white dark:bg-gray-800">
+                    <h3 class="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 absolute top-3 left-4 uppercase tracking-wider">Salud Inventario</h3>
+                    <div style="height: 100px; width: 100px; margin-top: 10px;">
+                        <canvas id="healthChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -370,55 +382,24 @@
         </div>
     </div>
     <script>
-        const API_BASE_URL = 'http://localhost:3000';
-        function getAuthHeaders() {
-            const token = localStorage.getItem('token');
-            return {
-                'Authorization': 'Bearer ' + token,
-                'Content-Type': 'application/json'
-            };
-        }
-        function formatCurrency(value) {
-            return new Intl.NumberFormat('es-CO', {
-                style: 'currency',
-                currency: 'COP',
-                minimumFractionDigits: 0
-            }).format(value);
-        }
         function toggleDarkMode() {
             document.body.classList.toggle('dark-mode');
             const isDark = document.body.classList.contains('dark-mode');
             localStorage.setItem('darkMode', isDark);
             const icon = document.getElementById('themeIcon');
             icon.className = isDark ? 'bi bi-sun' : 'bi bi-moon';
+
+            // Recargar gráficos para actualizar colores de fuente
+            if (typeof loadAllAnalytics === 'function') loadAllAnalytics();
         }
 
-        function toggleExportMenu() {
-            const dropdown = document.getElementById('exportDropdown');
-            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
-        }
 
-        // Cerrar dropdown al hacer click fuera
-        document.addEventListener('click', function (event) {
-            const dropdown = document.getElementById('exportDropdown');
-            const button = event.target.closest('button[onclick="toggleExportMenu()"]');
-            if (!button && dropdown && dropdown.style.display === 'block') {
-                dropdown.style.display = 'none';
-            }
-        });
-
+        // Inicialización básica de UI (Tema)
         document.addEventListener('DOMContentLoaded', function () {
-            const userName = localStorage.getItem('userName');
-            if (userName) {
-                document.getElementById('userName').textContent = userName.toUpperCase();
-            }
             const darkMode = localStorage.getItem('darkMode') === 'true';
             if (darkMode) {
                 document.body.classList.add('dark-mode');
                 document.getElementById('themeIcon').className = 'bi bi-sun';
-            }
-            if (typeof loadAllAnalytics === 'function') {
-                loadAllAnalytics();
             }
         });
     </script>

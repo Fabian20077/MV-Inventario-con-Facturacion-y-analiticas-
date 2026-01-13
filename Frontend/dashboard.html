@@ -688,7 +688,18 @@
             box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2) !important;
         }
 
-        .text-gray-500 {
+        /* Estilos para checkbox */
+        .form-input[type="checkbox"] {
+            width: auto;
+            padding: 0;
+            cursor: pointer;
+            transform: scale(1.2);
+        }
+
+        /* Clase para ocultar elementos */
+        .hidden {
+            display: none !important;
+        }        .text-gray-500 {
             color: #64748b;
         }
 
@@ -1086,6 +1097,315 @@
         body.dark-mode .combobox-no-results {
             color: #94a3b8;
         }
+
+        /* ========================================
+           ESTILOS PARA CAMPANITA DE ALERTAS
+           ======================================== */
+
+        .alertas-container {
+            position: relative;
+        }
+
+        .btn-alertas {
+            position: relative;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            padding: 10px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: white;
+            font-size: 1.25rem;
+        }
+
+        .btn-alertas:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .btn-alertas.tiene-alertas {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-5px) rotate(-5deg);
+            }
+
+            75% {
+                transform: translateX(5px) rotate(5deg);
+            }
+        }
+
+        .alertas-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.5);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        .alertas-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            min-width: 350px;
+            max-width: 400px;
+            max-height: 500px;
+            overflow-y: auto;
+            z-index: 1000;
+            border: 1px solid rgba(226, 232, 240, 0.6);
+            animation: slideDown 0.3s ease-out;
+        }
+
+        body.dark-mode .alertas-dropdown {
+            background: rgba(42, 42, 71, 0.98);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        .alertas-dropdown.show {
+            display: block;
+        }
+
+        .alertas-header {
+            padding: 16px;
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        body.dark-mode .alertas-header {
+            color: #f1f5f9;
+            border-bottom-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .alertas-lista {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .alerta-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        body.dark-mode .alerta-item {
+            border-bottom-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .alerta-item:hover {
+            background: rgba(239, 246, 255, 0.8);
+        }
+
+        body.dark-mode .alerta-item:hover {
+            background: rgba(62, 62, 105, 0.5);
+        }
+
+        .alerta-item:last-child {
+            border-bottom: none;
+        }
+
+        .alerta-item.agotado {
+            border-left: 4px solid #ef4444;
+        }
+
+        .alerta-item.bajo {
+            border-left: 4px solid #f59e0b;
+        }
+
+        .alerta-nombre {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        body.dark-mode .alerta-nombre {
+            color: #f1f5f9;
+        }
+
+        .alerta-info {
+            font-size: 0.875rem;
+            color: #64748b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        body.dark-mode .alerta-info {
+            color: #94a3b8;
+        }
+
+        .alerta-stock {
+            font-weight: 600;
+        }
+
+        .alerta-stock.agotado {
+            color: #ef4444;
+        }
+
+        .alerta-stock.bajo {
+            color: #f59e0b;
+        }
+
+        .alertas-vacio {
+            padding: 40px 20px;
+            text-align: center;
+            color: #64748b;
+        }
+
+        body.dark-mode .alertas-vacio {
+            color: #94a3b8;
+        }
+
+        .alertas-vacio i {
+            font-size: 3rem;
+            margin-bottom: 12px;
+            opacity: 0.3;
+        }
+
+        /* Botón de marcar como vista */
+        .btn-marcar-vista {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #22c55e;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-marcar-vista:hover {
+            background: rgba(34, 197, 94, 0.2);
+            border-color: #22c55e;
+            transform: scale(1.1);
+        }
+
+        body.dark-mode .btn-marcar-vista {
+            background: rgba(34, 197, 94, 0.15);
+            border-color: rgba(34, 197, 94, 0.4);
+            color: #4ade80;
+        }
+
+        body.dark-mode .btn-marcar-vista:hover {
+            background: rgba(34, 197, 94, 0.25);
+            border-color: #4ade80;
+        }
+
+        /* Botón de marcar todas como vistas */
+        .btn-marcar-vistas-todo {
+            background: rgba(100, 116, 139, 0.1);
+            color: #64748b;
+            border: 1px dashed rgba(100, 116, 139, 0.3);
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.65rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            margin: 0 auto;
+        }
+
+        .btn-marcar-vistas-todo:hover {
+            background: rgba(100, 116, 139, 0.2);
+            color: #475569;
+            border-style: solid;
+        }
+
+        body.dark-mode .btn-marcar-vistas-todo {
+            background: rgba(148, 163, 184, 0.1);
+            color: #94a3b8;
+            border-color: rgba(148, 163, 184, 0.2);
+        }
+
+        /* Botón de mostrar todas */
+        .btn-mostrar-todas {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.7rem;
+            font-weight: 500;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-mostrar-todas:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+        }
+
+        body.dark-mode .btn-mostrar-todas {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        }
+
+        /* Enlace sutil eliminar historial */
+        .btn-eliminar-historial {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 0.6rem;
+            text-decoration: underline;
+            cursor: pointer;
+            margin-top: 8px;
+            opacity: 0.7;
+            transition: all 0.2s;
+            display: block;
+            width: 100%;
+            text-align: center;
+        }
+
+        .btn-eliminar-historial:hover {
+            opacity: 1;
+            color: #ef4444;
+        }
     </style>
 </head>
 
@@ -1110,35 +1430,11 @@
     <nav class="navbar p-4 text-white sticky top-0 z-50 relative">
         <div class="max-w-screen-2xl mx-auto flex justify-between items-center flex-wrap gap-4">
             <div class="flex items-center gap-3">
-                <img src="logo.jpg" alt="Logo de Inventario"
+                <img id="dashboardLogo" src="logo.jpg" alt="Logo de Inventario"
                     class="w-15 h-16 object-cover rounded-full shadow-md flex-shrink-0">
-                <h1 class="text-2xl font-bold">Inventario MV</h1>
+                <h1 id="companyName" class="text-2xl font-bold">Inventario MV</h1>
             </div>
             <div class="flex items-center gap-4">
-                <div class="relative">
-                    <button onclick="toggleReportsMenu()"
-                        class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg flex items-center gap-2 transition duration-300"
-                        aria-label="Descargar reportes" aria-haspopup="true">
-                        <i class="bi bi-file-earmark-pdf"></i>
-                        Reportes
-                        <i class="bi bi-chevron-down text-xs"></i>
-                    </button>
-                    <div id="reportsDropdown" class="dropdown-menu mt-2 right-0" role="menu">
-                        <a href="http://localhost:3000/api/reportes/productos/excel" download role="menuitem">
-                            <i class="bi bi-file-earmark-excel"></i> Productos (Excel)
-                        </a>
-                        <a href="http://localhost:3000/api/reportes/productos/csv" download role="menuitem">
-                            <i class="bi bi-file-earmark-csv"></i> Productos (CSV)
-                        </a>
-                        <a href="http://localhost:3000/api/reportes/movimientos/excel" download role="menuitem">
-                            <i class="bi bi-file-earmark-excel"></i> Movimientos (Excel)
-                        </a>
-                        <a href="http://localhost:3000/api/reportes/movimientos/csv" download role="menuitem">
-                            <i class="bi bi-file-earmark-csv"></i> Movimientos (CSV)
-                        </a>
-                    </div>
-                </div>
-
                 <a href="analytics.html"
                     class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg flex items-center gap-2 transition duration-300"
                     aria-label="Ver análisis">
@@ -1146,10 +1442,42 @@
                     Análisis
                 </a>
 
+                <a href="historial-precios.html"
+                    class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg flex items-center gap-2 transition duration-300"
+                    aria-label="Ver historial de precios">
+                    <i class="bi bi-clock-history"></i>
+                    Historial Precios
+                </a>
+
+                <!-- Campanita de Alertas -->
+                <div class="alertas-container">
+                    <button onclick="toggleAlertas()" class="btn-alertas" aria-label="Ver alertas de stock"
+                        title="Alertas de stock bajo">
+                        <i class="bi bi-bell"></i>
+                        <span id="alertasBadge" class="alertas-badge" style="display: none;">0</span>
+                    </button>
+                    <div id="alertasDropdown" class="alertas-dropdown">
+                        <div class="alertas-header">
+                            <span>🔔 Alertas de Stock</span>
+                            <span id="alertasCount" class="text-sm">0</span>
+                        </div>
+                        <div id="alertasLista" class="alertas-lista">
+                            <!-- Las alertas se cargarán aquí dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+
                 <button onclick="toggleDarkMode()" class="toggle-dark" aria-label="Alternar modo oscuro"
                     title="Alternar modo oscuro">
                     <i class="bi bi-moon" id="themeIcon"></i>
                 </button>
+
+                <!-- Configuración (Solo Admin) -->
+                <a href="settings.html" id="adminSettingsLink"
+                    class="bg-white/20 hover:bg-white/30 p-2 rounded-lg flex items-center justify-center transition duration-300 hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] hidden"
+                    title="Configuraciones del sistema">
+                    <i class="bi bi-gear-fill text-xl"></i>
+                </a>
 
                 <span id="userName" class="text-xl font-semibold uppercase">BIENVENIDO</span>
 
@@ -1229,21 +1557,21 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="flex flex-wrap justify-center gap-4 md:gap-6 items-center">
             <button onclick="openModal('productModal')"
-                class="btn-primary card p-6 text-center hover:shadow-lg transform hover:-translate-y-1 transition duration-300 animate-fade-in"
+                class="btn-primary card p-6 text-center hover:shadow-lg transform hover:-translate-y-1 transition duration-300 animate-fade-in w-full max-w-xs"
                 style="animation-delay: 0.7s;" aria-label="Crear nuevo producto">
                 <i class="bi bi-plus-circle text-3xl mb-2 transition-transform duration-300 hover:rotate-90"></i>
                 <p class="font-semibold mt-2">Nuevo Producto</p>
             </button>
             <button onclick="openModal('entradaModal')"
-                class="btn-primary card p-6 text-center hover:shadow-lg transform hover:-translate-y-1 transition duration-300 animate-fade-in"
+                class="btn-primary card p-6 text-center hover:shadow-lg transform hover:-translate-y-1 transition duration-300 animate-fade-in w-full max-w-xs"
                 style="animation-delay: 0.8s;" aria-label="Registrar entrada de productos">
                 <i class="bi bi-arrow-down-circle text-3xl mb-2 transition-transform duration-300 hover:scale-110"></i>
                 <p class="font-semibold mt-2">Registrar Entrada</p>
             </button>
             <button onclick="openModal('salidaModal')"
-                class="btn-primary card p-6 text-center hover:shadow-lg transform hover:-translate-y-1 transition duration-300 animate-fade-in"
+                class="btn-primary card p-6 text-center hover:shadow-lg transform hover:-translate-y-1 transition duration-300 animate-fade-in w-full max-w-xs"
                 style="animation-delay: 0.9s;" aria-label="Registrar salida de productos">
                 <i class="bi bi-arrow-up-circle text-3xl mb-2 transition-transform duration-300 hover:scale-110"></i>
                 <p class="font-semibold mt-2">Registrar Salida</p>
@@ -1319,13 +1647,13 @@
                 </div>
                 <div class="mb-4">
                     <label class="block text-sm font-semibold mb-2">Precio de Compra</label>
-                    <input type="number" id="editPrecioCompra" name="precio_compra" class="form-input"
-                        placeholder="0.00" step="0.01" required>
+                    <input type="text" id="editPrecioCompra" name="precio_compra" class="form-input" placeholder="0"
+                        oninput="applyPriceMask(this)" required>
                 </div>
                 <div class="mb-4">
                     <label class="block text-sm font-semibold mb-2">Precio de Venta</label>
-                    <input type="number" id="editPrecioVenta" name="precio_venta" class="form-input" placeholder="0.00"
-                        step="0.01" required>
+                    <input type="text" id="editPrecioVenta" name="precio_venta" class="form-input" placeholder="0"
+                        oninput="applyPriceMask(this)" required>
                 </div>
                 <div class="mb-4">
                     <label class="block text-sm font-semibold mb-2">Stock Actual</label>
@@ -1340,6 +1668,18 @@
                     <label class="block text-sm font-semibold mb-2">Ubicación</label>
                     <input type="text" id="editUbicacion" name="ubicacion" class="form-input"
                         placeholder="Ej: Estante A-1">
+                </div>
+                <div class="mb-4 hidden" id="editVencimientoContainer">
+                    <div class="flex items-center gap-3 mb-3">
+                        <input type="checkbox" id="editTieneVencimiento" name="tieneVencimiento" class="w-4 h-4 cursor-pointer">
+                        <label for="editTieneVencimiento" class="text-sm font-semibold cursor-pointer">¿Este producto tiene fecha de vencimiento?</label>
+                    </div>
+                    <div id="editFechaVencimientoField" class="hidden">
+                        <label class="block text-sm font-semibold mb-2">Fecha de Vencimiento</label>
+                        <input type="date" id="editFechaVencimiento" name="fecha_vencimiento" class="form-input">
+                        <p class="text-xs text-gray-500 mt-1">Selecciona la fecha de vencimiento del producto.</p>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">Los productos sin vencimiento se consideran no perecederos.</p>
                 </div>
                 <div class="mb-6">
                     <label class="block text-sm font-semibold mb-2">Categoría</label>
@@ -1382,16 +1722,17 @@
                 </div>
                 <div class="mb-4">
                     <label class="block text-sm font-semibold mb-2">Precio de Compra</label>
-                    <input type="number" name="precio_compra" class="form-input" placeholder="0.00" step="0.01"
-                        required>
+                    <input type="text" name="precio_compra" class="form-input" placeholder="0"
+                        oninput="applyPriceMask(this)" required>
                 </div>
                 <div class="mb-4">
                     <label class="block text-sm font-semibold mb-2">Precio de Venta</label>
-                    <input type="number" name="precio_venta" class="form-input" placeholder="0.00" step="0.01" required>
+                    <input type="text" name="precio_venta" class="form-input" placeholder="0"
+                        oninput="applyPriceMask(this)" required>
                 </div>
                 <div class="mb-4">
                     <label class="block text-sm font-semibold mb-2">Stock Inicial</label>
-                    <input type="number" name="cantidad" class="form-input" placeholder="0" required>
+                    <input type="number" name="cantidad" class="form-input" placeholder="0" min="0" required>
                 </div>
                 <div class="mb-4">
                     <label class="block text-sm font-semibold mb-2">Stock Mínimo</label>
@@ -1400,6 +1741,18 @@
                 <div class="mb-4">
                     <label class="block text-sm font-semibold mb-2">Ubicación</label>
                     <input type="text" name="ubicacion" class="form-input" placeholder="Ej: Estante A-1">
+                </div>
+                <div class="mb-4 hidden" id="createVencimientoContainer">
+                    <div class="flex items-center gap-3 mb-3">
+                        <input type="checkbox" id="tieneVencimiento" name="tieneVencimiento" class="w-4 h-4 cursor-pointer">
+                        <label for="tieneVencimiento" class="text-sm font-semibold cursor-pointer">¿Este producto tiene fecha de vencimiento?</label>
+                    </div>
+                    <div id="fechaVencimientoField" class="hidden">
+                        <label class="block text-sm font-semibold mb-2">Fecha de Vencimiento</label>
+                        <input type="date" name="fecha_vencimiento" class="form-input">
+                        <p class="text-xs text-gray-500 mt-1">Selecciona la fecha de vencimiento del producto.</p>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">Los productos sin vencimiento se consideran no perecederos.</p>
                 </div>
                 <div class="mb-6">
                     <label class="block text-sm font-semibold mb-2">Categoría</label>
@@ -1465,11 +1818,46 @@
                     <label class="block text-sm font-semibold mb-2">Cantidad</label>
                     <input type="number" name="cantidad" class="form-input" placeholder="0" min="1" required>
                 </div>
-                <div class="mb-6">
-                    <label class="block text-sm font-semibold mb-2">Motivo</label>
-                    <textarea name="motivo" class="form-input" rows="3"
-                        placeholder="Ej: Venta, devolución, etc."></textarea>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Motivo de Salida</label>
+                    <select name="motivo" id="motivoSalidaSelect" class="form-input" required>
+                        <option value="">Selecciona un motivo</option>
+                        <option value="Venta a Cliente">Venta a Cliente</option>
+                        <option value="Devolución">Devolución a Proveedor</option>
+                        <option value="Daño">Producto Dañado</option>
+                        <option value="Pérdida">Pérdida/Robo</option>
+                        <option value="Ajuste">Ajuste de Inventario</option>
+                        <option value="Otro">Otro</option>
+                    </select>
                 </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Observaciones</label>
+                    <textarea name="observaciones" class="form-input" rows="2"
+                        placeholder="Notas adicionales..."></textarea>
+                </div>
+
+                <!-- Checkbox para generar factura - Mejorado -->
+                <div class="mb-4 p-4 rounded-lg border-2 border-blue-400 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 transition-all duration-300 shadow-md">
+                    <div class="flex items-start gap-3">
+                        <input type="checkbox" id="generarFacturaSalida" class="w-6 h-6 cursor-pointer mt-1 accent-blue-600">
+                        <div class="flex-1">
+                            <label for="generarFacturaSalida" class="cursor-pointer block">
+                                <span class="font-bold text-base text-blue-900"><i class="bi bi-receipt-cutoff"></i> Generar Factura Electrónica</span>
+                                <p class="text-sm text-blue-700 mt-2 font-medium">✓ Se creará automáticamente al registrar la salida</p>
+                                <p class="text-xs text-blue-600 mt-1">📄 PDF listo para imprimir con todos los datos legales</p>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Campo cliente (se muestra si se marca factura) -->
+                <div class="mb-4 hidden p-4 bg-green-50 rounded-lg border-l-4 border-green-500 shadow-sm" id="clienteSalidaContainer">
+                    <label class="block text-sm font-bold mb-3 text-green-900"><i class="bi bi-person-check"></i> Nombre del Cliente *</label>
+                    <input type="text" id="clienteSalidaNombre" class="form-input border-2 border-green-300 focus:border-green-500 focus:ring-2 focus:ring-green-200" placeholder="Ej: Juan Pérez o Empresa XYZ" required>
+                    
+                    <p class="text-xs text-green-600 mt-3">📋 Los datos del negocio (dirección, teléfono) se cargaran automáticamente de la configuración</p>
+                </div>
+
                 <button type="submit" class="btn-primary w-full py-2">
                     <i class="bi bi-check-circle"></i> Registrar Salida
                 </button>
@@ -1499,20 +1887,41 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', initDarkMode);
-
-        function toggleReportsMenu() {
-            const dropdown = document.getElementById('reportsDropdown');
-            dropdown.classList.toggle('show');
+        // Cargar configuración de vencimiento
+        async function loadVencimientoConfig() {
+            try {
+                const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+                const response = await fetch('http://localhost:3000/api/configuracion/inventario.vencimiento.habilitado', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                if (result.success && result.data) {
+                    const habilitado = result.data['inventario.vencimiento.habilitado'];
+                    const display = (habilitado === true || habilitado === 'true') ? 'block' : 'none';
+                    document.getElementById('createVencimientoContainer').style.display = display;
+                    document.getElementById('editVencimientoContainer').style.display = display;
+                }
+            } catch (e) { console.error('Error config vencimiento:', e); }
         }
 
-        document.addEventListener('click', function (event) {
-            const dropdown = document.getElementById('reportsDropdown');
-            const button = event.target.closest('button');
-            if (!button && dropdown.classList.contains('show')) {
-                dropdown.classList.remove('show');
-            }
-        });
+        // Cargar identidad de la empresa
+        async function loadCompanyIdentity() {
+            try {
+                const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+                const response = await fetch('http://localhost:3000/api/configuracion', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                if (result.success && result.data) {
+                    if (result.data['empresa.nombre']) document.getElementById('companyName').textContent = result.data['empresa.nombre'];
+                    if (result.data['empresa.logo_path']) {
+                        document.getElementById('dashboardLogo').src = result.data['empresa.logo_path'] + '?t=' + Date.now();
+                    }
+                }
+            } catch (e) { console.error('Error loading identity:', e); }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => { initDarkMode(); loadVencimientoConfig(); loadCompanyIdentity(); });
 
         function openModal(modalId) {
             document.getElementById(modalId).style.display = 'block';

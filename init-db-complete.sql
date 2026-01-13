@@ -7,6 +7,7 @@
 USE inventario_ropa;
 
 -- Eliminar tablas existentes en orden correcto (por dependencias)
+DROP TABLE IF EXISTS historial_precio;
 DROP TABLE IF EXISTS movimientos_inventario;
 DROP TABLE IF EXISTS producto;
 DROP TABLE IF EXISTS categoria;
@@ -46,11 +47,11 @@ CREATE TABLE usuario (
     INDEX idx_rol (rol_id)
 );
 
--- Usuario admin con password: password123
--- NOTA: El hash se actualiza via script Node.js después del primer inicio
-INSERT INTO usuario (nombre, correo, password, rol_id) VALUES 
-('Admin', 'admin@mv.com', 'PLACEHOLDER_HASH_60_CHARS_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', 1),
-('Gerente Demo', 'gerente@mv.com', 'PLACEHOLDER_HASH_60_CHARS_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', 2);
+-- Usuario admin con password: admin123
+-- Usuario gerente con password: gerente123
+INSERT INTO usuario (nombre, correo, password, rol_id) VALUES
+('Admin', 'admin@mv.com', '$2b$10$cGds3o0Knwou4Xs/HB4e6uP50tWi3guEmVVcqqbqxoauXWXMCNIFtW', 1),
+('Gerente Demo', 'gerente@mv.com', '$2b$10$YlGOrTZeg0V/mHn5zgeTYe/eEvqqKw3NNnidj2JVGT8gcY/WQ/ehIG', 2);
 
 -- =====================================================
 -- TABLA DE CATEGORÍAS
@@ -78,14 +79,15 @@ CREATE TABLE producto (
     codigo VARCHAR(50) NOT NULL UNIQUE,
     nombre VARCHAR(200) NOT NULL,
     descripcion TEXT,
-    precio_compra DECIMAL(10,2) NOT NULL,
-    precio_venta DECIMAL(10,2) NOT NULL,
+    precio_compra DECIMAL(18,2) NOT NULL,
+    precio_venta DECIMAL(18,2) NOT NULL,
     cantidad INT NOT NULL DEFAULT 0,
     stock_minimo INT DEFAULT 10,
     ubicacion VARCHAR(100),
     id_categoria INT NOT NULL,
     activo BOOLEAN DEFAULT TRUE,
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_vencimiento DATE NULL COMMENT 'Fecha de vencimiento del producto (opcional)',
     FOREIGN KEY (id_categoria) REFERENCES categoria(id) ON DELETE RESTRICT,
     INDEX idx_codigo (codigo),
     INDEX idx_categoria (id_categoria),
@@ -138,6 +140,76 @@ INSERT INTO movimientos_inventario (id_producto, tipo, cantidad, motivo, usuario
 (8, 'entrada', 18, 'Stock inicial', 1),
 (9, 'entrada', 15, 'Stock inicial', 1),
 (10, 'entrada', 30, 'Stock inicial', 1);
+
+-- =====================================================
+-- TABLA DE HISTORIAL DE PRECIOS
+-- =====================================================
+CREATE TABLE IF NOT EXISTS historial_precio (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    producto_id INT NOT NULL,
+    precio_compra_anterior DECIMAL(18,2) NOT NULL,
+    precio_compra_nuevo DECIMAL(18,2) NOT NULL,
+    precio_venta_anterior DECIMAL(18,2) NOT NULL,
+    precio_venta_nuevo DECIMAL(18,2) NOT NULL,
+    usuario_id INT,
+    razon VARCHAR(255),
+    fecha_cambio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (producto_id) REFERENCES producto(id) ON DELETE CASCADE,
+    FOREIGN KEY (usuario_id) REFERENCES usuario(id) ON DELETE SET NULL,
+    INDEX idx_producto (producto_id),
+    INDEX idx_fecha (fecha_cambio)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- TABLA DE CONFIGURACIONES
+-- =====================================================
+CREATE TABLE IF NOT EXISTS configuracion (
+    clave VARCHAR(100) PRIMARY KEY,
+    valor TEXT NOT NULL,
+    tipo_dato ENUM('string', 'number', 'boolean', 'json') NOT NULL DEFAULT 'string',
+    categoria VARCHAR(50) NOT NULL COMMENT 'Agrupación para la UI (General, Seguridad, Finanzas, etc.)',
+    descripcion TEXT,
+    bloqueado BOOLEAN DEFAULT FALSE COMMENT 'Si es TRUE, no debe editarse desde la UI basica',
+    publico BOOLEAN DEFAULT TRUE COMMENT 'Si es TRUE, se puede exponer al frontend sin token de admin',
+    ultima_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    -- Indices para busqueda rapida por categoria
+    INDEX idx_categoria (categoria),
+    INDEX idx_bloqueado (bloqueado),
+    INDEX idx_publico (publico)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO configuracion (clave, valor, tipo_dato, categoria, descripcion, bloqueado, publico) VALUES
+-- EMPRESA
+('empresa.nombre', 'MV Inventario', 'string', 'General', 'Nombre oficial del negocio para reportes y facturas', FALSE, TRUE),
+('empresa.logo_url', '/assets/img/logo_default.png', 'string', 'General', 'Ruta al logo de la empresa', FALSE, TRUE),
+('empresa.direccion', '', 'string', 'General', 'Dirección del negocio para facturas y reportes', FALSE, TRUE),
+('empresa.telefono', '', 'string', 'General', 'Número de teléfono del negocio', FALSE, TRUE),
+('empresa.nit', '', 'string', 'General', 'NIT o número de identificación fiscal', FALSE, TRUE),
+('empresa.email', '', 'string', 'General', 'Correo electrónico del negocio', FALSE, TRUE),
+
+-- FINANZAS & IMPUESTOS
+('finanzas.impuestos.iva_porcentaje', '19', 'number', 'Finanzas', 'Porcentaje de IVA aplicado a las ventas (0 para exento)', FALSE, TRUE),
+('finanzas.calculo.iva_incluido', 'true', 'boolean', 'Finanzas', 'Define si los precios de venta ingresados ya incluyen el impuesto', FALSE, TRUE),
+('finanzas.calculo.decimales', '0', 'number', 'Finanzas', 'Cantidad de decimales a mostrar en pantallas y reportes', FALSE, TRUE),
+('finanzas.moneda.simbolo', '$', 'string', 'Finanzas', 'Simbolo de la moneda local', FALSE, TRUE),
+
+-- INVENTARIO
+('inventario.stock.alerta_global', '10', 'number', 'Inventario', 'Nivel de stock minimo por defecto para alertas preventivas', FALSE, TRUE),
+('inventario.stock.permitir_negativos', 'false', 'boolean', 'Inventario', 'Permite registrar salidas incluso si no hay stock disponible', TRUE, FALSE),
+
+-- GESTIÓN DE VENCIMIENTOS
+('inventario.vencimiento.habilitado', 'true', 'boolean', 'Inventario', 'Activar gestión de caducidad de productos', FALSE, TRUE),
+('inventario.vencimiento.dias_alerta', '30', 'number', 'Inventario', 'Días de anticipación para aviso de vencimiento (campanita)', FALSE, TRUE),
+('inventario.vencimiento.bloquear_venta', 'false', 'boolean', 'Inventario', 'Impedir venta de productos caducados', FALSE, TRUE),
+
+-- SEGURIDAD
+('seguridad.auth.token_expiracion', '24', 'number', 'Seguridad', 'Tiempo de vida del token de acceso en horas', TRUE, FALSE),
+('seguridad.usuarios.registro_abierto', 'false', 'boolean', 'Seguridad', 'Permitir el registro de nuevos usuarios desde el login', FALSE, TRUE)
+
+ON DUPLICATE KEY UPDATE
+    descripcion = VALUES(descripcion),
+    categoria = VALUES(categoria);
 
 -- =====================================================
 -- VERIFICACIÓN FINAL
