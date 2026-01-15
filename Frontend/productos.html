@@ -1,1 +1,673 @@
-﻿﻿
+﻿﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Productos - Inventario</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container-wrapper {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin-top: 30px;
+            margin-bottom: 30px;
+            padding: 30px;
+        }
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 20px;
+        }
+        .header-section h1 {
+            color: #333;
+            font-weight: 700;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header-section .btn-grupo {
+            display: flex;
+            gap: 10px;
+        }
+        .table-responsive {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .table thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .table-hover tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+        .badge-estado {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .badge-vigente {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .badge-vencido {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .stock-bajo {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        .stock-normal {
+            color: #28a745;
+            font-weight: 600;
+        }
+        .margin-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .margin-high {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .margin-medium {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .margin-low {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.85rem;
+        }
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .form-label {
+            font-weight: 600;
+            color: #333;
+        }
+        .form-control:focus,
+        .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .back-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        .back-button:hover {
+            transform: translateY(-2px);
+            color: white;
+            text-decoration: none;
+        }
+        .filter-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 10px;
+        }
+        .filter-section input,
+        .filter-section select {
+            margin-bottom: 10px;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .stat-card h5 {
+            margin: 0;
+            font-size: 0.9rem;
+        }
+        .stat-card .number {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 5px 0 0 0;
+        }
+        @media (max-width: 768px) {
+            .header-section {
+                flex-direction: column;
+                gap: 15px;
+                align-items: flex-start;
+            }
+            .header-section .btn-grupo {
+                width: 100%;
+                flex-direction: column;
+            }
+            .header-section .btn-grupo button {
+                width: 100%;
+            }
+            .table {
+                font-size: 0.85rem;
+            }
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-lg container-wrapper">
+        <!-- Header -->
+        <div class="header-section">
+            <h1>
+                <i class="bi bi-boxes"></i>
+                Gestión de Productos
+            </h1>
+            <div class="btn-grupo">
+                <a href="dashboard.html" class="back-button">
+                    <i class="bi bi-arrow-left"></i> Volver a Análisis
+                </a>
+                <button class="btn btn-success" id="btnNuevoProducto" data-bs-toggle="modal" data-bs-target="#modalProducto">
+                    <i class="bi bi-plus-lg"></i> Nuevo Producto
+                </button>
+            </div>
+        </div>
+
+        <!-- Estadísticas -->
+        <div class="row mb-4" id="estadisticas">
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <h5>Total Productos</h5>
+                    <p class="number" id="totalProductos">0</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <h5>Stock Bajo</h5>
+                    <p class="number" id="stockBajo">0</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <h5>Valor Inventario</h5>
+                    <p class="number" id="valorInventario">$0</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-card">
+                    <h5>Margen Promedio</h5>
+                    <p class="number" id="margenPromedio">0%</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filter-section">
+            <div class="row">
+                <div class="col-md-4">
+                    <input type="text" class="form-control" id="filtroNombre" placeholder="Buscar por nombre o código...">
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select" id="filtroCategoria">
+                        <option value="">Todas las categorías</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select" id="filtroEstado">
+                        <option value="">Todos los estados</option>
+                        <option value="VIGENTE">Vigente</option>
+                        <option value="VENCIDO">Vencido</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de Productos -->
+        <div class="table-responsive" id="tablaContenedor">
+            <div class="loading-spinner">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Crear/Editar Producto -->
+    <div class="modal fade" id="modalProducto" tabindex="-1" aria-labelledby="modalProductoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalProductoLabel">Nuevo Producto</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formProducto">
+                        <input type="hidden" id="productoId">
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="codigo" class="form-label">Código <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="codigo" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="nombre" class="form-label">Nombre <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="nombre" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="descripcion" class="form-label">Descripción</label>
+                            <textarea class="form-control" id="descripcion" rows="2"></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="categoria" class="form-label">Categoría <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="categoria" required>
+                                        <option value="">Seleccione categoría</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="ubicacion" class="form-label">Ubicación</label>
+                                    <input type="text" class="form-control" id="ubicacion">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="precioCompra" class="form-label">Precio Compra <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" id="precioCompra" step="0.01" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="precioVenta" class="form-label">Precio Venta <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" id="precioVenta" step="0.01" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="cantidad" class="form-label">Cantidad <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" id="cantidad" value="0" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="stockMinimo" class="form-label">Stock Mínimo</label>
+                                    <input type="number" class="form-control" id="stockMinimo" value="10">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="margenCalculado" class="form-label">Margen (%)</label>
+                                    <input type="text" class="form-control" id="margenCalculado" readonly>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="fechaVencimiento" class="form-label">Fecha de Vencimiento</label>
+                            <input type="date" class="form-control" id="fechaVencimiento">
+                        </div>
+
+                        <div class="alert alert-info d-none" id="margenInfo" role="alert">
+                            <i class="bi bi-info-circle"></i> El margen se calcula automáticamente como (Precio Venta - Precio Compra) / Precio Venta × 100
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnGuardarProducto">
+                        <i class="bi bi-check-lg"></i> Guardar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+
+    <script>
+        let modalProducto;
+        let productosFiltrados = [];
+        let productosOriginal = [];
+
+        // Inicializar
+        document.addEventListener('DOMContentLoaded', function() {
+            modalProducto = new bootstrap.Modal(document.getElementById('modalProducto'));
+            cargarProductos();
+            cargarCategorias();
+            configurarEventos();
+        });
+
+        function configurarEventos() {
+            // Calcular margen automáticamente
+            document.getElementById('precioCompra').addEventListener('change', calcularMargen);
+            document.getElementById('precioVenta').addEventListener('change', calcularMargen);
+
+            // Guardar producto
+            document.getElementById('btnGuardarProducto').addEventListener('click', guardarProducto);
+
+            // Filtros
+            document.getElementById('filtroNombre').addEventListener('keyup', aplicarFiltros);
+            document.getElementById('filtroCategoria').addEventListener('change', aplicarFiltros);
+            document.getElementById('filtroEstado').addEventListener('change', aplicarFiltros);
+
+            // Nuevo producto
+            document.getElementById('btnNuevoProducto').addEventListener('click', abrirNuevoProducto);
+        }
+
+        function calcularMargen() {
+            const precioCompra = parseFloat(document.getElementById('precioCompra').value) || 0;
+            const precioVenta = parseFloat(document.getElementById('precioVenta').value) || 0;
+
+            if (precioCompra > 0 && precioVenta > 0) {
+                const margen = ((precioVenta - precioCompra) / precioVenta * 100).toFixed(2);
+                document.getElementById('margenCalculado').value = margen + '%';
+                document.getElementById('margenInfo').classList.remove('d-none');
+            } else {
+                document.getElementById('margenCalculado').value = '';
+                document.getElementById('margenInfo').classList.add('d-none');
+            }
+        }
+
+        function cargarProductos() {
+            fetch('/api/productos')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Error al cargar productos');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    productosOriginal = data;
+                    productosFiltrados = [...data];
+                    renderizarTabla(data);
+                    calcularEstadisticas(data);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('tablaContenedor').innerHTML = `
+                        <div class="alert alert-danger" role="alert">
+                            <i class="bi bi-exclamation-triangle"></i> Error al cargar productos: ${error.message}
+                        </div>
+                    `;
+                });
+        }
+
+        function renderizarTabla(productos) {
+            if (productos.length === 0) {
+                document.getElementById('tablaContenedor').innerHTML = `
+                    <div class="alert alert-info text-center" role="alert">
+                        <i class="bi bi-inbox"></i> No hay productos registrados
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nombre</th>
+                            <th>Categoría</th>
+                            <th>Precio Compra</th>
+                            <th>Precio Venta</th>
+                            <th>Stock</th>
+                            <th>Stock Mín</th>
+                            <th>Margen</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            productos.forEach(producto => {
+                const margen = ((producto.precio_venta - producto.precio_compra) / producto.precio_venta * 100).toFixed(2);
+                const margenClass = margen >= 50 ? 'margin-high' : (margen >= 25 ? 'margin-medium' : 'margin-low');
+                const stockClass = producto.cantidad < producto.stock_minimo ? 'stock-bajo' : 'stock-normal';
+                const estado = producto.fecha_vencimiento && new Date(producto.fecha_vencimiento) < new Date() ? 'VENCIDO' : 'VIGENTE';
+                const estadoBadge = estado === 'VIGENTE' ? 'badge-vigente' : 'badge-vencido';
+
+                html += `
+                    <tr>
+                        <td><strong>${producto.codigo}</strong></td>
+                        <td>${producto.nombre}</td>
+                        <td>${producto.categoria_nombre || '-'}</td>
+                        <td>$${parseFloat(producto.precio_compra).toLocaleString('es-CO', {minimumFractionDigits: 0})}</td>
+                        <td>$${parseFloat(producto.precio_venta).toLocaleString('es-CO', {minimumFractionDigits: 0})}</td>
+                        <td class="${stockClass}">${producto.cantidad}</td>
+                        <td>${producto.stock_minimo}</td>
+                        <td><span class="margin-badge ${margenClass}">${margen}%</span></td>
+                        <td><span class="badge-estado ${estadoBadge}">${estado}</span></td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn btn-sm btn-primary" onclick="editarProducto(${producto.id})">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger" onclick="eliminarProducto(${producto.id}, '${producto.nombre}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    </tbody>
+                </table>
+            `;
+
+            document.getElementById('tablaContenedor').innerHTML = html;
+        }
+
+        function calcularEstadisticas(productos) {
+            const totalProductos = productos.length;
+            const stockBajo = productos.filter(p => p.cantidad < p.stock_minimo).length;
+            const valorInventario = productos.reduce((sum, p) => sum + (p.cantidad * p.precio_venta), 0);
+            const margenPromedio = productos.length > 0 
+                ? (productos.reduce((sum, p) => sum + ((p.precio_venta - p.precio_compra) / p.precio_venta * 100), 0) / productos.length).toFixed(2)
+                : 0;
+
+            document.getElementById('totalProductos').textContent = totalProductos;
+            document.getElementById('stockBajo').textContent = stockBajo;
+            document.getElementById('valorInventario').textContent = '$' + valorInventario.toLocaleString('es-CO', {minimumFractionDigits: 0});
+            document.getElementById('margenPromedio').textContent = margenPromedio + '%';
+        }
+
+        function cargarCategorias() {
+            fetch('/api/categorias')
+                .then(response => response.json())
+                .then(categorias => {
+                    const selectCategoria = document.getElementById('categoria');
+                    const filtroCategoria = document.getElementById('filtroCategoria');
+                    
+                    categorias.forEach(cat => {
+                        const option = `<option value="${cat.id}">${cat.nombre}</option>`;
+                        selectCategoria.innerHTML += option;
+                        filtroCategoria.innerHTML += option;
+                    });
+                })
+                .catch(error => console.error('Error al cargar categorías:', error));
+        }
+
+        function abrirNuevoProducto() {
+            document.getElementById('productoId').value = '';
+            document.getElementById('formProducto').reset();
+            document.getElementById('modalProductoLabel').textContent = 'Nuevo Producto';
+            document.getElementById('margenCalculado').value = '';
+            document.getElementById('margenInfo').classList.add('d-none');
+        }
+
+        function editarProducto(id) {
+            fetch(`/api/productos/${id}`)
+                .then(response => response.json())
+                .then(producto => {
+                    document.getElementById('productoId').value = producto.id;
+                    document.getElementById('codigo').value = producto.codigo;
+                    document.getElementById('nombre').value = producto.nombre;
+                    document.getElementById('descripcion').value = producto.descripcion || '';
+                    document.getElementById('categoria').value = producto.id_categoria;
+                    document.getElementById('ubicacion').value = producto.ubicacion || '';
+                    document.getElementById('precioCompra').value = producto.precio_compra;
+                    document.getElementById('precioVenta').value = producto.precio_venta;
+                    document.getElementById('cantidad').value = producto.cantidad;
+                    document.getElementById('stockMinimo').value = producto.stock_minimo;
+                    document.getElementById('fechaVencimiento').value = producto.fecha_vencimiento ? producto.fecha_vencimiento.split(' ')[0] : '';
+                    document.getElementById('modalProductoLabel').textContent = 'Editar Producto';
+                    calcularMargen();
+                    modalProducto.show();
+                })
+                .catch(error => {
+                    Swal.fire('Error', 'No se pudo cargar el producto', 'error');
+                });
+        }
+
+        function guardarProducto() {
+            const id = document.getElementById('productoId').value;
+            const datos = {
+                codigo: document.getElementById('codigo').value,
+                nombre: document.getElementById('nombre').value,
+                descripcion: document.getElementById('descripcion').value,
+                id_categoria: document.getElementById('categoria').value,
+                ubicacion: document.getElementById('ubicacion').value,
+                precio_compra: parseFloat(document.getElementById('precioCompra').value),
+                precio_venta: parseFloat(document.getElementById('precioVenta').value),
+                cantidad: parseInt(document.getElementById('cantidad').value),
+                stock_minimo: parseInt(document.getElementById('stockMinimo').value),
+                fecha_vencimiento: document.getElementById('fechaVencimiento').value || null
+            };
+
+            const metodo = id ? 'PUT' : 'POST';
+            const url = id ? `/api/productos/${id}` : '/api/productos';
+
+            fetch(url, {
+                method: metodo,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                },
+                body: JSON.stringify(datos)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error al guardar producto');
+                }
+                return response.json();
+            })
+            .then(() => {
+                Swal.fire('Éxito', id ? 'Producto actualizado' : 'Producto creado', 'success');
+                modalProducto.hide();
+                cargarProductos();
+            })
+            .catch(error => {
+                Swal.fire('Error', error.message, 'error');
+            });
+        }
+
+        function eliminarProducto(id, nombre) {
+            Swal.fire({
+                title: '¿Eliminar producto?',
+                text: `¿Está seguro que desea eliminar "${nombre}"?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Eliminar',
+                cancelButtonText: 'Cancelar'
+            }).then(result => {
+                if (result.isConfirmed) {
+                    fetch(`/api/productos/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': 'Bearer ' + localStorage.getItem('token')
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Error al eliminar producto');
+                        }
+                        Swal.fire('Eliminado', 'Producto eliminado correctamente', 'success');
+                        cargarProductos();
+                    })
+                    .catch(error => {
+                        Swal.fire('Error', error.message, 'error');
+                    });
+                }
+            });
+        }
+
+        function aplicarFiltros() {
+            const filtroNombre = document.getElementById('filtroNombre').value.toLowerCase();
+            const filtroCategoria = document.getElementById('filtroCategoria').value;
+            const filtroEstado = document.getElementById('filtroEstado').value;
+
+            productosFiltrados = productosOriginal.filter(producto => {
+                const coincideNombre = !filtroNombre || 
+                    producto.nombre.toLowerCase().includes(filtroNombre) || 
+                    producto.codigo.toLowerCase().includes(filtroNombre);
+                
+                const coincideCategoria = !filtroCategoria || 
+                    producto.id_categoria == filtroCategoria;
+                
+                const estado = producto.fecha_vencimiento && new Date(producto.fecha_vencimiento) < new Date() ? 'VENCIDO' : 'VIGENTE';
+                const coincideEstado = !filtroEstado || estado === filtroEstado;
+
+                return coincideNombre && coincideCategoria && coincideEstado;
+            });
+
+            renderizarTabla(productosFiltrados);
+            calcularEstadisticas(productosFiltrados);
+        }
+    </script>
+</body>
+</html>
