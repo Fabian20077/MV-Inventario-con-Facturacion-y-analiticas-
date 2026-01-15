@@ -2498,10 +2498,22 @@ async function startServer() {
     try {
         console.log('🚀 Iniciando MV Inventario - Backend...');
 
-        // 1. Probar conexión a la base de datos
-        const dbConnected = await testConnection();
+        // 1. Probar conexión a la base de datos (Con reintentos)
+        let dbConnected = false;
+        const maxRetries = 20;
+
+        for (let i = 0; i < maxRetries; i++) {
+            dbConnected = await testConnection();
+            if (dbConnected) {
+                console.log('✅ Conexión a base de datos establecida.');
+                break;
+            }
+            console.log(`⏳ Esperando a la base de datos... (Intento ${i + 1}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+
         if (!dbConnected) {
-            console.error('❌ No se pudo establecer conexión con la base de datos. Abortando...');
+            console.error('❌ No se pudo establecer conexión con la base de datos tras varios intentos. Abortando...');
             process.exit(1);
         }
 

@@ -1,11 +1,46 @@
-# Dependencias
+# Dependencias de Node
 node_modules/
-
-# Variables de entorno y logs
-.env
 npm-debug.log
-*.log
+yarn-error.log
+package-lock.json
 
-# Sistema operativo
+# Archivos de entorno
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
 Thumbs.db
+
+# Archivos de build/dist
+dist/
+build/
+
+# Archivos temporales
+.tmp/
+temp/
+*.tmp
+
+# Base de datos local (si aplica)
+*.db
+*.sqlite
+
+# Uploads y archivos generados
+uploads/
+assets/uploads/
+
+# Docker
+.dockerignore
