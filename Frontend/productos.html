@@ -8,18 +8,33 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
     <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --bg-light: #ffffff;
+            --text-dark: #333333;
+            --border-color: #e0e0e0;
+        }
+
+        body.dark-mode {
+            --bg-light: #1e1e2e;
+            --text-dark: #e0e0e0;
+            --border-color: #404050;
+        }
+
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary-gradient);
             min-height: 100vh;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-dark);
         }
         .container-wrapper {
-            background: rgba(255, 255, 255, 0.95);
+            background: var(--bg-light);
             border-radius: 15px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             margin-top: 30px;
             margin-bottom: 30px;
             padding: 30px;
+            color: var(--text-dark);
         }
         .header-section {
             display: flex;
@@ -28,29 +43,39 @@
             margin-bottom: 30px;
             border-bottom: 2px solid #667eea;
             padding-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
         }
         .header-section h1 {
-            color: #333;
+            color: var(--text-dark);
             font-weight: 700;
             margin: 0;
             display: flex;
             align-items: center;
             gap: 10px;
+            font-size: 2rem;
         }
         .header-section .btn-grupo {
             display: flex;
             gap: 10px;
+            flex-wrap: wrap;
         }
         .table-responsive {
             border-radius: 10px;
             overflow: hidden;
         }
+        .table {
+            color: var(--text-dark);
+        }
         .table thead {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary-gradient);
             color: white;
         }
+        .table tbody tr {
+            border-bottom: 1px solid var(--border-color);
+        }
         .table-hover tbody tr:hover {
-            background-color: #f8f9fa;
+            background-color: rgba(102, 126, 234, 0.1);
         }
         .badge-estado {
             padding: 6px 12px;
@@ -108,20 +133,30 @@
             height: 3rem;
         }
         .modal-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary-gradient);
             color: white;
+        }
+        .modal-content {
+            background: var(--bg-light);
+            color: var(--text-dark);
         }
         .form-label {
             font-weight: 600;
-            color: #333;
+            color: var(--text-dark);
         }
-        .form-control:focus,
-        .form-select:focus {
+        .form-control, .form-select {
+            background: var(--bg-light);
+            color: var(--text-dark);
+            border: 1px solid var(--border-color);
+        }
+        .form-control:focus, .form-select:focus {
             border-color: #667eea;
             box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+            background: var(--bg-light);
+            color: var(--text-dark);
         }
         .back-button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary-gradient);
             color: white;
             border: none;
             padding: 8px 16px;
@@ -135,11 +170,27 @@
             color: white;
             text-decoration: none;
         }
+        .btn-new {
+            background: var(--primary-gradient);
+            color: white !important;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        .btn-new:hover {
+            transform: translateY(-2px);
+            color: white !important;
+            text-decoration: none;
+        }
         .filter-section {
             margin-bottom: 20px;
             padding: 15px;
-            background-color: #f8f9fa;
+            background: rgba(102, 126, 234, 0.05);
             border-radius: 10px;
+            border: 1px solid var(--border-color);
         }
         .filter-section input,
         .filter-section select {
@@ -148,9 +199,10 @@
         .action-buttons {
             display: flex;
             gap: 5px;
+            flex-wrap: wrap;
         }
         .stat-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary-gradient);
             color: white;
             padding: 15px;
             border-radius: 10px;
@@ -166,17 +218,61 @@
             font-weight: 700;
             margin: 5px 0 0 0;
         }
+        .dark-mode-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--primary-gradient);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .dark-mode-toggle:hover {
+            opacity: 0.9;
+        }
+        .btn-edit, .btn-delete {
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-edit {
+            background-color: #0d6efd;
+            color: white;
+        }
+        .btn-edit:hover {
+            background-color: #0b5ed7;
+            transform: scale(1.05);
+        }
+        .btn-delete {
+            background-color: #dc3545;
+            color: white;
+        }
+        .btn-delete:hover {
+            background-color: #bb2d3b;
+            transform: scale(1.05);
+        }
         @media (max-width: 768px) {
             .header-section {
                 flex-direction: column;
                 gap: 15px;
                 align-items: flex-start;
             }
+            .header-section h1 {
+                font-size: 1.5rem;
+            }
             .header-section .btn-grupo {
                 width: 100%;
                 flex-direction: column;
             }
-            .header-section .btn-grupo button {
+            .header-section .btn-grupo button,
+            .header-section .btn-grupo a {
                 width: 100%;
             }
             .table {
@@ -185,22 +281,30 @@
             .action-buttons {
                 flex-direction: column;
             }
+            .btn-edit, .btn-delete {
+                width: 100%;
+            }
         }
     </style>
 </head>
 <body>
+    <!-- Dark Mode Toggle -->
+    <button class="dark-mode-toggle" id="darkModeBtn">
+        <i class="bi bi-moon"></i> Modo Oscuro
+    </button>
+
     <div class="container-lg container-wrapper">
         <!-- Header -->
         <div class="header-section">
             <h1>
                 <i class="bi bi-boxes"></i>
-                Gestión de Productos
+                Todos los Productos
             </h1>
             <div class="btn-grupo">
                 <a href="dashboard.html" class="back-button">
                     <i class="bi bi-arrow-left"></i> Volver a Análisis
                 </a>
-                <button class="btn btn-success" id="btnNuevoProducto" data-bs-toggle="modal" data-bs-target="#modalProducto">
+                <button class="btn-new" id="btnNuevoProducto" data-bs-toggle="modal" data-bs-target="#modalProducto">
                     <i class="bi bi-plus-lg"></i> Nuevo Producto
                 </button>
             </div>
@@ -378,6 +482,29 @@
         let productosFiltrados = [];
         let productosOriginal = [];
 
+        // Dark mode
+        const darkModeBtn = document.getElementById('darkModeBtn');
+
+        // Cargar preferencia de dark mode
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+            darkModeBtn.innerHTML = '<i class="bi bi-sun"></i> Modo Claro';
+        }
+
+        darkModeBtn.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('darkMode', isDark);
+            darkModeBtn.innerHTML = isDark 
+                ? '<i class="bi bi-sun"></i> Modo Claro' 
+                : '<i class="bi bi-moon"></i> Modo Oscuro';
+        });
+
+        // Obtener token
+        function getToken() {
+            return localStorage.getItem('token');
+        }
+
         // Inicializar
         document.addEventListener('DOMContentLoaded', function() {
             modalProducto = new bootstrap.Modal(document.getElementById('modalProducto'));
@@ -418,10 +545,16 @@
         }
 
         function cargarProductos() {
-            fetch('/api/productos')
+            const token = getToken();
+            fetch('/api/productos', {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            })
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Error al cargar productos');
+                        throw new Error('Error al cargar productos: ' + response.status);
                     }
                     return response.json();
                 })
@@ -433,11 +566,7 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    document.getElementById('tablaContenedor').innerHTML = `
-                        <div class="alert alert-danger" role="alert">
-                            <i class="bi bi-exclamation-triangle"></i> Error al cargar productos: ${error.message}
-                        </div>
-                    `;
+                    Swal.fire('Error', error.message, 'error');
                 });
         }
 
@@ -490,11 +619,11 @@
                         <td><span class="badge-estado ${estadoBadge}">${estado}</span></td>
                         <td>
                             <div class="action-buttons">
-                                <button class="btn btn-sm btn-primary" onclick="editarProducto(${producto.id})">
-                                    <i class="bi bi-pencil"></i>
+                                <button class="btn-edit" onclick="editarProducto(${producto.id})" title="Editar">
+                                    <i class="bi bi-pencil"></i> Editar
                                 </button>
-                                <button class="btn btn-sm btn-danger" onclick="eliminarProducto(${producto.id}, '${producto.nombre}')">
-                                    <i class="bi bi-trash"></i>
+                                <button class="btn-delete" onclick="eliminarProducto(${producto.id}, '${producto.nombre}', '${producto.codigo}')" title="Eliminar">
+                                    <i class="bi bi-trash"></i> Eliminar
                                 </button>
                             </div>
                         </td>
@@ -525,7 +654,12 @@
         }
 
         function cargarCategorias() {
-            fetch('/api/categorias')
+            const token = getToken();
+            fetch('/api/categorias', {
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            })
                 .then(response => response.json())
                 .then(categorias => {
                     const selectCategoria = document.getElementById('categoria');
@@ -549,7 +683,12 @@
         }
 
         function editarProducto(id) {
-            fetch(`/api/productos/${id}`)
+            const token = getToken();
+            fetch(`/api/productos/${id}`, {
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            })
                 .then(response => response.json())
                 .then(producto => {
                     document.getElementById('productoId').value = producto.id;
@@ -589,12 +728,13 @@
 
             const metodo = id ? 'PUT' : 'POST';
             const url = id ? `/api/productos/${id}` : '/api/productos';
+            const token = getToken();
 
             fetch(url, {
                 method: metodo,
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                    'Authorization': 'Bearer ' + token
                 },
                 body: JSON.stringify(datos)
             })
@@ -614,22 +754,23 @@
             });
         }
 
-        function eliminarProducto(id, nombre) {
+        function eliminarProducto(id, nombre, codigo) {
             Swal.fire({
                 title: '¿Eliminar producto?',
-                text: `¿Está seguro que desea eliminar "${nombre}"?`,
+                text: `¿Está seguro que desea eliminar "${codigo} - ${nombre}"?`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#dc3545',
                 cancelButtonColor: '#6c757d',
-                confirmButtonText: 'Eliminar',
+                confirmButtonText: 'Sí, eliminar',
                 cancelButtonText: 'Cancelar'
             }).then(result => {
                 if (result.isConfirmed) {
+                    const token = getToken();
                     fetch(`/api/productos/${id}`, {
                         method: 'DELETE',
                         headers: {
-                            'Authorization': 'Bearer ' + localStorage.getItem('token')
+                            'Authorization': 'Bearer ' + token
                         }
                     })
                     .then(response => {
