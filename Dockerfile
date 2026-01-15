@@ -1,13 +1,22 @@
 FROM node:18-alpine
 
+# Instalar dependencias necesarias para módulos nativos
+RUN apk add --no-cache python3 make g++ cairo-dev jpeg-dev pango-dev giflib-dev pixman-dev
+
 WORKDIR /app
 
 COPY package*.json ./
 
-RUN npm install
+RUN npm ci --only=production && npm cache clean --force
 
 COPY . .
 
+# Crear directorio de logs
+RUN mkdir -p /app/logs
+
 EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})" || exit 1
 
 CMD ["node", "server.js"]
