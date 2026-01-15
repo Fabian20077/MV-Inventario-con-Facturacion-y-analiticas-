@@ -35,9 +35,13 @@ services:
       DB_USER: root
       DB_PASSWORD: outside1234
       DB_NAME: inventario_ropa
+      DB_PORT: 3306
       APP_NAME: MV Inventario
       APP_VERSION: 1.0.0
       CORS_ORIGIN: http://localhost:8080
+      JWT_SECRET: tu_clave_secreta_super_segura_2026_inventario_mv
+      JWT_EXPIRES_IN: 24h
+      APP_TIMEZONE: America/Guatemala
     depends_on:
       db:
         condition: service_healthy
