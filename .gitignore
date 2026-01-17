@@ -1,46 +1,662 @@
-# Dependencias de Node
+# Dependencies
 node_modules/
-npm-debug.log
-yarn-error.log
-package-lock.json
 
-# Archivos de entorno
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# Environment
 .env
 .env.local
-.env.*.local
+*.env.*
 
-# Logs
-logs/
-*.log
-*.log.*
-
-# IDE
+# Editors
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
 
-# OS
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Build outputs
+dist/
+build/
+target/
+
+# Compressed files
+*.zip
+*.gz
+*.tar
+*.tgz
+*.bz2
+*.xz
+*.7z
+*.rar
+*.zst
+*.lz4
+*.lzh
+*.cab
+*.arj
+*.rpm
+*.deb
+*.Z
+*.lz
+*.lzo
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.zst
+
+# Coverage reports
+coverage/
+htmlcov/
+.coverage
+
+# MyPy cache
+.mypy_cache/
+
+# PyTest cache
+.pytest_cache/
+
+# Gradle
+.gradle/
+
+# Julia
+julia-*/
+
+# Zig
+zig*/
+
+# System files
 .DS_Store
 Thumbs.db
 
-# Archivos de build/dist
-dist/
-build/
+# Database migration backups (if any)
+*.sql.bak
+*.sql.backup
 
-# Archivos temporales
-.tmp/
-temp/
+# Additional JavaScript/Node artifacts
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Source maps
+*.map
+
+# Production builds
+public/dist/
+static/dist/
+assets/dist/
+
+# Temporary files
 *.tmp
+*.temp
+*.bak
+*.backup
 
-# Base de datos local (si aplica)
-*.db
-*.sqlite
+# IDE specific
+.vs/
+.vsc/
+.project
+.classpath
+.settings/
 
-# Uploads y archivos generados
-uploads/
-assets/uploads/
+# OS generated files
+ehthumbs.db
+Icon?
+._*
 
-# Docker
-.dockerignore
+# Testing
+testem.log
+coverage.xml
+
+# Documentation
+docs/_build/
+
+# Distribution / packaging
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Local configuration
+config/local.*
+!config/default.js
+
+# Bower components
+bower_components/
+
+# Jspm
+jspm_packages/
+
+# Grunt intermediate storage
+.grunt
+
+# Gulp
+.gulp
+
+# Webpack
+.webpack/
+
+# Browser-sync
+.browser-sync/
+
+# Nuxt.js
+.nuxt/
+dist/
+
+# Vue.js
+.vuepress/dist
+.output
+
+# Next.js
+.next/
+out/
+
+# Svelte
+.svelte-kit/
+
+# Angular
+.angular/
+
+# React
+*.hot-update.json
+*.hot-update.js
+
+# Cordova
+hooks/
+platforms/
+plugins/
+
+# Ionic
+ionic_*/
+
+# PhoneGap
+PhoneGap/
+.phonegap/
+
+# Electron
+electron/
+
+# Meteor
+.meteor/local/
+
+# Ember
+.ember-cli
+tmp/
+temp/
+
+# Laravel
+vendor/
+
+# Symfony
+var/
+app/cache/
+app/logs/
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Rails
+*.gem
+/.bundle/
+/Gemfile.lock
+/log/*
+/tmp/*
+/db/*.sqlite3
+/db/*.sqlite3-journal
+/public/system/*
+/coverage/
+/spec/tmp/*
+*.pdb
+*.sass-cache
+.rspec
+Guardfile
+.Rakefile
+.capistrano/
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# C/C++
+*.o
+*.a
+*.obj
+*.out
+*.ilk
+*.manifest
+*.res
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+hs_err_pid*
+
+# Scala
+*.class
+*.log
+*.lock
+.libs/
+.libs.bak/
+
+# Clojure
+*.class
+*.clj_compiled
+target/
+.checkouts
+.clj-kondo/
+
+# PHP
+*.phar
+.php_cs.cache
+.php_cs.dist.cache
+!.php_cs
+!.php_cs.dist
+
+# Ruby
+*.gem
+/.bundle/
+/Gemfile.lock
+/bin
+/vendor/bundle
+/vendor/cache
+/vendor/gems
+/vendor/ruby
+
+# Rust
+Cargo.lock
+/target/
+
+# Elixir
+mix.lock
+.erlang.cookie
+.eunit
+*.beam
+*.plt
+*.xref
+ebin/
+_saved_elixir_history
+
+# Erlang
+.erlang.cookie
+.eunit
+*.beam
+*.plt
+*.xref
+ebin/
+
+# Perl
+*.out
+*.swp
+*.swo
+blib/
+Makefile
+Makefile.old
+pm_to_blib/
+pm_to_blib.ts
+*.o
+*.a
+cover_db/
+inc/
+_build/
+
+# OCaml
+*.run
+*.native
+*.byte
+*.cmo
+*.cmi
+*.cmx
+*.cma
+*.cmxa
+*.annot
+*.spot
+*.spit
+*.p.cmo
+*.p.cmx
+*.p.o
+*.cache
+*.heap
+*.exe
+*.com
+*.link.d
+*.syntax
+*.cmo.ml
+*.cmx.ml
+*.cmi.ml
+*.cmt
+*.cmti
+*.cma
+*.cmxa
+*.cmxs
+*.mli
+*.mll
+*.mly
+*.re
+*.rei
+*.ml
+*.mli
+*.re
+*.rei
+_build/
+*.install
+.opam
+.dune/
+.dune-build-dir/
+
+# Haskell
+*.o
+*.hi
+*.chi
+*.chs.h
+*.dyn_o
+*.dyn_hi
+*.prof
+*.aux
+*.hp
+*.eventlog
+*.ps
+*.pdf
+*.dump
+*.orig
+*.rej
+*.toc
+*.vrb
+*.lot
+*.lof
+*.glo
+*.idx
+*.ilg
+*.ind
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.nav
+*.snm
+*.vrb
+*.tdo
+*.ist
+*.glg
+*.gls
+*.acr
+*.alg
+*.acr
+*.glg
+*.gls
+*.xdy
+*.fls
+*.fdb_latexmk
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.run.xml
+*.synctex
+*.synctex.gz
+*.tex~
+*~
+
+dist-newstyle/
+.cabal-sandbox/
+cabal.sandbox.config
+*.cabal!
+
+# R
+*.Rhistory
+*.RData
+*.rds
+*.Rproj.user/
+.Rproj.user/
+.Rprofile.swp
+.Rapp.history
+.Ruserdata/
+.Renviron.swp
+.Rbuildignore
+
+# MATLAB
+*.fig
+*.mat
+*.mex*
+*.prj
+slprj/
+sldrt/
+*.asv
+autosave/
+profile_default/
+
+# Objective-C
+*.o
+*.la
+*.lo
+*.dylib
+*.so
+*.so.*
+*.dll
+*.framework/
+*.kext
+*.bundle
+*.xcodeproj/
+*.xcworkspace/
+*.xcworkspacedata
+*.xcsettings
+*.xcuserstate
+project.xcworkspace/
+xcuserdata/
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.playground/
+DerivedData/
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM/
+
+# Swift
+*.swiftpm
+Package.resolved
+
+# C#
+*.sln
+*.csproj
+*.user
+*.suo
+*.pdb
+*.userprefs
+*.cache
+*.vcxproj.filters
+*.VC.db
+*.VC.VC.opendb
+*.aps
+*.ncb
+*.ilk
+*.meta
+*.pidb
+*.prefab
+*.booproj
+*.unityproj
+*.sln.docstates
+*.userosscache
+*.suo.sav
+*.pidb.meta
+*.prefab.meta
+*.unity.meta
+Build/
+Library/
+Temp/
+Obj/
+Logs/
+UserSettings/
+
+# Unity
+Assets/AssetStoreTools/
+Packages/packages-lock.json
+
+# Qt
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.moc
+*.moc.cpp
+*.qm
+*.prl
+*.pri
+*.pch
+*.gch
+*.bbappdata
+*.qmlc
+*.jsc
+*.jic
+*.jcc
+*.jpc
+*.jmc
+*.jtc
+*.jhc
+*.jlc
+*.jvc
+*.jfc
+*.jgc
+*.jkc
+*.jlc
+*.jmc
+*.jpc
+*.jtc
+*.jhc
+*.jlc
+*.jvc
+*.jfc
+*.jgc
+*.jkc
+*.jlc
+*.jmc
+*.jpc
+*.jtc
+*.jhc
+*.jlc
+*.jvc
+*.jfc
+*.jgc
+*.jkc
+*.jlc
+*.jmc
+*.jpc
+*.jtc
+*.jhc
+*.jlc
+*.jvc
+*.jfc
+*.jgc
+*.jkc
+*.jlc
+*.jmc
+*.jpc
+*.jtc
+*.jhc
+*.jlc
+*.jvc
+*.jfc
+*.jgc
+*.jkc
+*.jlc
+*.jmc
+*.jpc
+*.jtc
+*.jhc
+*.jlc
+*.jvc
+*.jfc
+*.jgc
+*.jkc
+*.jlc
+*.jmc
+*.jpc
+*.jtc
+*.jhc
+*.jlc
+*.jvc
+*.jfc
+*.jgc
+*.jkc
+*.jlc
+*.jmc
+*.jpc
+*.jtc
+*.jhc
+*.jlc
+*.jvc
+*.jfc
+*.jgc
+*.jkc
+*.jlc
+*.jmc
+*.jpc
+*.jtc
+*.jhc
+*.jlc
+*.jvc
+*.jfc
+*.jgc
+*.jkc
+*.jlc
+*.jmc
+*.jpc
+*.jtc
+*.jhc
+*.jlc
+*.jvc
+*.jfc
+*.jgc
+*.jkc
+*.jlc
+*.jmc
+*.jpc
+*.jtc
+*.jhc
+*.jlc
+*.jvc
+*.jfc
+*.jgc
+*.jkc
+*.jlc
+*.jmc
+*.jpc
+*.jtc
+*.jhc
+*.jlc
+*.jvc
+*.jfc
+*.jgc
+*.jkc
+*.jlc
+*.jmc
+*.jpc
+*.jtc
+*.jhc
+*.jlc
+*.jvc
+*.jfc
+*.jgc
+*.jkc
+*.jlc
+*.jmc
+*.jpc......

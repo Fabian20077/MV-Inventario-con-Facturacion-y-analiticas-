@@ -185,7 +185,7 @@ router.get('/facturas/:id', async (req, res) => {
  */
 router.post('/facturas', async (req, res) => {
     try {
-        const { cliente_id, items, forma_pago, observaciones } = req.body;
+        const { cliente_id, items, forma_pago, observaciones, impuesto_id } = req.body;
 
         if (!items || items.length === 0) {
             return res.status(400).json({
@@ -199,7 +199,8 @@ router.post('/facturas', async (req, res) => {
             usuario_id: req.user.id,
             items,
             forma_pago,
-            observaciones
+            observaciones,
+            impuesto_id
         });
 
         res.status(201).json({

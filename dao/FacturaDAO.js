@@ -63,7 +63,8 @@ class FacturaDAO {
      * @param {Object} datosFactura - Datos de la factura
      * @param {number} datosFactura.usuario_id - ID del usuario que emite
      * @param {Array} datosFactura.detalles - Array de detalles {producto_id, cantidad}
-     * @param {number} datosFactura.iva_porcentaje - Porcentaje de IVA
+     * @param {number} datosFactura.iva_porcentaje - Porcentaje de IVA (opcional, se usará si no se proporciona impuesto_id)
+     * @param {number} datosFactura.impuesto_id - ID del impuesto a aplicar (opcional)
      * @param {string} datosFactura.cliente_nombre - Nombre del cliente/consumidor
      * @param {string} datosFactura.observaciones - Notas adicionales
      * @returns {Promise<Object>} Factura creada con ID
@@ -74,7 +75,14 @@ class FacturaDAO {
         try {
             await conexion.beginTransaction();
 
-            const { usuario_id, detalles, iva_porcentaje = 19, observaciones = '', cliente_nombre = 'Cliente General' } = datosFactura;
+            const { 
+                usuario_id, 
+                detalles, 
+                iva_porcentaje = 0, 
+                impuesto_id = null,
+                observaciones = '', 
+                cliente_nombre = 'Cliente General' 
+            } = datosFactura;
 
             // 1. Obtener número de factura
             const numeroFactura = await this.obtenerProximoNumeroFactura();
@@ -108,15 +116,66 @@ class FacturaDAO {
             }
 
             // 3. Calcular impuesto
-            const ivaMonto = Math.round(subtotal * (iva_porcentaje / 100));
-            const total = subtotal + ivaMonto;
+            let impuestoMonto = 0;
+            let impuestoNombre = '';
+            let impuestoPorcentaje = 0;
+            let impuestoValorFijo = 0;
+            let impuestoTipo = '';
+
+            if (impuesto_id) {
+                // Si se proporciona un ID de impuesto, obtener sus datos
+                const [impuestoRows] = await conexion.query(
+                    'SELECT nombre, tipo, porcentaje, valor_fijo FROM impuestos WHERE id = ?',
+                    [impuesto_id]
+                );
+                
+                if (impuestoRows.length > 0) {
+                    const impuesto = impuestoRows[0];
+                    impuestoNombre = impuesto.nombre;
+                    impuestoTipo = impuesto.tipo;
+                    impuestoPorcentaje = parseFloat(impuesto.porcentaje);
+                    impuestoValorFijo = parseFloat(impuesto.valor_fijo);
+                    
+                    // Calcular impuesto según el tipo
+                    if (impuesto.tipo === 'porcentaje') {
+                        impuestoMonto = subtotal * (impuestoPorcentaje / 100);
+                    } else if (impuesto.tipo === 'fijo') {
+                        impuestoMonto = impuestoValorFijo;
+                    } else if (impuesto.tipo === 'mixto') {
+                        impuestoMonto = (subtotal * (impuestoPorcentaje / 100)) + impuestoValorFijo;
+                    }
+                }
+            } else if (iva_porcentaje > 0) {
+                // Si no hay impuesto_id pero hay iva_porcentaje, usar el sistema antiguo
+                impuestoMonto = subtotal * (iva_porcentaje / 100);
+                impuestoNombre = 'IVA';
+                impuestoPorcentaje = iva_porcentaje;
+                impuestoTipo = 'porcentaje';
+            }
+
+            // Redondear impuesto
+            impuestoMonto = Math.round(impuestoMonto);
+            const total = subtotal + impuestoMonto;
 
             // 4. Crear factura
             const [resultFactura] = await conexion.query(
                 `INSERT INTO factura 
-                 (numero_factura, usuario_id, cliente_nombre, subtotal, iva_porcentaje, iva_monto, total, observaciones, estado) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'emitida')`,
-                [numeroFactura, usuario_id, cliente_nombre, subtotal, iva_porcentaje, ivaMonto, total, observaciones]
+                 (numero_factura, usuario_id, cliente_nombre, subtotal, impuesto_id, impuesto_nombre, impuesto_tipo, impuesto_porcentaje, impuesto_valor_fijo, impuesto_monto, total, observaciones, estado) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'emitida')`,
+                [
+                    numeroFactura, 
+                    usuario_id, 
+                    cliente_nombre, 
+                    subtotal, 
+                    impuesto_id, 
+                    impuestoNombre, 
+                    impuestoTipo, 
+                    impuestoPorcentaje, 
+                    impuestoValorFijo, 
+                    impuestoMonto, 
+                    total, 
+                    observaciones
+                ]
             );
 
             const facturaId = resultFactura.insertId;
@@ -157,8 +216,12 @@ class FacturaDAO {
                 usuario_id,
                 cliente_nombre,
                 subtotal,
-                iva_porcentaje,
-                iva_monto: ivaMonto,
+                impuesto_id,
+                impuesto_nombre: impuestoNombre,
+                impuesto_tipo: impuestoTipo,
+                impuesto_porcentaje: impuestoPorcentaje,
+                impuesto_valor_fijo: impuestoValorFijo,
+                impuesto_monto: impuestoMonto,
                 total,
                 detalles: detallesConPrecio,
                 observaciones,

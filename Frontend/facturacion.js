@@ -12,7 +12,7 @@
 
 const API_BASE = '/api';
 let productosFacura = [];
-let ivaConfigurable = 19;
+let ivaConfigurable = 19;  // Mantener por compatibilidad
 let tokenActual = localStorage.getItem('authToken');
 
 // ==================== INICIALIZACIÓN ====================
@@ -207,7 +207,12 @@ function eliminarProducto(indice) {
 
 function calcularTotales() {
     const subtotal = productosFacura.reduce((sum, p) => sum + (p.precio_venta * p.cantidad), 0);
-    const iva = Math.round(subtotal * (ivaConfigurable / 100));
+    
+    // Obtener el impuesto activo desde la configuración o por defecto
+    const impuestoGlobal = window.impuestosConfig && window.impuestosConfig.activo ? 
+                          window.impuestosConfig.porcentaje || 0 : 0;
+    
+    const iva = Math.round(subtotal * (impuestoGlobal / 100));
     const total = subtotal + iva;
 
     document.getElementById('subtotal-valor').textContent = `$${subtotal.toLocaleString('es-CO')}`;
@@ -228,11 +233,20 @@ async function emitirFactura() {
         cantidad: p.cantidad
     }));
 
+    // Determinar si usar impuesto global o no
+    const usarImpuestoGlobal = window.impuestosConfig && window.impuestosConfig.activo;
     const payload = {
         detalles,
-        iva_porcentaje: ivaConfigurable,
         observaciones: document.getElementById('observaciones').value
     };
+
+    // Si hay impuestos activos, incluir el ID del impuesto
+    if (usarImpuestoGlobal && window.impuestosConfig.impuesto_id) {
+        payload.impuesto_id = window.impuestosConfig.impuesto_id;
+    } else if (usarImpuestoGlobal) {
+        // Si no hay impuesto específico pero está activo, usar el porcentaje general
+        payload.iva_porcentaje = window.impuestosConfig.porcentaje || 0;
+    }
 
     const btnEmitir = event.target;
     btnEmitir.disabled = true;
@@ -254,7 +268,7 @@ async function emitirFactura() {
         }
 
         const data = await response.json();
-        const factura = data.factura;
+        const factura = data.data;
 
         // Mostrar modal
         document.getElementById('modal-numero-factura').textContent = factura.numero_factura;
@@ -359,17 +373,62 @@ function imprimirFactura() {
 
 async function cargarConfiguracionIVA() {
     try {
-        const response = await fetch(`${API_BASE}/configuracion/finanzas.impuestos.iva_porcentaje`, {
+        // Primero intentar cargar la configuración global de impuestos
+        const response = await fetch(`${API_BASE}/configuracion/finanzas.impuesto.habilitado`, {
             headers: { 'Authorization': `Bearer ${tokenActual}` }
         });
 
         if (response.ok) {
             const data = await response.json();
-            ivaConfigurable = parseFloat(data.valor) || 19;
-            document.getElementById('iva-porcentaje').textContent = ivaConfigurable;
+            const impuestoHabilitado = data.valor === 'true' || data.valor === true || data.valor === 1;
+            
+            if (impuestoHabilitado) {
+                // Cargar el porcentaje de impuesto
+                const porcentajeResponse = await fetch(`${API_BASE}/configuracion/finanzas.impuesto.porcentaje`, {
+                    headers: { 'Authorization': `Bearer ${tokenActual}` }
+                });
+                
+                if (porcentajeResponse.ok) {
+                    const porcentajeData = await porcentajeResponse.json();
+                    const porcentaje = parseFloat(porcentajeData.valor) || 0;
+                    
+                    // Guardar configuración global de impuestos
+                    window.impuestosConfig = {
+                        activo: true,
+                        porcentaje: porcentaje
+                    };
+                    
+                    document.getElementById('iva-porcentaje').textContent = porcentaje;
+                } else {
+                    // Si no se puede cargar el porcentaje, usar el valor por defecto
+                    window.impuestosConfig = {
+                        activo: true,
+                        porcentaje: 19
+                    };
+                    document.getElementById('iva-porcentaje').textContent = '19';
+                }
+            } else {
+                window.impuestosConfig = {
+                    activo: false,
+                    porcentaje: 0
+                };
+                document.getElementById('iva-porcentaje').textContent = '0';
+            }
+        } else {
+            // Si no se puede cargar la configuración, usar valores por defecto
+            window.impuestosConfig = {
+                activo: false,
+                porcentaje: 0
+            };
+            document.getElementById('iva-porcentaje').textContent = '0';
         }
     } catch (error) {
-        console.warn('No se pudo cargar IVA, usando default 19%');
+        console.warn('No se pudo cargar la configuración de impuestos, usando valores por defecto');
+        window.impuestosConfig = {
+            activo: false,
+            porcentaje: 0
+        };
+        document.getElementById('iva-porcentaje').textContent = '0';
     }
 }
 

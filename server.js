@@ -1073,9 +1073,280 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // ==================== FACTURACIÓN ====================
+    // ==================== IMPUESTOS ====================
 
-    // Crear factura
+    // Listar impuestos
+    if (req.url === '/api/impuestos' && req.method === 'GET') {
+        try {
+            if (!authenticateToken(req)) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, message: 'No autorizado' }));
+                return;
+            }
+
+            const impuestos = await ImpuestoDAO.obtenerTodos();
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                data: impuestos
+            }));
+        } catch (error) {
+            console.error('Error al listar impuestos:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                error: error.message
+            }));
+        }
+        return;
+    }
+
+    // Obtener impuesto por ID
+    if (req.url.startsWith('/api/impuestos/') && req.method === 'GET' && !req.url.includes('/api/impuestos')) {
+        try {
+            if (!authenticateToken(req)) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, message: 'No autorizado' }));
+                return;
+            }
+
+            const id = req.url.split('/')[3];
+            const impuesto = await ImpuestoDAO.obtenerPorId(id);
+            
+            if (!impuesto) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    error: 'Impuesto no encontrado'
+                }));
+                return;
+            }
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                data: impuesto
+            }));
+        } catch (error) {
+            console.error('Error al obtener impuesto:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                error: error.message
+            }));
+        }
+        return;
+    }
+
+    // Crear impuesto
+    if (req.url === '/api/impuestos' && req.method === 'POST') {
+        try {
+            if (!authenticateToken(req)) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, message: 'No autorizado' }));
+                return;
+            }
+
+            const body = await parseBody(req);
+            const { nombre, tipo, porcentaje = 0, valor_fijo = 0, activo = true } = body;
+
+            if (!nombre || !tipo) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    error: 'Nombre y tipo son requeridos'
+                }));
+                return;
+            }
+
+            // Validar tipo de impuesto
+            const tiposValidos = ['porcentaje', 'fijo', 'mixto'];
+            if (!tiposValidos.includes(tipo.toLowerCase())) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    error: 'Tipo de impuesto no válido. Debe ser: porcentaje, fijo o mixto'
+                }));
+                return;
+            }
+
+            // Validar que porcentaje y valor_fijo sean números válidos
+            const porc = parseFloat(porcentaje) || 0;
+            const valFijo = parseFloat(valor_fijo) || 0;
+
+            if (porc < 0 || valFijo < 0) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    error: 'Porcentaje y valor fijo deben ser números positivos'
+                }));
+                return;
+            }
+
+            const impuesto = await ImpuestoDAO.crear({
+                nombre,
+                tipo: tipo.toLowerCase(),
+                porcentaje: porc,
+                valor_fijo: valFijo,
+                activo: Boolean(activo)
+            });
+
+            res.writeHead(201, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                data: impuesto,
+                message: 'Impuesto creado exitosamente'
+            }));
+        } catch (error) {
+            console.error('Error al crear impuesto:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                error: error.message
+            }));
+        }
+        return;
+    }
+
+    // Actualizar impuesto
+    if (req.url.startsWith('/api/impuestos/') && req.method === 'PUT') {
+        try {
+            if (!authenticateToken(req)) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, message: 'No autorizado' }));
+                return;
+            }
+
+            const id = req.url.split('/')[3];
+            const body = await parseBody(req);
+            const { nombre, tipo, porcentaje, valor_fijo, activo } = body;
+
+            const impuestoExistente = await ImpuestoDAO.obtenerPorId(id);
+            if (!impuestoExistente) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    error: 'Impuesto no encontrado'
+                }));
+                return;
+            }
+
+            // Validar tipo de impuesto
+            if (tipo) {
+                const tiposValidos = ['porcentaje', 'fijo', 'mixto'];
+                if (!tiposValidos.includes(tipo.toLowerCase())) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                        success: false,
+                        error: 'Tipo de impuesto no válido. Debe ser: porcentaje, fijo o mixto'
+                    }));
+                    return;
+                }
+            }
+
+            // Validar que porcentaje y valor_fijo sean números válidos
+            let porc = impuestoExistente.porcentaje;
+            let valFijo = impuestoExistente.valor_fijo;
+
+            if (porcentaje !== undefined) {
+                porc = parseFloat(porcentaje);
+                if (isNaN(porc) || porc < 0) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                        success: false,
+                        error: 'Porcentaje debe ser un número positivo'
+                    }));
+                    return;
+                }
+            }
+
+            if (valor_fijo !== undefined) {
+                valFijo = parseFloat(valor_fijo);
+                if (isNaN(valFijo) || valFijo < 0) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({
+                        success: false,
+                        error: 'Valor fijo debe ser un número positivo'
+                    }));
+                    return;
+                }
+            }
+
+            const impuesto = await ImpuestoDAO.actualizar(id, {
+                nombre: nombre || impuestoExistente.nombre,
+                tipo: tipo ? tipo.toLowerCase() : impuestoExistente.tipo,
+                porcentaje: porc,
+                valor_fijo: valFijo,
+                activo: activo !== undefined ? Boolean(activo) : impuestoExistente.activo
+            });
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                data: impuesto,
+                message: 'Impuesto actualizado exitosamente'
+            }));
+        } catch (error) {
+            console.error('Error al actualizar impuesto:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                error: error.message
+            }));
+        }
+        return;
+    }
+
+    // Eliminar impuesto (desactivar)
+    if (req.url.startsWith('/api/impuestos/') && req.method === 'DELETE') {
+        try {
+            if (!authenticateToken(req)) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, message: 'No autorizado' }));
+                return;
+            }
+
+            const id = req.url.split('/')[3];
+            const impuesto = await ImpuestoDAO.obtenerPorId(id);
+            
+            if (!impuesto) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    error: 'Impuesto no encontrado'
+                }));
+                return;
+            }
+
+            // Verificar si está en uso
+            const enUso = await ImpuestoDAO.estaEnUso(id);
+            if (enUso) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    error: 'No se puede eliminar el impuesto porque está en uso en facturas'
+                }));
+                return;
+            }
+
+            await ImpuestoDAO.eliminar(id);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                message: 'Impuesto desactivado exitosamente'
+            }));
+        } catch (error) {
+            console.error('Error al eliminar impuesto:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                error: error.message
+            }));
+        }
+        return;
+    }
     if (req.url === '/api/facturas' && req.method === 'POST') {
         try {
             if (!authenticateToken(req)) {
@@ -1085,7 +1356,7 @@ const server = http.createServer(async (req, res) => {
             }
 
             const body = await parseBody(req);
-            const { detalles, iva_porcentaje = 19, observaciones = '' } = body;
+            const { detalles, iva_porcentaje = 0, impuesto_id = null, observaciones = '' } = body;
 
             if (!detalles || !Array.isArray(detalles) || detalles.length === 0) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -1134,9 +1405,47 @@ const server = http.createServer(async (req, res) => {
                 });
             }
 
-            // Calcular IVA
-            const ivaMonto = Math.round(subtotal * (iva_porcentaje / 100));
-            const total = subtotal + ivaMonto;
+            // Calcular impuesto
+            let impuestoMonto = 0;
+            let impuestoNombre = '';
+            let impuestoPorcentaje = 0;
+            let impuestoValorFijo = 0;
+            let impuestoTipo = '';
+
+            if (impuesto_id) {
+                // Si se proporciona un ID de impuesto, obtener sus datos
+                const impuestoRows = await query(
+                    'SELECT nombre, tipo, porcentaje, valor_fijo FROM impuestos WHERE id = ?',
+                    [impuesto_id]
+                );
+                
+                if (impuestoRows.length > 0) {
+                    const impuesto = impuestoRows[0];
+                    impuestoNombre = impuesto.nombre;
+                    impuestoTipo = impuesto.tipo;
+                    impuestoPorcentaje = parseFloat(impuesto.porcentaje);
+                    impuestoValorFijo = parseFloat(impuesto.valor_fijo);
+                    
+                    // Calcular impuesto según el tipo
+                    if (impuesto.tipo === 'porcentaje') {
+                        impuestoMonto = subtotal * (impuestoPorcentaje / 100);
+                    } else if (impuesto.tipo === 'fijo') {
+                        impuestoMonto = impuestoValorFijo;
+                    } else if (impuesto.tipo === 'mixto') {
+                        impuestoMonto = (subtotal * (impuestoPorcentaje / 100)) + impuestoValorFijo;
+                    }
+                }
+            } else if (iva_porcentaje > 0) {
+                // Si no hay impuesto_id pero hay iva_porcentaje, usar el sistema antiguo
+                impuestoMonto = subtotal * (iva_porcentaje / 100);
+                impuestoNombre = 'IVA';
+                impuestoPorcentaje = iva_porcentaje;
+                impuestoTipo = 'porcentaje';
+            }
+
+            // Redondear impuesto
+            impuestoMonto = Math.round(impuestoMonto);
+            const total = subtotal + impuestoMonto;
 
             // Obtener usuario desde token
             const authHeader = req.headers['authorization'];
@@ -1153,8 +1462,8 @@ const server = http.createServer(async (req, res) => {
 
             // Crear factura
             const resultFactura = await query(
-                `INSERT INTO factura (numero_factura, usuario_id, subtotal, iva_porcentaje, iva_monto, total, observaciones, estado) VALUES (?, ?, ?, ?, ?, ?, ?, 'emitida')`,
-                [numeroFactura, usuario_id, subtotal, iva_porcentaje, ivaMonto, total, observaciones]
+                `INSERT INTO factura (numero_factura, usuario_id, subtotal, impuesto_id, impuesto_nombre, impuesto_tipo, impuesto_porcentaje, impuesto_valor_fijo, impuesto_monto, total, observaciones, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'emitida')`,
+                [numeroFactura, usuario_id, subtotal, impuesto_id, impuestoNombre, impuestoTipo, impuestoPorcentaje, impuestoValorFijo, impuestoMonto, total, observaciones]
             );
 
             const facturaId = resultFactura.insertId;
@@ -1183,8 +1492,12 @@ const server = http.createServer(async (req, res) => {
                     fecha_emision: new Date(),
                     usuario_id,
                     subtotal,
-                    iva_porcentaje,
-                    iva_monto: ivaMonto,
+                    impuesto_id,
+                    impuesto_nombre: impuestoNombre,
+                    impuesto_tipo: impuestoTipo,
+                    impuesto_porcentaje: impuestoPorcentaje,
+                    impuesto_valor_fijo: impuestoValorFijo,
+                    impuesto_monto: impuestoMonto,
                     total,
                     detalles: detallesConPrecio,
                     estado: 'emitida'

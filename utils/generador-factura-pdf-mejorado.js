@@ -201,10 +201,11 @@ class GeneradorFacturaPDF {
         doc.moveDown();
 
         // IVA (si aplica)
-        if (factura.impuesto > 0) {
-            doc.text('IVA (19%):', colLabel, doc.y, { width: 40 });
+        if (factura.impuesto_monto > 0 && factura.impuesto_nombre) {
+            const impuestoLabel = `${factura.impuesto_nombre} (${factura.impuesto_porcentaje}%):`;
+            doc.text(impuestoLabel, colLabel, doc.y, { width: 40 });
             doc.text(
-                factura.impuesto.toLocaleString('es-CO', { 
+                factura.impuesto_monto.toLocaleString('es-CO', { 
                     style: 'currency', 
                     currency: 'COP',
                     minimumFractionDigits: 0,
