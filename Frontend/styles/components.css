@@ -1,0 +1,616 @@
+/* ============================================
+   COMPONENTES REUTILIZABLES - Estilos Compartidos
+   ============================================ */
+
+/* ============================================
+   NAVBAR / HEADER UNIFICADO
+   ============================================ */
+
+.navbar {
+    background: var(--primary-gradient) !important;
+    box-shadow: var(--shadow-md);
+    padding: var(--spacing-lg) var(--spacing-xl);
+    border-bottom: none;
+}
+
+.navbar-brand {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: white !important;
+    letter-spacing: -0.5px;
+}
+
+.navbar-nav .nav-link {
+    color: rgba(255, 255, 255, 0.85) !important;
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    transition: all var(--transition-fast);
+    margin: 0 var(--spacing-sm);
+}
+
+.navbar-nav .nav-link:hover {
+    color: white !important;
+    opacity: 1;
+}
+
+.navbar-nav .nav-link.active {
+    color: white !important;
+    border-bottom: 2px solid white;
+    padding-bottom: 4px;
+}
+
+/* ============================================
+   INPUTS Y BÚSQUEDA CON ICONO DE LUPA
+   ============================================ */
+
+.search-container {
+    position: relative;
+    width: 100%;
+    max-width: 300px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 10px 14px 10px 36px;
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-base);
+    background: var(--bg-light);
+    color: var(--text-dark);
+    transition: all var(--transition-fast);
+}
+
+.search-input:focus {
+    border-color: var(--primary-start);
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.1);
+    outline: none;
+}
+
+.search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: var(--font-size-base);
+    pointer-events: none;
+}
+
+/* ============================================
+   CARDS MINIMALISTAS (KPI)
+   ============================================ */
+
+.card-kpi {
+    background: var(--bg-light);
+    border: 1px solid var(--border-color-subtle);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-normal);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.card-kpi:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-4px);
+}
+
+.card-kpi-icon {
+    font-size: var(--font-size-xl);
+    color: var(--primary-start);
+    margin-bottom: var(--spacing-md);
+    opacity: 0.85;
+    transition: opacity var(--transition-fast);
+}
+
+.card-kpi:hover .card-kpi-icon {
+    opacity: 1;
+}
+
+.card-kpi-label {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--spacing-sm);
+}
+
+.card-kpi-value {
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    color: var(--text-dark);
+    margin: 0;
+}
+
+.card-kpi-subtitle {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+    margin-top: var(--spacing-sm);
+    font-weight: 400;
+}
+
+/* ============================================
+   TABLA COMPACTA (15% reducción de padding)
+   ============================================ */
+
+.table-compact th,
+.table-compact td {
+    padding: var(--spacing-lg) var(--spacing-md) !important;
+    font-size: var(--font-size-sm);
+}
+
+.table-compact thead th {
+    padding: var(--spacing-md) var(--spacing-md) !important;
+    background: var(--primary-gradient) !important;
+    color: white !important;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+}
+
+.table-compact tbody tr {
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color var(--transition-fast);
+}
+
+.table-compact tbody tr:hover {
+    background-color: rgba(102, 126, 234, 0.06);
+}
+
+/* ============================================
+   PAGINACIÓN ELEGANTE
+   ============================================ */
+
+.pagination {
+    gap: var(--spacing-sm);
+}
+
+.pagination .page-link {
+    border: 1px solid var(--border-color);
+    color: var(--primary-start);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    font-size: var(--font-size-sm);
+    transition: all var(--transition-fast);
+}
+
+.pagination .page-link:hover {
+    background: rgba(102, 126, 234, 0.08);
+    border-color: var(--primary-start);
+    color: var(--primary-start);
+}
+
+.pagination .page-item.active .page-link {
+    background: var(--primary-gradient);
+    border-color: transparent;
+}
+
+/* ============================================
+   ALERTAS Y NOTIFICACIONES
+   ============================================ */
+
+.alert {
+    border: none;
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    border-left: 4px solid;
+}
+
+.alert-success {
+    background: rgba(40, 167, 69, 0.08);
+    border-left-color: var(--status-success);
+    color: var(--status-success-text, #155724);
+}
+
+.alert-danger {
+    background: rgba(220, 53, 69, 0.08);
+    border-left-color: var(--status-danger);
+    color: #721c24;
+}
+
+.alert-warning {
+    background: rgba(245, 158, 11, 0.08);
+    border-left-color: var(--status-warning);
+    color: #856404;
+}
+
+.alert-info {
+    background: rgba(59, 130, 246, 0.08);
+    border-left-color: var(--status-info);
+    color: #003366;
+}
+
+/* ============================================
+   BUTTONS CON HOVER SUTIL
+   ============================================ */
+
+.btn {
+    border-radius: var(--radius-sm);
+    padding: 8px 16px;
+    font-weight: 600;
+    font-size: var(--font-size-base);
+    transition: all var(--transition-fast);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    border: none;
+}
+
+.btn-primary {
+    background: var(--primary-gradient);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    color: white;
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--primary-start);
+    border: 2px solid var(--primary-start);
+}
+
+.btn-outline:hover {
+    background: rgba(102, 126, 234, 0.08);
+    transform: translateY(-2px);
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: var(--font-size-sm);
+}
+
+.btn-xs {
+    padding: 4px 8px;
+    font-size: var(--font-size-xs);
+}
+
+/* ============================================
+   DROPDOWNS UNIFICADOS
+   ============================================ */
+
+.dropdown-menu {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    padding: var(--spacing-sm) 0;
+}
+
+.dropdown-item {
+    color: var(--text-dark);
+    padding: var(--spacing-md) var(--spacing-lg);
+    transition: all var(--transition-fast);
+    font-size: var(--font-size-base);
+}
+
+.dropdown-item:hover {
+    background: rgba(102, 126, 234, 0.08);
+    color: var(--primary-start);
+}
+
+.dropdown-divider {
+    border-color: var(--border-color);
+    margin: var(--spacing-sm) 0;
+}
+
+/* ============================================
+   VALIDACIÓN DE FORMULARIOS
+   ============================================ */
+
+.form-control.is-invalid,
+.form-select.is-invalid {
+    border-color: var(--status-danger);
+}
+
+.form-control.is-invalid:focus,
+.form-select.is-invalid:focus {
+    border-color: var(--status-danger);
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.1);
+}
+
+.form-control.is-valid,
+.form-select.is-valid {
+    border-color: var(--status-success);
+}
+
+.form-control.is-valid:focus,
+.form-select.is-valid:focus {
+    border-color: var(--status-success);
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.1);
+}
+
+.invalid-feedback,
+.valid-feedback {
+    font-size: var(--font-size-sm);
+    display: block;
+    margin-top: 4px;
+}
+
+/* ============================================
+   MODALES Y OVERLAYS
+   ============================================ */
+
+.modal-header {
+    background: var(--primary-gradient);
+    color: white;
+    padding: var(--spacing-lg);
+    border-bottom: none;
+}
+
+.modal-header .btn-close {
+    filter: invert(1) brightness(2);
+}
+
+.modal-body {
+    padding: var(--spacing-lg);
+}
+
+.modal-footer {
+    padding: var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
+}
+
+.modal-content {
+    border: none;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+}
+
+/* ============================================
+   TOOLTIPS
+   ============================================ */
+
+.tooltip-inner {
+    background: var(--primary-gradient);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}
+
+.tooltip.show {
+    opacity: 1;
+}
+
+/* ============================================
+   SKELETON LOADER
+   ============================================ */
+
+.skeleton {
+    background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    border-radius: var(--radius-sm);
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* ============================================
+   STATUS BADGES COMPACTOS (Sin cambios en estructura)
+   ============================================ */
+
+.badge-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    gap: var(--spacing-sm);
+    white-space: nowrap;
+}
+
+.badge-pill.entrada {
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--status-info);
+}
+
+.badge-pill.salida {
+    background: rgba(220, 53, 69, 0.15);
+    color: var(--status-danger);
+}
+
+.badge-pill.vigente {
+    background: rgba(40, 167, 69, 0.15);
+    color: var(--status-success);
+}
+
+.badge-pill.vencido {
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--status-warning);
+}
+
+.badge-pill.publico {
+    background: rgba(102, 126, 234, 0.15);
+    color: var(--primary-start);
+}
+
+/* ============================================
+   TABLAS SLIM & COMPACT (Mayor densidad)
+   ============================================ */
+
+.table-slim tbody tr {
+    height: 40px;
+}
+
+.table-slim td {
+    padding: 8px 12px !important;
+    font-size: 0.875rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.table-slim th {
+    padding: 10px 12px !important;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.12);
+}
+
+/* ============================================
+   BOTONES COMPACTOS (Standard Height)
+   ============================================ */
+
+.btn-compact {
+    height: 40px;
+    padding: 0 16px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ============================================
+   PILLS / BADGES SLIM
+   ============================================ */
+
+.badge-pill-sm {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    gap: 4px;
+}
+
+.badge-pill-sm.low-stock {
+    background: rgba(220, 53, 69, 0.15);
+    color: #ff6b6b;
+}
+
+.badge-pill-sm.ok-stock {
+    background: rgba(40, 167, 69, 0.15);
+    color: #51cf66;
+}
+
+/* ============================================
+   CONTENEDORES TARJETA (CARD WRAPPER)
+   ============================================ */
+
+.card-wrapper {
+    background: var(--bg-light);
+    border: 1px solid var(--border-color-subtle);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-normal);
+}
+
+.card-wrapper:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-color);
+}
+
+.card-wrapper-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: var(--spacing-lg);
+}
+
+.card-wrapper-header h3 {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    color: var(--text-dark);
+    font-weight: 600;
+}
+
+.card-wrapper-body {
+    color: var(--text-dark);
+}
+
+.card-wrapper-footer {
+    margin-top: var(--spacing-lg);
+    padding-top: var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    gap: var(--spacing-lg);
+    justify-content: flex-end;
+}
+
+/* ============================================
+   EMPTY STATE
+   ============================================ */
+
+.empty-state {
+    text-align: center;
+    padding: var(--spacing-2xl) var(--spacing-xl);
+    color: var(--text-secondary);
+}
+
+.empty-state-icon {
+    font-size: 3rem;
+    color: var(--text-muted);
+    margin-bottom: var(--spacing-lg);
+    opacity: 0.5;
+}
+
+.empty-state-text {
+    font-size: var(--font-size-base);
+    color: var(--text-secondary);
+    margin: 0;
+    font-weight: 500;
+}
+
+.empty-state-subtext {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    margin-top: var(--spacing-sm);
+}
+
+/* ============================================
+   BREAKPOINTS OPTIMIZADOS PARA 100% ZOOM
+   ============================================ */
+
+@media (max-width: 1280px) {
+    .card-kpi {
+        padding: var(--spacing-lg);
+    }
+    
+    .table-compact th,
+    .table-compact td {
+        padding: var(--spacing-md) var(--spacing-sm) !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .card-kpi-value {
+        font-size: var(--font-size-xl);
+    }
+    
+    .card-wrapper {
+        padding: var(--spacing-lg);
+    }
+    
+    .btn {
+        padding: 8px 12px;
+        font-size: var(--font-size-sm);
+    }
+    
+    .navbar {
+        padding: var(--spacing-md) var(--spacing-lg);
+    }
+}

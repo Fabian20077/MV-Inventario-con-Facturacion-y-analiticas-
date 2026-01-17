@@ -1,0 +1,730 @@
+/* ============================================
+   UNIFIED THEME - Sistema de Estilos Centralizado
+   ============================================ */
+
+:root {
+    /* --- PALETA DE COLORES CENTRALIZADA --- */
+    /* Gradiente primario (Púrpura-Violeta) */
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --primary-start: #667eea;
+    --primary-end: #764ba2;
+    
+    /* Fondos y Contenedores */
+    --bg-dark-slate: #1a1f36;
+    --bg-light: #ffffff;
+    --bg-light-secondary: #f8fafc;
+    --bg-card-dark: rgba(42, 42, 71, 0.95);
+    
+    /* Texto */
+    --text-primary: #f1f5f9;
+    --text-dark: #333333;
+    --text-secondary: #666666;
+    --text-muted: #999999;
+    
+    /* Bordes */
+    --border-color: #e0e0e0;
+    --border-color-dark: #404050;
+    --border-color-subtle: rgba(102, 126, 234, 0.15);
+    
+    /* Estados */
+    --status-vigente: #d4edda;
+    --status-vigente-text: #155724;
+    --status-vencido: #f8d7da;
+    --status-vencido-text: #721c24;
+    --status-success: #28a745;
+    --status-danger: #dc3545;
+    --status-warning: #f59e0b;
+    --status-info: #3b82f6;
+    
+    /* Espaciado (Reducido 15% de valores originales) */
+    /* Original: 30px → 25.5px */
+    /* Original: 20px → 17px */
+    /* Original: 16px → 13.6px */
+    /* Original: 12px → 10.2px */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 10.2px;
+    --spacing-lg: 13.6px;
+    --spacing-xl: 17px;
+    --spacing-2xl: 25.5px;
+    
+    /* Bordes redondeados */
+    --radius-sm: 8px;
+    --radius-md: 10px;
+    --radius-lg: 12px;
+    --radius-xl: 15px;
+    
+    /* Sombras */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.1);
+    --shadow-hover: 0 12px 24px rgba(0, 0, 0, 0.15);
+    
+    /* Transiciones */
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+    
+    /* Tipografía */
+    --font-primary: 'Inter', 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.85rem;
+    --font-size-base: 0.95rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.5rem;
+    --font-size-2xl: 2rem;
+}
+
+/* ============================================
+   MODO OSCURO (Dark Mode)
+   ============================================ */
+
+body.dark-mode {
+    --bg-light: #1e1e2e;
+    --text-dark: #ffffff;
+    --border-color: #404050;
+}
+
+/* ============================================
+   RESET Y ESTILOS BASE
+   ============================================ */
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
+body {
+    font-family: var(--font-primary);
+    color: var(--text-dark);
+    background: var(--primary-gradient);
+    min-height: 100vh;
+}
+
+/* ============================================
+   CONTENEDORES PRINCIPALES
+   ============================================ */
+
+.container-wrapper {
+    background: var(--bg-light);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    margin-top: var(--spacing-2xl);
+    margin-bottom: var(--spacing-2xl);
+    padding: var(--spacing-2xl);
+    color: var(--text-dark);
+    transition: all var(--transition-normal);
+}
+
+.container-wrapper-compact {
+    padding: var(--spacing-xl);
+}
+
+/* ============================================
+   HEADERS Y TÍTULOS
+   ============================================ */
+
+.header-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-2xl);
+    border-bottom: 2px solid var(--primary-start);
+    padding-bottom: var(--spacing-xl);
+    flex-wrap: wrap;
+    gap: var(--spacing-lg);
+}
+
+.header-section h1 {
+    color: var(--text-dark);
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-lg);
+    font-size: var(--font-size-2xl);
+    letter-spacing: -0.5px;
+}
+
+.header-section .btn-grupo {
+    display: flex;
+    gap: var(--spacing-lg);
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+/* ============================================
+   TABLAS
+   ============================================ */
+
+.table-responsive {
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.table {
+    color: var(--text-dark);
+    background-color: var(--bg-light);
+    margin-bottom: 0;
+    border-collapse: collapse;
+}
+
+.table td, .table th {
+    color: var(--text-dark);
+    background-color: var(--bg-light);
+    vertical-align: middle;
+    padding: var(--spacing-lg) var(--spacing-md);
+    border: none;
+}
+
+.table thead {
+    background: var(--bg-dark-slate);
+    color: white;
+}
+
+.table thead th {
+    color: #ffffff !important;
+    background: var(--primary-gradient) !important;
+    font-weight: 600;
+    padding: var(--spacing-lg) var(--spacing-md);
+    border: none;
+    text-transform: uppercase;
+    font-size: var(--font-size-sm);
+    letter-spacing: 0.5px;
+}
+
+.table tbody tr {
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-light);
+    transition: background-color var(--transition-fast);
+}
+
+.table tbody td {
+    color: var(--text-dark);
+    background-color: var(--bg-light);
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(102, 126, 234, 0.08);
+}
+
+/* ============================================
+   BADGES Y ESTADOS
+   ============================================ */
+
+.badge-estado {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.badge-vigente {
+    background-color: var(--status-vigente);
+    color: var(--status-vigente-text);
+}
+
+.badge-vencido {
+    background-color: var(--status-vencido);
+    color: var(--status-vencido-text);
+}
+
+.badge-success {
+    background-color: rgba(40, 167, 69, 0.15);
+    color: var(--status-success);
+}
+
+.badge-danger {
+    background-color: rgba(220, 53, 69, 0.15);
+    color: var(--status-danger);
+}
+
+.badge-warning {
+    background-color: rgba(245, 158, 11, 0.15);
+    color: var(--status-warning);
+}
+
+.badge-info {
+    background-color: rgba(59, 130, 246, 0.15);
+    color: var(--status-info);
+}
+
+/* Margin Badges */
+.margin-badge {
+    display: inline-block;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: 5px;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+}
+
+.margin-high {
+    background-color: var(--status-vigente);
+    color: var(--status-vigente-text);
+}
+
+.margin-medium {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.margin-low {
+    background-color: var(--status-vencido);
+    color: var(--status-vencido-text);
+}
+
+/* Stock Indicators */
+.stock-bajo {
+    color: var(--status-danger);
+    font-weight: 600;
+}
+
+.stock-normal {
+    color: var(--status-success);
+    font-weight: 600;
+}
+
+/* ============================================
+   FORMULARIOS Y INPUTS
+   ============================================ */
+
+.form-label {
+    font-weight: 600;
+    color: var(--text-dark);
+    font-size: var(--font-size-base);
+    margin-bottom: 6px;
+}
+
+.form-control, .form-select {
+    background: var(--bg-light);
+    color: var(--text-dark);
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: var(--font-size-base);
+    transition: all var(--transition-fast);
+}
+
+.form-control::placeholder {
+    color: var(--text-muted);
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary-start);
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.1);
+    background: var(--bg-light);
+    color: var(--text-dark);
+}
+
+.input-group-text {
+    background: transparent !important;
+    border: 1.5px solid var(--border-color);
+    color: var(--text-muted);
+}
+
+/* ============================================
+   BOTONES
+   ============================================ */
+
+.btn-primary, .btn-new {
+    background: var(--primary-gradient);
+    color: white !important;
+    border: none;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-weight: 600;
+    transition: all var(--transition-fast);
+    font-size: var(--font-size-base);
+}
+
+.btn-primary:hover, .btn-new:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    color: white !important;
+    text-decoration: none;
+}
+
+.btn-primary:active, .btn-new:active {
+    transform: translateY(0);
+}
+
+.btn-secondary, .back-button {
+    background: transparent;
+    color: var(--primary-start);
+    border: 2px solid var(--primary-start);
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-weight: 600;
+    transition: all var(--transition-fast);
+}
+
+.btn-secondary:hover, .back-button:hover {
+    background-color: rgba(102, 126, 234, 0.08);
+    transform: translateY(-2px);
+    color: var(--primary-start);
+    text-decoration: none;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: var(--font-size-sm);
+}
+
+.btn-edit, .btn-delete {
+    padding: 6px 10px;
+    font-size: var(--font-size-sm);
+}
+
+.btn-delete {
+    color: var(--status-danger);
+    border-color: var(--status-danger);
+}
+
+.btn-delete:hover {
+    background-color: rgba(220, 53, 69, 0.08);
+}
+
+/* ============================================
+   TARJETAS DE ESTADÍSTICAS (KPI Cards) - SLIM & PROFESSIONAL
+   ============================================ */
+
+.stat-card {
+    /* Layout horizontal: icon izquierda, datos derecha */
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #f1f5f9;
+    padding: 16px 20px;
+    border-radius: 12px;
+    margin-bottom: var(--spacing-xl);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    transition: all var(--transition-normal);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Línea de acento azul en el lado izquierdo */
+.stat-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+    transition: width var(--transition-normal);
+}
+
+.stat-card:hover::before {
+    width: 6px;
+}
+
+.stat-card:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.15);
+}
+
+.stat-card h5 {
+    margin: 0;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.stat-card .number {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0;
+    color: #f1f5f9;
+}
+
+.stat-card i {
+    font-size: 32px;
+    color: #3b82f6;
+    opacity: 0.9;
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.stat-card:hover i {
+    opacity: 1;
+    transform: scale(1.05);
+}
+
+/* ============================================
+   MODALES
+   ============================================ */
+
+.modal-header {
+    background: var(--primary-gradient);
+    color: white;
+    border-bottom: none;
+    padding: var(--spacing-xl);
+}
+
+.modal-content {
+    background: var(--bg-light);
+    color: var(--text-dark);
+    border: none;
+    border-radius: var(--radius-lg);
+}
+
+.modal-body {
+    padding: var(--spacing-xl);
+}
+
+.modal-footer {
+    border-top: 1px solid var(--border-color);
+    padding: var(--spacing-xl);
+}
+
+.close {
+    opacity: 0.8;
+    transition: opacity var(--transition-fast);
+}
+
+.close:hover {
+    opacity: 1;
+}
+
+/* ============================================
+   FILTROS
+   ============================================ */
+
+.filter-section {
+    margin-bottom: var(--spacing-xl);
+    padding: var(--spacing-lg);
+    background: rgba(102, 126, 234, 0.04);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color-subtle);
+}
+
+.filter-section input,
+.filter-section select {
+    margin-bottom: var(--spacing-md);
+}
+
+/* ============================================
+   ACCIONES Y CONTROLES
+   ============================================ */
+
+.action-buttons {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.action-buttons .btn {
+    transition: all var(--transition-fast);
+}
+
+/* ============================================
+   LOADING Y SPINNERS
+   ============================================ */
+
+.loading-spinner {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: var(--spacing-2xl);
+}
+
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+    border-color: var(--primary-start) !important;
+}
+
+/* ============================================
+   DARK MODE TOGGLE
+   ============================================ */
+
+.dark-mode-toggle {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: var(--primary-gradient);
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    transition: all var(--transition-fast);
+}
+
+.dark-mode-toggle:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+}
+
+/* ============================================
+   TIPOGRAFÍA Y TEXTO
+   ============================================ */
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: var(--text-dark);
+}
+
+p {
+    color: var(--text-dark);
+    line-height: 1.6;
+}
+
+.text-secondary {
+    color: var(--text-secondary) !important;
+}
+
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+.text-danger {
+    color: var(--status-danger) !important;
+}
+
+.text-success {
+    color: var(--status-success) !important;
+}
+
+.text-warning {
+    color: var(--status-warning) !important;
+}
+
+.text-info {
+    color: var(--status-info) !important;
+}
+
+/* ============================================
+   UTILIDADES
+   ============================================ */
+
+.text-center {
+    text-align: center;
+}
+
+.text-start {
+    text-align: left;
+}
+
+.text-end {
+    text-align: right;
+}
+
+.mt-0 { margin-top: 0 !important; }
+.mb-0 { margin-bottom: 0 !important; }
+.p-0 { padding: 0 !important; }
+
+.gap-sm { gap: var(--spacing-sm) !important; }
+.gap-md { gap: var(--spacing-md) !important; }
+.gap-lg { gap: var(--spacing-lg) !important; }
+
+.rounded-sm { border-radius: var(--radius-sm) !important; }
+.rounded-md { border-radius: var(--radius-md) !important; }
+.rounded-lg { border-radius: var(--radius-lg) !important; }
+
+.shadow-sm { box-shadow: var(--shadow-sm) !important; }
+.shadow-md { box-shadow: var(--shadow-md) !important; }
+.shadow-lg { box-shadow: var(--shadow-lg) !important; }
+
+/* ============================================
+   RESPONSIVE OPTIMIZADO PARA 100% ZOOM
+   ============================================ */
+
+@media (max-width: 1280px) {
+    .container-wrapper {
+        padding: var(--spacing-xl);
+    }
+    
+    .header-section {
+        padding-bottom: var(--spacing-lg);
+    }
+    
+    .table td, .table th {
+        padding: var(--spacing-md) var(--spacing-sm);
+        font-size: var(--font-size-sm);
+    }
+}
+
+@media (max-width: 768px) {
+    .container-wrapper {
+        padding: var(--spacing-lg);
+        margin-top: var(--spacing-lg);
+        margin-bottom: var(--spacing-lg);
+    }
+    
+    .header-section {
+        flex-direction: column;
+        align-items: flex-start;
+        margin-bottom: var(--spacing-lg);
+        padding-bottom: var(--spacing-lg);
+    }
+    
+    .header-section h1 {
+        font-size: var(--font-size-xl);
+    }
+    
+    .table {
+        font-size: var(--font-size-sm);
+    }
+    
+    .stat-card {
+        padding: var(--spacing-lg);
+    }
+}
+
+/* ============================================
+   ANIMACIONES SUTILES
+   ============================================ */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn var(--transition-normal) ease;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.slide-up {
+    animation: slideUp var(--transition-normal) ease;
+}

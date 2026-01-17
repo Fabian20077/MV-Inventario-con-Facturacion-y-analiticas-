@@ -1,0 +1,2108 @@
+<!DOCTYPE html>
+<html lang="es-CO">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MV Inventario - Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../styles/unified-theme.css">
+    <link rel="stylesheet" href="../styles/theme-variables.css">
+    <link rel="stylesheet" href="../styles/header-professional.css">
+    <link rel="stylesheet" href="../styles/components.css">
+    <link rel="stylesheet" href="../styles/overrides.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        }
+                    },
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                        'glow': 'glow 3s ease-in-out infinite alternate',
+                        'slide-up': 'slideUp 0.8s ease-out',
+                        'fade-in': 'fadeIn 0.6s ease-out',
+                        'scale-in': 'scaleIn 0.5s ease-out',
+                        'slide-in-left': 'slideInLeft 0.6s ease-out',
+                        'slide-in-right': 'slideInRight 0.6s ease-out',
+                        'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
+                        'shimmer': 'shimmer 2s linear infinite',
+                        'bounce-subtle': 'bounceSubtle 0.6s ease-out',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        },
+                        glow: {
+                            '0%': { boxShadow: '0 0 20px rgba(59, 130, 246, 0.3)' },
+                            '100%': { boxShadow: '0 0 40px rgba(59, 130, 246, 0.6)' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(30px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        scaleIn: {
+                            '0%': { opacity: '0', transform: 'scale(0.9)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' },
+                        },
+                        slideInLeft: {
+                            '0%': { opacity: '0', transform: 'translateX(-30px)' },
+                            '100%': { opacity: '1', transform: 'translateX(0)' },
+                        },
+                        slideInRight: {
+                            '0%': { opacity: '0', transform: 'translateX(30px)' },
+                            '100%': { opacity: '1', transform: 'translateX(0)' },
+                        },
+                        pulseSoft: {
+                            '0%, 100%': { opacity: '1' },
+                            '50%': { opacity: '0.8' },
+                        },
+                        shimmer: {
+                            '0%': { backgroundPosition: '-1000px 0' },
+                            '100%': { backgroundPosition: '1000px 0' },
+                        },
+                        bounceSubtle: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(45deg, rgba(59, 130, 246, 0.6), rgba(147, 51, 234, 0.6));
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(45deg, rgba(59, 130, 246, 0.8), rgba(147, 51, 234, 0.8));
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+        }
+
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(59, 130, 246, 0.6) rgba(255, 255, 255, 0.1);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        .scroll-container {
+            max-height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        /* ========================================
+           RESPONSIVE DESIGN - MEDIA QUERIES
+           ======================================== */
+
+        /* Table responsive wrapper */
+        .table-responsive {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin: 1rem 0;
+        }
+
+        /* Mobile: Base styles (320px - 767px) */
+        @media (max-width: 767px) {
+
+            /* Navbar mobile fixes */
+            .navbar {
+                padding: 1rem 0.5rem !important;
+            }
+
+            .navbar>div {
+                gap: 0.75rem !important;
+                justify-content: center !important;
+                width: 100%;
+            }
+
+            /* Centrar elementos del navbar */
+            .navbar .flex {
+                flex-wrap: wrap !important;
+                justify-content: center !important;
+                gap: 0.5rem !important;
+            }
+
+            .navbar h1 {
+                font-size: 1.25rem !important;
+                text-align: center;
+                width: 100%;
+            }
+
+            /* Logo centrado */
+            .navbar img {
+                margin: 0 auto;
+            }
+
+            /* Botones más compactos con espaciado */
+            .navbar button {
+                padding: 0.5rem 0.75rem !important;
+                font-size: 0.875rem !important;
+                margin-bottom: 0.25rem;
+            }
+
+            /* Usuario nombre más pequeño y centrado */
+            #userName {
+                font-size: 1rem !important;
+                text-align: center;
+                width: 100%;
+                margin-top: 0.5rem;
+            }
+
+            .stat-card {
+                padding: 1rem !important;
+            }
+
+            table {
+                font-size: 0.875rem;
+            }
+        }
+
+        /* Tablet: 768px - 1023px */
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .stat-card {
+                padding: 1.25rem !important;
+            }
+        }
+
+        /* Laptop: 1024px - 1439px */
+        @media (min-width: 1024px) and (max-width: 1439px) {
+            .table-responsive {
+                overflow-x: visible;
+            }
+        }
+
+        /* Desktop: 1440px - 1919px */
+        @media (min-width: 1440px) {
+            .stat-card {
+                padding: 2rem !important;
+            }
+
+            .table-responsive {
+                overflow-x: visible;
+            }
+        }
+
+        /* Large Desktop/4K: 1920px+ */
+        @media (min-width: 1920px) {
+            body {
+                font-size: 18px;
+            }
+
+            .stat-card h3 {
+                font-size: 1.25rem;
+            }
+
+            .stat-card p {
+                font-size: 2rem;
+            }
+        }
+
+        /* ========================================
+           KPI CARDS SLIM & PROFESSIONAL OVERRIDES
+           ======================================== */
+
+        /* Sobreescribir inline styles p-6 */
+        .stat-card.card {
+            padding: 0 !important;
+            background: rgba(255, 255, 255, 0.08) !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        .stat-card.card>div {
+            padding: 16px 20px;
+            width: 100%;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 16px;
+        }
+
+        .stat-card.card>div>div {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .stat-card.card>div>i {
+            font-size: 32px !important;
+            color: #3b82f6 !important;
+            opacity: 0.9;
+            flex-shrink: 0;
+        }
+
+        .stat-card.card p {
+            color: white !important;
+            margin: 0 !important;
+            line-height: 1.2;
+        }
+
+        .stat-card.card p:first-child {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7) !important;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px !important;
+        }
+
+        .stat-card.card p.stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #f1f5f9 !important;
+            margin-top: 0 !important;
+        }
+
+        /* ========================================
+           SECCIONES PRODUCTOS/MOVIMIENTOS RECIENTES
+           ======================================== */
+
+        #recentProducts,
+        #recentMovements {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .product-item,
+        .movement-item {
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 0.875rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            height: 40px;
+        }
+
+        .product-item:last-child,
+        .movement-item:last-child {
+            border-bottom: none;
+        }
+
+        /* ========================================
+           BOTONES DE ACCIÓN (Standard Height)
+           ======================================== */
+
+        .flex.flex-wrap.justify-center button {
+            height: 40px !important;
+            padding: 0 16px !important;
+            font-size: 0.875rem !important;
+        }
+
+        .flex.flex-wrap.justify-center button i {
+            font-size: 18px !important;
+            margin-right: 4px !important;
+            margin-bottom: 0 !important;
+        }
+
+        .flex.flex-wrap.justify-center button p {
+            margin-top: 0 !important;
+            display: inline-block;
+        }
+    </style>
+    <style>
+        :root {
+            /* Main brand colors (Blue for actions) */
+            --mv-primary: #3b82f6;
+            /* Blue 500 */
+            --mv-secondary: #2563eb;
+            /* Blue 600 */
+
+            /* Dark Mode core colors for manual overrides */
+            --dark-mode-card-bg: #2A2A47;
+            --dark-mode-text: #FFFFFF;
+        }
+
+        * {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        body {
+            /* Fondo base azul oscuro para modo claro */
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0f172a 100%);
+            font-family: 'Inter', 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: #f1f5f9;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+            font-weight: 400;
+            letter-spacing: -0.01em;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body.dark-mode {
+            /* Fondo base más oscuro para modo oscuro */
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%) !important;
+            color: var(--dark-mode-text) !important;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, rgba(0, 51, 102, 0.9) 0%, rgba(0, 77, 153, 0.9) 100%);
+            box-shadow: 0 8px 32px rgba(0, 51, 102, 0.3);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            animation: slideDown 0.5s ease-out;
+        }
+
+        body.dark-mode .navbar {
+            background: linear-gradient(135deg, rgba(26, 26, 46, 0.95) 0%, rgba(45, 45, 74, 0.95) 100%) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+        }
+
+        .card {
+            /* Modo claro - Card */
+            background: rgba(241, 245, 249, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(226, 232, 240, 0.5);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            color: #1e293b;
+            animation: fade-in 0.6s ease-out both;
+        }
+
+        body.dark-mode .card {
+            /* Modo oscuro - Card */
+            background: rgba(42, 42, 71, 0.95) !important;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+            color: #f1f5f9 !important;
+        }
+
+        body.dark-mode .card p,
+        body.dark-mode .card span,
+        body.dark-mode .card div {
+            color: #f1f5f9 !important;
+        }
+
+        .card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 16px 48px rgba(99, 102, 241, 0.25);
+        }
+
+        body.dark-mode .card:hover {
+            box-shadow: 0 16px 48px rgba(168, 85, 247, 0.2) !important;
+        }
+
+        .stat-card {
+            /* Modo claro - Stats (Morado) */
+            background: linear-gradient(135deg, #4c1d95 0%, #6b21a8 100%);
+            color: white !important;
+            border: none;
+            animation: scale-in 0.5s ease-out both;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card * {
+            color: white !important;
+        }
+
+        .stat-card:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .stat-card:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .stat-card:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        .stat-card:nth-child(4) {
+            animation-delay: 0.4s;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .stat-card:hover::before {
+            left: 100%;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px) scale(1.03);
+            box-shadow: 0 20px 60px rgba(124, 58, 237, 0.4);
+        }
+
+        body.dark-mode .stat-card {
+            /* Modo oscuro - Stats (Azul) */
+            background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%) !important;
+            color: white !important;
+            border: 1px solid rgba(62, 62, 105, 0.5) !important;
+        }
+
+        body.dark-mode .stat-card * {
+            color: white !important;
+        }
+
+        .btn-primary {
+            /* Botones (Azul) */
+            background: linear-gradient(135deg, var(--mv-primary) 0%, var(--mv-secondary) 100%);
+            color: white;
+            border: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .btn-primary:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 12px 24px rgba(99, 102, 241, 0.5);
+        }
+
+        .btn-primary:active {
+            transform: translateY(-1px) scale(1.02);
+            transition: all 0.1s;
+        }
+
+        body.dark-mode .btn-primary {
+            /* Gradiente azul en modo oscuro */
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+        }
+
+        body.dark-mode .btn-primary:hover {
+            box-shadow: 0 12px 24px rgba(59, 130, 246, 0.6) !important;
+        }
+
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            background: rgba(241, 245, 249, 0.98);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            z-index: 100;
+            min-width: 220px;
+            border: 1px solid rgba(226, 232, 240, 0.6);
+        }
+
+        body.dark-mode .dropdown-menu {
+            background: rgba(42, 42, 71, 0.95) !important;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+            animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .dropdown-menu a {
+            display: block;
+            padding: 12px 16px;
+            color: #1e293b;
+            text-decoration: none;
+            transition: all 0.2s;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            font-family: 'Inter', sans-serif;
+        }
+
+        body.dark-mode .dropdown-menu a {
+            color: var(--dark-mode-text) !important;
+            border-bottom-color: rgba(255, 255, 255, 0.05) !important;
+        }
+
+        .dropdown-menu a:hover {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
+            padding-left: 20px;
+            transform: translateX(5px);
+        }
+
+        body.dark-mode .dropdown-menu a:hover {
+            background: rgba(99, 102, 241, 0.2) !important;
+        }
+
+        .dropdown-menu a:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-menu a i {
+            margin-right: 10px;
+            color: var(--mv-primary);
+        }
+
+        body.dark-mode .dropdown-menu a i {
+            color: #a855f7 !important;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            background-color: rgba(241, 245, 249, 0.98);
+            backdrop-filter: blur(10px);
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideDown 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(226, 232, 240, 0.6);
+            color: #1e293b;
+            transform-origin: center;
+        }
+
+        body.dark-mode .modal-content {
+            background: rgba(42, 42, 71, 0.95) !important;
+            backdrop-filter: blur(10px);
+            color: var(--dark-mode-text) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-50px) scale(0.95);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .animate-slide-in-left {
+            animation: slideInLeft 0.6s ease-out both;
+        }
+
+        .animate-slide-in-right {
+            animation: slideInRight 0.6s ease-out both;
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.6s ease-out both;
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes pulseSoft {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.8;
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -1000px 0;
+            }
+
+            100% {
+                background-position: 1000px 0;
+            }
+        }
+
+        @keyframes bounceSubtle {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        @keyframes numberUpdate {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.2);
+                color: #fbbf24;
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .stat-value.updated {
+            animation: numberUpdate 0.6s ease-out;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid rgba(203, 213, 225, 0.6);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(5px);
+            color: #1e293b;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body.dark-mode .form-input {
+            background: rgba(62, 62, 105, 0.8) !important;
+            backdrop-filter: blur(5px);
+            color: var(--dark-mode-text) !important;
+            border-color: rgba(90, 90, 138, 0.5) !important;
+        }
+
+        body.dark-mode .form-input::placeholder {
+            color: #999 !important;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--mv-primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+            transform: scale(1.02);
+        }
+
+        body.dark-mode .form-input:focus {
+            border-color: var(--mv-secondary) !important;
+            box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2) !important;
+        }
+
+        /* Estilos para checkbox */
+        .form-input[type="checkbox"] {
+            width: auto;
+            padding: 0;
+            cursor: pointer;
+            transform: scale(1.2);
+        }
+
+        /* Clase para ocultar elementos */
+        .hidden {
+            display: none !important;
+        }
+
+        .text-gray-500 {
+            color: #64748b;
+        }
+
+        body.dark-mode .text-gray-500 {
+            color: #94a3b8 !important;
+        }
+
+        .card .text-gray-500 {
+            color: #64748b;
+        }
+
+        body.dark-mode .card .text-gray-500 {
+            color: #cbd5e1 !important;
+        }
+
+        .card .text-gray-600 {
+            color: #475569;
+        }
+
+        body.dark-mode .card .text-gray-600 {
+            color: #cbd5e1 !important;
+        }
+
+        .card .font-semibold {
+            color: #1e293b;
+        }
+
+        body.dark-mode .card .font-semibold {
+            color: #f1f5f9 !important;
+        }
+
+        .text-gray-700 {
+            color: #334155;
+        }
+
+        body.dark-mode .text-gray-700 {
+            color: #cbd5e1 !important;
+        }
+
+        .text-gray-900 {
+            color: #0f172a;
+        }
+
+        body.dark-mode .text-gray-900 {
+            color: #f1f5f9 !important;
+        }
+
+        .bg-gray-50 {
+            background: rgba(241, 245, 249, 0.6) !important;
+            backdrop-filter: blur(5px);
+        }
+
+        body.dark-mode .bg-gray-50 {
+            background: rgba(62, 62, 105, 0.3) !important;
+            backdrop-filter: blur(5px);
+        }
+
+        .bg-gray-50 .text-gray-700 {
+            color: #334155 !important;
+        }
+
+        .bg-gray-50 .text-gray-900 {
+            color: #0f172a !important;
+        }
+
+        body.dark-mode .bg-gray-50 .text-gray-700 {
+            color: #e2e8f0 !important;
+        }
+
+        body.dark-mode .bg-gray-50 .text-gray-900 {
+            color: #f1f5f9 !important;
+        }
+
+        .card .bg-gray-50 {
+            background: rgba(241, 245, 249, 0.8) !important;
+        }
+
+        body.dark-mode .card .bg-gray-50 {
+            background: rgba(62, 62, 105, 0.5) !important;
+        }
+
+        .card .bg-gray-50 .font-semibold {
+            color: #334155;
+        }
+
+        body.dark-mode .card .bg-gray-50 .font-semibold {
+            color: #e2e8f0 !important;
+        }
+
+        /* FIX: Asegura que todo el texto dentro del contenedor de movimientos recientes, 
+           incluyendo números de cantidad y botones de acción, sea de color claro en Modo Oscuro. */
+        body.dark-mode #recentMovements div,
+        body.dark-mode #recentMovements span,
+        body.dark-mode #recentMovements button,
+        body.dark-mode #recentMovements i {
+            color: #f1f5f9 !important;
+        }
+
+        /* FIN DEL FIX */
+
+        .alert {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            animation: slideDown 0.3s ease;
+        }
+
+        .alert-success {
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+
+        body.dark-mode .alert-success {
+            background-color: rgba(50, 205, 50, 0.15) !important;
+            color: #4ade80 !important;
+            border: 1px solid rgba(50, 205, 50, 0.5) !important;
+        }
+
+        .alert-error {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        body.dark-mode .alert-error {
+            background-color: rgba(255, 127, 80, 0.15) !important;
+            color: #ff7f50 !important;
+            border: 1px solid rgba(255, 127, 80, 0.5) !important;
+        }
+
+        h1,
+        h2,
+        h3 {
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            font-family: 'Inter', 'Poppins', sans-serif;
+        }
+
+        h2 {
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+        body.dark-mode h2 {
+            color: #f1f5f9 !important;
+        }
+
+        .card h2 {
+            color: #1e293b;
+        }
+
+        body.dark-mode .card h2 {
+            color: #f1f5f9 !important;
+        }
+
+        label {
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            letter-spacing: -0.01em;
+        }
+
+        p,
+        span,
+        div {
+            font-family: 'Inter', sans-serif;
+            letter-spacing: -0.01em;
+        }
+
+        .stat-value {
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: #ffffff !important;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            animation: fade-in 0.8s ease-out;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .stat-value:hover {
+            transform: scale(1.1);
+            text-shadow: 0 4px 16px rgba(255, 255, 255, 0.4);
+        }
+
+        body.dark-mode .stat-value {
+            color: #ffffff !important;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+        }
+
+        select,
+        textarea {
+            font-family: inherit;
+        }
+
+        select {
+            background: rgba(255, 255, 255, 0.9) !important;
+            backdrop-filter: blur(5px);
+            color: #1e293b !important;
+            border-color: rgba(203, 213, 225, 0.6) !important;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body.dark-mode select {
+            background: rgba(62, 62, 105, 0.8) !important;
+            backdrop-filter: blur(5px);
+            color: var(--dark-mode-text) !important;
+            border-color: rgba(90, 90, 138, 0.5) !important;
+        }
+
+        body.dark-mode select option {
+            background: rgba(42, 42, 71, 0.95) !important;
+            color: var(--dark-mode-text) !important;
+        }
+
+        textarea {
+            background: rgba(255, 255, 255, 0.9) !important;
+            backdrop-filter: blur(5px);
+            color: #1e293b !important;
+            border-color: rgba(203, 213, 225, 0.6) !important;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body.dark-mode textarea {
+            background: rgba(62, 62, 105, 0.8) !important;
+            backdrop-filter: blur(5px);
+            color: var(--dark-mode-text) !important;
+            border-color: rgba(90, 90, 138, 0.5) !important;
+        }
+
+        body.dark-mode textarea::placeholder {
+            color: #999 !important;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            line-height: 1;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: #000;
+            background: rgba(0, 0, 0, 0.1);
+            transform: rotate(90deg) scale(1.1);
+        }
+
+        body.dark-mode .close {
+            color: #ccc !important;
+        }
+
+        body.dark-mode .close:hover,
+        body.dark-mode .close:focus {
+            color: #fff !important;
+            background: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        .toggle-dark {
+            background: linear-gradient(135deg, var(--mv-primary) 0%, var(--mv-secondary) 100%);
+            border: none;
+            padding: 8px;
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: white;
+            font-size: 18px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.5);
+        }
+
+        .toggle-dark:hover {
+            transform: scale(1.1) rotate(15deg);
+            background: linear-gradient(135deg, var(--mv-secondary) 0%, var(--mv-primary) 100%);
+            box-shadow: 0 6px 20px rgba(168, 85, 247, 0.7);
+        }
+
+        .toggle-dark:active {
+            transform: scale(0.95);
+        }
+
+        body.dark-mode .toggle-dark {
+            background: #FFD700;
+            color: #1e293b !important;
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.5);
+        }
+
+        body.dark-mode .toggle-dark:hover {
+            background: #FFDD44 !important;
+            box-shadow: 0 6px 16px rgba(177, 158, 70, 0.7) !important;
+            transform: scale(1.05);
+        }
+
+        /* Combobox personalizado */
+        .combobox-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .combobox-input {
+            padding-right: 40px !important;
+        }
+
+        .combobox-arrow {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: #64748b;
+            font-size: 14px;
+            transition: transform 0.3s ease;
+        }
+
+        body.dark-mode .combobox-arrow {
+            color: #94a3b8;
+        }
+
+        .combobox-wrapper.open .combobox-arrow {
+            transform: translateY(-50%) rotate(180deg);
+        }
+
+        .combobox-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 2px solid rgba(203, 213, 225, 0.6);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        body.dark-mode .combobox-dropdown {
+            background: rgba(42, 42, 71, 0.95);
+            border-color: rgba(90, 90, 138, 0.5);
+        }
+
+        .combobox-wrapper.open .combobox-dropdown {
+            display: block;
+        }
+
+        .combobox-option {
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            color: #1e293b;
+        }
+
+        body.dark-mode .combobox-option {
+            color: var(--dark-mode-text);
+        }
+
+        .combobox-option:hover {
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        body.dark-mode .combobox-option:hover {
+            background: rgba(168, 85, 247, 0.2);
+        }
+
+        .combobox-option.selected {
+            background: rgba(99, 102, 241, 0.2);
+            font-weight: 600;
+        }
+
+        body.dark-mode .combobox-option.selected {
+            background: rgba(168, 85, 247, 0.3);
+        }
+
+        .combobox-no-results {
+            padding: 10px 12px;
+            color: #64748b;
+            font-style: italic;
+            text-align: center;
+        }
+
+        body.dark-mode .combobox-no-results {
+            color: #94a3b8;
+        }
+
+        /* ========================================
+           ESTILOS PARA CAMPANITA DE ALERTAS
+           ======================================== */
+
+        .alertas-container {
+            position: relative;
+        }
+
+        .btn-alertas {
+            position: relative;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            padding: 10px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: white;
+            font-size: 1.25rem;
+        }
+
+        .btn-alertas:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        .btn-alertas.tiene-alertas {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-5px) rotate(-5deg);
+            }
+
+            75% {
+                transform: translateX(5px) rotate(5deg);
+            }
+        }
+
+        .alertas-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.5);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        .alertas-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            min-width: 350px;
+            max-width: 400px;
+            max-height: 500px;
+            overflow-y: auto;
+            z-index: 1000;
+            border: 1px solid rgba(226, 232, 240, 0.6);
+            animation: slideDown 0.3s ease-out;
+        }
+
+        body.dark-mode .alertas-dropdown {
+            background: rgba(42, 42, 71, 0.98);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        .alertas-dropdown.show {
+            display: block;
+        }
+
+        .alertas-header {
+            padding: 16px;
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            font-weight: 600;
+            color: #1e293b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        body.dark-mode .alertas-header {
+            color: #f1f5f9;
+            border-bottom-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .alertas-lista {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .alerta-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        body.dark-mode .alerta-item {
+            border-bottom-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .alerta-item:hover {
+            background: rgba(239, 246, 255, 0.8);
+        }
+
+        body.dark-mode .alerta-item:hover {
+            background: rgba(62, 62, 105, 0.5);
+        }
+
+        .alerta-item:last-child {
+            border-bottom: none;
+        }
+
+        .alerta-item.agotado {
+            border-left: 4px solid #ef4444;
+        }
+
+        .alerta-item.bajo {
+            border-left: 4px solid #f59e0b;
+        }
+
+        .alerta-nombre {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+
+        body.dark-mode .alerta-nombre {
+            color: #f1f5f9;
+        }
+
+        .alerta-info {
+            font-size: 0.875rem;
+            color: #64748b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        body.dark-mode .alerta-info {
+            color: #94a3b8;
+        }
+
+        .alerta-stock {
+            font-weight: 600;
+        }
+
+        .alerta-stock.agotado {
+            color: #ef4444;
+        }
+
+        .alerta-stock.bajo {
+            color: #f59e0b;
+        }
+
+        .alertas-vacio {
+            padding: 40px 20px;
+            text-align: center;
+            color: #64748b;
+        }
+
+        body.dark-mode .alertas-vacio {
+            color: #94a3b8;
+        }
+
+        .alertas-vacio i {
+            font-size: 3rem;
+            margin-bottom: 12px;
+            opacity: 0.3;
+        }
+
+        /* Botón de marcar como vista */
+        .btn-marcar-vista {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #22c55e;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-marcar-vista:hover {
+            background: rgba(34, 197, 94, 0.2);
+            border-color: #22c55e;
+            transform: scale(1.1);
+        }
+
+        body.dark-mode .btn-marcar-vista {
+            background: rgba(34, 197, 94, 0.15);
+            border-color: rgba(34, 197, 94, 0.4);
+            color: #4ade80;
+        }
+
+        body.dark-mode .btn-marcar-vista:hover {
+            background: rgba(34, 197, 94, 0.25);
+            border-color: #4ade80;
+        }
+
+        /* Botón de marcar todas como vistas */
+        .btn-marcar-vistas-todo {
+            background: rgba(100, 116, 139, 0.1);
+            color: #64748b;
+            border: 1px dashed rgba(100, 116, 139, 0.3);
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.65rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            margin: 0 auto;
+        }
+
+        .btn-marcar-vistas-todo:hover {
+            background: rgba(100, 116, 139, 0.2);
+            color: #475569;
+            border-style: solid;
+        }
+
+        body.dark-mode .btn-marcar-vistas-todo {
+            background: rgba(148, 163, 184, 0.1);
+            color: #94a3b8;
+            border-color: rgba(148, 163, 184, 0.2);
+        }
+
+        /* Botón de mostrar todas */
+        .btn-mostrar-todas {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.7rem;
+            font-weight: 500;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-mostrar-todas:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+        }
+
+        body.dark-mode .btn-mostrar-todas {
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+        }
+
+        /* Enlace sutil eliminar historial */
+        .btn-eliminar-historial {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 0.6rem;
+            text-decoration: underline;
+            cursor: pointer;
+            margin-top: 8px;
+            opacity: 0.7;
+            transition: all 0.2s;
+            display: block;
+            width: 100%;
+            text-align: center;
+        }
+
+        .btn-eliminar-historial:hover {
+            opacity: 1;
+            color: #ef4444;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen relative overflow-x-hidden overflow-y-auto scroll-container">
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+        <div
+            class="absolute top-16 left-8 md:top-20 md:left-20 w-20 h-20 md:w-32 md:h-32 lg:w-40 lg:h-40 bg-blue-400/20 rounded-full animate-float">
+        </div>
+        <div class="absolute top-32 right-16 md:top-40 md:right-32 w-16 h-16 md:w-24 md:h-24 lg:w-28 lg:h-28 bg-purple-400/20 rounded-full animate-float"
+            style="animation-delay: 2s;"></div>
+        <div class="absolute bottom-24 left-20 md:bottom-32 md:left-40 w-24 h-24 md:w-40 md:h-40 lg:w-48 lg:h-48 bg-pink-400/20 rounded-full animate-float"
+            style="animation-delay: 4s;"></div>
+        <div class="absolute bottom-16 right-8 md:bottom-20 md:right-20 w-20 h-20 md:w-28 md:h-28 lg:w-32 lg:h-32 bg-indigo-400/20 rounded-full animate-float"
+            style="animation-delay: 1s;"></div>
+        <div class="absolute top-1/2 left-4 md:left-10 w-12 h-12 md:w-20 md:h-20 lg:w-24 lg:h-24 bg-cyan-400/20 rounded-full animate-float"
+            style="animation-delay: 3s;"></div>
+        <div class="absolute top-1/4 right-1/4 w-12 h-12 md:w-16 md:h-16 lg:w-20 lg:h-20 bg-blue-300/20 rounded-lg rotate-45 animate-float"
+            style="animation-delay: 1.5s;"></div>
+        <div class="absolute bottom-1/3 left-1/3 w-8 h-8 md:w-12 md:h-12 lg:w-16 lg:h-16 bg-purple-200/20 rounded-full animate-float"
+            style="animation-delay: 2.5s;"></div>
+    </div>
+    <nav class="navbar-professional">
+        <!-- Left: Logo + Navigation Links -->
+        <div style="display: flex; align-items: center; gap: 24px; min-width: 0; flex: 0 1 auto;">
+            <a href="dashboard.html" class="navbar-brand">
+                <i class="bi bi-boxes"></i>
+                <span>Inventario MV</span>
+            </a>
+
+            <!-- Navigation Links -->
+            <div style="display: flex; gap: 8px; align-items: center;">
+                <a href="dashboard.html"
+                    style="padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--text-primary); text-decoration: none; transition: 0.15s ease; background: rgba(59, 130, 246, 0.1);">
+                    <i class="bi bi-speedometer2" style="margin-right: 6px;"></i>Inventario
+                </a>
+                <a href="analytics.html"
+                    style="padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: 0.15s ease; cursor: pointer;"
+                    onmouseover="this.style.background='rgba(255,255,255,0.05)'"
+                    onmouseout="this.style.background='transparent'">
+                    <i class="bi bi-graph-up" style="margin-right: 6px;"></i>Análisis
+                </a>
+                <a href="historial-precios.html"
+                    style="padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: 0.15s ease; cursor: pointer;"
+                    onmouseover="this.style.background='rgba(255,255,255,0.05)'"
+                    onmouseout="this.style.background='transparent'">
+                    <i class="bi bi-clock-history" style="margin-right: 6px;"></i>Historial Precios
+                </a>
+            </div>
+        </div>
+
+        <!-- Center: Breadcrumbs (Hidden on Mobile) -->
+        <div class="breadcrumbs" style="display: none;">
+            <span class="breadcrumb-item active">Dashboard</span>
+            <span class="breadcrumb-separator">/</span>
+            <span class="breadcrumb-item" id="breadcrumbSection">Productos</span>
+        </div>
+
+        <!-- Center: Search Bar (Desktop only) -->
+        <div class="search-bar" style="display: none;">
+            <i class="bi bi-search"></i>
+            <input type="text" placeholder="Buscar productos..." aria-label="Buscar">
+        </div>
+
+        <!-- Right: Actions -->
+        <div class="navbar-actions">
+            <!-- Filter (Desktop) -->
+            <button class="nav-icon-button" title="Filtros" aria-label="Abrir filtros" style="display: none;">
+                <i class="bi bi-sliders"></i>
+            </button>
+
+            <!-- Notifications -->
+            <button class="nav-icon-button" title="Notificaciones" aria-label="Ver notificaciones"
+                onclick="toggleAlertas()">
+                <i class="bi bi-bell"></i>
+                <span id="alertasBadge" class="badge" style="display: none;">0</span>
+            </button>
+
+            <!-- Theme Toggle -->
+            <button class="theme-toggle" aria-label="Cambiar tema">
+                <i class="bi bi-sun-fill"></i>
+            </button>
+
+            <!-- User Profile -->
+            <div style="position: relative;">
+                <button class="user-profile">
+                    <div class="user-profile-avatar" id="userInitial">A</div>
+                    <span class="user-profile-name" id="userNameShort">Admin</span>
+                    <i class="bi bi-chevron-down" style="font-size: 12px;"></i>
+                </button>
+                <div class="user-profile-dropdown">
+                    <a href="settings.html" id="adminSettingsLink" class="dropdown-item" style="display: none;">
+                        <i class="bi bi-gear"></i>
+                        <span>Configuración</span>
+                    </a>
+                    <div class="dropdown-item" onclick="logout()">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Cerrar Sesión</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Alertas Dropdown (Mobile Compatible) -->
+    <div id="alertasDropdown" class="alertas-dropdown"
+        style="position: fixed; top: 70px; right: 20px; width: 320px; z-index: 200; display: none;">
+        <div class="alertas-header"
+            style="padding: 12px 16px; border-bottom: 1px solid var(--card-border); font-weight: 600;">
+            <span>🔔 Alertas de Stock</span>
+            <span id="alertasCount" class="text-sm" style="float: right;">0</span>
+        </div>
+        <div id="alertasLista" class="alertas-lista" style="max-height: 400px; overflow-y: auto; padding: 8px;">
+            <!-- Las alertas se cargarán aquí dinámicamente -->
+        </div>
+    </div>
+
+    <div class="max-w-screen-2xl mx-auto p-4 md:p-6 lg:p-8 space-y-8 relative z-10">
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            <div class="stat-card card p-6" style="animation-delay: 0.1s;">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-white text-base font-bold">Total Productos</p>
+                        <p class="stat-value mt-2" id="totalProducts">0</p>
+                    </div>
+                    <i class="bi bi-box text-5xl opacity-20 transition-transform duration-300 hover:scale-110"></i>
+                </div>
+            </div>
+
+            <div class="stat-card card p-6" style="animation-delay: 0.2s;">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-white text-base font-bold">Stock Total</p>
+                        <p class="stat-value mt-2" id="totalStock">0</p>
+                    </div>
+                    <i class="bi bi-graph-up text-5xl opacity-20 transition-transform duration-300 hover:scale-110"></i>
+                </div>
+            </div>
+
+            <div class="stat-card card p-6" style="animation-delay: 0.3s;">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-white text-base font-bold">Categorías</p>
+                        <p class="stat-value mt-2" id="totalCategories">0</p>
+                    </div>
+                    <i class="bi bi-tags text-5xl opacity-20 transition-transform duration-300 hover:scale-110"></i>
+                </div>
+            </div>
+
+            <div class="stat-card card p-6" style="animation-delay: 0.4s;">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-white text-base font-bold">Movimientos</p>
+                        <p class="stat-value mt-2" id="totalMovements">0</p>
+                    </div>
+                    <i
+                        class="bi bi-arrow-left-right text-5xl opacity-20 transition-transform duration-300 hover:scale-110"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="card p-6 animate-slide-in-left" style="animation-delay: 0.5s;">
+                <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <i class="bi bi-box transition-transform duration-300 hover:rotate-12"></i>
+                    Productos Recientes
+                </h2>
+                <div id="recentProducts" class="space-y-3">
+                    <p class="text-gray-500 text-center py-4">Cargando productos...</p>
+                </div>
+            </div>
+
+            <div class="card p-6 animate-slide-in-right" style="animation-delay: 0.6s;">
+                <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <i class="bi bi-arrow-left-right transition-transform duration-300 hover:scale-110"></i>
+                    Movimientos Recientes
+                </h2>
+                <div id="recentMovements" class="space-y-3">
+                    <p class="text-gray-500 text-center py-4">Cargando movimientos...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap justify-center gap-4 md:gap-6 items-center">
+            <button onclick="openModal('productModal')"
+                class="btn-primary card p-6 text-center hover:shadow-lg transform hover:-translate-y-1 transition duration-300 animate-fade-in w-full max-w-xs"
+                style="animation-delay: 0.7s;" aria-label="Crear nuevo producto">
+                <i class="bi bi-plus-circle text-3xl mb-2 transition-transform duration-300 hover:rotate-90"></i>
+                <p class="font-semibold mt-2">Nuevo Producto</p>
+            </button>
+            <button onclick="openModal('entradaModal')"
+                class="btn-primary card p-6 text-center hover:shadow-lg transform hover:-translate-y-1 transition duration-300 animate-fade-in w-full max-w-xs"
+                style="animation-delay: 0.8s;" aria-label="Registrar entrada de productos">
+                <i class="bi bi-arrow-down-circle text-3xl mb-2 transition-transform duration-300 hover:scale-110"></i>
+                <p class="font-semibold mt-2">Registrar Entrada</p>
+            </button>
+            <button onclick="openModal('salidaModal')"
+                class="btn-primary card p-6 text-center hover:shadow-lg transform hover:-translate-y-1 transition duration-300 animate-fade-in w-full max-w-xs"
+                style="animation-delay: 0.9s;" aria-label="Registrar salida de productos">
+                <i class="bi bi-arrow-up-circle text-3xl mb-2 transition-transform duration-300 hover:scale-110"></i>
+                <p class="font-semibold mt-2">Registrar Salida</p>
+            </button>
+        </div>
+    </div>
+
+    <div id="detalleMovimientoModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('detalleMovimientoModal')" aria-label="Cerrar">&times;</span>
+            <h2 class="text-2xl font-bold mb-6" style="color: #1e293b;">
+                <i class="bi bi-eye"></i> Detalles del Movimiento
+            </h2>
+            <div class="space-y-4">
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span class="font-semibold text-gray-700">Producto:</span>
+                    <span id="detalleProducto" class="text-gray-900"></span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span class="font-semibold text-gray-700">Código:</span>
+                    <span id="detalleCodigo" class="text-gray-900"></span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span class="font-semibold text-gray-700">Tipo:</span>
+                    <span id="detalleTipo"></span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span class="font-semibold text-gray-700">Cantidad:</span>
+                    <span id="detalleCantidad" class="text-gray-900 font-bold"></span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span class="font-semibold text-gray-700">Motivo:</span>
+                    <span id="detalleMotivo" class="text-gray-900"></span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span class="font-semibold text-gray-700">Fecha:</span>
+                    <span id="detalleFecha" class="text-gray-900"></span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <span class="font-semibold text-gray-700">Usuario:</span>
+                    <span id="detalleUsuario" class="text-gray-900"></span>
+                </div>
+            </div>
+            <button onclick="closeModal('detalleMovimientoModal')" class="btn-primary mt-6 w-full py-2">
+                <i class="bi bi-x-circle"></i> Cerrar
+            </button>
+        </div>
+    </div>
+
+    <div id="editProductModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('editProductModal')" aria-label="Cerrar">&times;</span>
+            <h2 class="text-2xl font-bold mb-6" style="color: #1e293b;">
+                <i class="bi bi-pencil-square"></i> Editar Producto
+            </h2>
+            <div id="editProductAlert"></div>
+            <form id="editProductForm" onsubmit="handleEditProduct(event)">
+                <input type="hidden" id="editProductId" name="id">
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Código (SKU)</label>
+                    <input type="text" id="editCodigo" name="codigo" class="form-input" placeholder="Ej: PROD-001"
+                        required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Nombre</label>
+                    <input type="text" id="editNombre" name="nombre" class="form-input" placeholder="Ej: Camisa Polo"
+                        required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Descripción</label>
+                    <textarea id="editDescripcion" name="descripcion" class="form-input" rows="3"
+                        placeholder="Descripción del producto"></textarea>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Precio de Compra</label>
+                    <input type="text" id="editPrecioCompra" name="precio_compra" class="form-input" placeholder="0"
+                        oninput="applyPriceMask(this)" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Precio de Venta</label>
+                    <input type="text" id="editPrecioVenta" name="precio_venta" class="form-input" placeholder="0"
+                        oninput="applyPriceMask(this)" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Stock Actual</label>
+                    <input type="number" id="editCantidad" name="cantidad" class="form-input" placeholder="0" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Stock Mínimo</label>
+                    <input type="number" id="editStockMinimo" name="stock_minimo" class="form-input" placeholder="10"
+                        value="10" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Ubicación</label>
+                    <input type="text" id="editUbicacion" name="ubicacion" class="form-input"
+                        placeholder="Ej: Estante A-1">
+                </div>
+                <div class="mb-4 hidden" id="editVencimientoContainer">
+                    <div class="flex items-center gap-3 mb-3">
+                        <input type="checkbox" id="editTieneVencimiento" name="tieneVencimiento"
+                            class="w-4 h-4 cursor-pointer">
+                        <label for="editTieneVencimiento" class="text-sm font-semibold cursor-pointer">¿Este producto
+                            tiene fecha de vencimiento?</label>
+                    </div>
+                    <div id="editFechaVencimientoField" class="hidden">
+                        <label class="block text-sm font-semibold mb-2">Fecha de Vencimiento</label>
+                        <input type="date" id="editFechaVencimiento" name="fecha_vencimiento" class="form-input">
+                        <p class="text-xs text-gray-500 mt-1">Selecciona la fecha de vencimiento del producto.</p>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">Los productos sin vencimiento se consideran no perecederos.
+                    </p>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-semibold mb-2">Categoría</label>
+                    <div class="combobox-wrapper" id="editCategoriaCombobox">
+                        <input type="text" name="categoria_nombre" id="editCategoriaInput"
+                            class="form-input combobox-input" placeholder="Seleccionar o escribir categoría..."
+                            autocomplete="off" required>
+                        <i class="bi bi-chevron-down combobox-arrow"></i>
+                        <div class="combobox-dropdown" id="editCategoriaDropdown"></div>
+                    </div>
+                    <input type="hidden" name="id_categoria" id="editCategoriaIdHidden">
+                </div>
+                <button type="submit" class="btn-primary w-full py-2">
+                    <i class="bi bi-check-circle"></i> Actualizar Producto
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="productModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('productModal')" aria-label="Cerrar">&times;</span>
+            <h2 class="text-2xl font-bold mb-6" style="color: #1e293b;">
+                <i class="bi bi-plus-circle"></i> Nuevo Producto
+            </h2>
+            <div id="productAlert"></div>
+            <form id="productForm" onsubmit="handleNewProduct(event)">
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Código (SKU)</label>
+                    <input type="text" name="codigo" class="form-input" placeholder="Ej: PROD-001" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Nombre</label>
+                    <input type="text" name="nombre" class="form-input" placeholder="Ej: Camisa Polo" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Descripción</label>
+                    <textarea name="descripcion" class="form-input" rows="3"
+                        placeholder="Descripción del producto"></textarea>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Precio de Compra</label>
+                    <input type="text" name="precio_compra" class="form-input" placeholder="0"
+                        oninput="applyPriceMask(this)" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Precio de Venta</label>
+                    <input type="text" name="precio_venta" class="form-input" placeholder="0"
+                        oninput="applyPriceMask(this)" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Stock Inicial</label>
+                    <input type="number" name="cantidad" class="form-input" placeholder="0" min="0" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Stock Mínimo</label>
+                    <input type="number" name="stock_minimo" class="form-input" placeholder="10" value="10" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Ubicación</label>
+                    <input type="text" name="ubicacion" class="form-input" placeholder="Ej: Estante A-1">
+                </div>
+                <div class="mb-4 hidden" id="createVencimientoContainer">
+                    <div class="flex items-center gap-3 mb-3">
+                        <input type="checkbox" id="tieneVencimiento" name="tieneVencimiento"
+                            class="w-4 h-4 cursor-pointer">
+                        <label for="tieneVencimiento" class="text-sm font-semibold cursor-pointer">¿Este producto tiene
+                            fecha de vencimiento?</label>
+                    </div>
+                    <div id="fechaVencimientoField" class="hidden">
+                        <label class="block text-sm font-semibold mb-2">Fecha de Vencimiento</label>
+                        <input type="date" name="fecha_vencimiento" class="form-input">
+                        <p class="text-xs text-gray-500 mt-1">Selecciona la fecha de vencimiento del producto.</p>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">Los productos sin vencimiento se consideran no perecederos.
+                    </p>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-semibold mb-2">Categoría</label>
+                    <div class="combobox-wrapper" id="categoriaCombobox">
+                        <input type="text" name="categoria_nombre" id="categoriaInput" class="form-input combobox-input"
+                            placeholder="Seleccionar o escribir categoría..." autocomplete="off" required>
+                        <i class="bi bi-chevron-down combobox-arrow"></i>
+                        <div class="combobox-dropdown" id="categoriaDropdown"></div>
+                    </div>
+                    <input type="hidden" name="id_categoria" id="categoriaIdHidden">
+                </div>
+                <button type="submit" class="btn-primary w-full py-2">
+                    <i class="bi bi-check-circle"></i> Crear Producto
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="entradaModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('entradaModal')" aria-label="Cerrar">&times;</span>
+            <h2 class="text-2xl font-bold mb-6" style="color: #1e293b;">
+                <i class="bi bi-arrow-down-circle"></i> Registrar Entrada
+            </h2>
+            <div id="entradaAlert"></div>
+            <form id="entradaForm" onsubmit="handleEntrada(event)">
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Producto</label>
+                    <select name="id_producto" id="productoEntradaSelect" class="form-input" required>
+                        <option value="">Cargando productos...</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Cantidad</label>
+                    <input type="number" name="cantidad" class="form-input" placeholder="0" min="1" required>
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-semibold mb-2">Motivo</label>
+                    <textarea name="motivo" class="form-input" rows="3" placeholder="Ej: Compra a proveedor"></textarea>
+                </div>
+                <button type="submit" class="btn-primary w-full py-2">
+                    <i class="bi bi-check-circle"></i> Registrar Entrada
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="salidaModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('salidaModal')" aria-label="Cerrar">&times;</span>
+            <h2 class="text-2xl font-bold mb-6" style="color: #1e293b;">
+                <i class="bi bi-arrow-up-circle"></i> Registrar Salida
+            </h2>
+            <div id="salidaAlert"></div>
+            <form id="salidaForm" onsubmit="handleSalida(event)">
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Producto</label>
+                    <select name="id_producto" id="productoSalidaSelect" class="form-input" required>
+                        <option value="">Cargando productos...</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Cantidad</label>
+                    <input type="number" name="cantidad" class="form-input" placeholder="0" min="1" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Motivo de Salida</label>
+                    <select name="motivo" id="motivoSalidaSelect" class="form-input" required>
+                        <option value="">Selecciona un motivo</option>
+                        <option value="Venta a Cliente">Venta a Cliente</option>
+                        <option value="Devolución">Devolución a Proveedor</option>
+                        <option value="Daño">Producto Dañado</option>
+                        <option value="Pérdida">Pérdida/Robo</option>
+                        <option value="Ajuste">Ajuste de Inventario</option>
+                        <option value="Otro">Otro</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-semibold mb-2">Observaciones</label>
+                    <textarea name="observaciones" class="form-input" rows="2"
+                        placeholder="Notas adicionales..."></textarea>
+                </div>
+
+                <!-- Checkbox para generar factura - Mejorado -->
+                <div
+                    class="mb-4 p-4 rounded-lg border-2 border-blue-400 bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 transition-all duration-300 shadow-md">
+                    <div class="flex items-start gap-3">
+                        <input type="checkbox" id="generarFacturaSalida"
+                            class="w-6 h-6 cursor-pointer mt-1 accent-blue-600">
+                        <div class="flex-1">
+                            <label for="generarFacturaSalida" class="cursor-pointer block">
+                                <span class="font-bold text-base text-blue-900"><i class="bi bi-receipt-cutoff"></i>
+                                    Generar Factura Electrónica</span>
+                                <p class="text-sm text-blue-700 mt-2 font-medium">✓ Se creará automáticamente al
+                                    registrar la salida</p>
+                                <p class="text-xs text-blue-600 mt-1">📄 PDF listo para imprimir con todos los datos
+                                    legales</p>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Campo cliente (se muestra si se marca factura) -->
+                <div class="mb-4 hidden p-4 bg-green-50 rounded-lg border-l-4 border-green-500 shadow-sm"
+                    id="clienteSalidaContainer">
+                    <label class="block text-sm font-bold mb-3 text-green-900"><i class="bi bi-person-check"></i> Nombre
+                        del Cliente *</label>
+                    <input type="text" id="clienteSalidaNombre"
+                        class="form-input border-2 border-green-300 focus:border-green-500 focus:ring-2 focus:ring-green-200"
+                        placeholder="Ej: Juan Pérez o Empresa XYZ" required>
+
+                    <p class="text-xs text-green-600 mt-3">📋 Los datos del negocio (dirección, teléfono) se cargaran
+                        automáticamente de la configuración</p>
+                </div>
+
+                <button type="submit" class="btn-primary w-full py-2">
+                    <i class="bi bi-check-circle"></i> Registrar Salida
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function toggleDarkMode() {
+            const body = document.body;
+            const isDarkMode = body.classList.toggle('dark-mode');
+            localStorage.setItem('darkMode', isDarkMode);
+            updateThemeIcon();
+        }
+
+        function updateThemeIcon() {
+            const icon = document.getElementById('themeIcon');
+            const isDarkMode = document.body.classList.contains('dark-mode');
+            icon.className = isDarkMode ? 'bi bi-sun' : 'bi bi-moon';
+        }
+
+        function initDarkMode() {
+            const darkModeSaved = localStorage.getItem('darkMode');
+            if (darkModeSaved === 'true') {
+                document.body.classList.add('dark-mode');
+                updateThemeIcon();
+            }
+        }
+
+        // Cargar configuración de vencimiento
+        async function loadVencimientoConfig() {
+            try {
+                const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+                const response = await fetch('http://localhost:3000/api/configuracion/inventario.vencimiento.habilitado', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                if (result.success && result.data) {
+                    const habilitado = result.data['inventario.vencimiento.habilitado'];
+                    const display = (habilitado === true || habilitado === 'true') ? 'block' : 'none';
+                    document.getElementById('createVencimientoContainer').style.display = display;
+                    document.getElementById('editVencimientoContainer').style.display = display;
+                }
+            } catch (e) { console.error('Error config vencimiento:', e); }
+        }
+
+        // Cargar identidad de la empresa
+        async function loadCompanyIdentity() {
+            try {
+                const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+                const response = await fetch('http://localhost:3000/api/configuracion', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                if (result.success && result.data) {
+                    if (result.data['empresa.nombre']) document.getElementById('companyName').textContent = result.data['empresa.nombre'];
+                    if (result.data['empresa.logo_path']) {
+                        document.getElementById('dashboardLogo').src = result.data['empresa.logo_path'] + '?t=' + Date.now();
+                    }
+                }
+            } catch (e) { console.error('Error loading identity:', e); }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => { initDarkMode(); loadVencimientoConfig(); loadCompanyIdentity(); });
+
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'block';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        window.onclick = function (event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = 'none';
+            }
+        }
+    </script>
+
+    <script src="../scripts/app.js"></script>
+    <script src="../scripts/theme-manager.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,745 @@
+﻿﻿<html lang="es-CO">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MV Inventario - Movimientos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../styles/unified-theme.css">
+    <link rel="stylesheet" href="../styles/components.css">
+    <link rel="stylesheet" href="../styles/overrides.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --mv-primary: #3b82f6;
+            --mv-secondary: #2563eb;
+            --dark-mode-card-bg: #2A2A47;
+            --dark-mode-text: #FFFFFF;
+        }
+
+        * {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #0f172a 100%);
+            font-family: 'Inter', 'Poppins', sans-serif;
+            color: #f1f5f9;
+            min-height: 100vh;
+        }
+
+        body.dark-mode {
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #0a0a0f 100%) !important;
+            color: var(--dark-mode-text) !important;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, rgba(0, 51, 102, 0.9) 0%, rgba(0, 77, 153, 0.9) 100%);
+            box-shadow: 0 8px 32px rgba(0, 51, 102, 0.3);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        body.dark-mode .navbar {
+            background: linear-gradient(135deg, rgba(26, 26, 46, 0.95) 0%, rgba(45, 45, 74, 0.95) 100%) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+        }
+
+        .card {
+            background: rgba(241, 245, 249, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(226, 232, 240, 0.5);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            color: #1e293b;
+        }
+
+        body.dark-mode .card {
+            background: rgba(42, 42, 71, 0.95) !important;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+            color: #f1f5f9 !important;
+        }
+
+        body.dark-mode .card p,
+        body.dark-mode .card span:not(.badge):not(.badge *),
+        body.dark-mode .card div,
+        body.dark-mode .card th,
+        body.dark-mode .card td {
+            color: #f1f5f9 !important;
+        }
+
+        h2,
+        h3 {
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+        body.dark-mode h2,
+        body.dark-mode h3 {
+            color: #f1f5f9 !important;
+        }
+
+        .btn-back {
+            background: transparent;
+            border: 2px solid rgba(59, 130, 246, 0.8);
+            color: #3b82f6;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-back:hover {
+            background-color: rgba(59, 130, 246, 0.1);
+            border-color: #3b82f6;
+            color: #2563eb;
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .toggle-dark {
+            background: linear-gradient(135deg, var(--mv-primary) 0%, var(--mv-secondary) 100%);
+            border: none;
+            padding: 8px;
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: white;
+            font-size: 18px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.5);
+        }
+
+        .toggle-dark:hover {
+            transform: scale(1.1) rotate(15deg);
+            background: linear-gradient(135deg, var(--mv-secondary) 0%, var(--mv-primary) 100%);
+            box-shadow: 0 6px 20px rgba(168, 85, 247, 0.7);
+        }
+
+        body.dark-mode .toggle-dark {
+            background: #FFD700;
+            color: #1e293b !important;
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.5);
+        }
+
+        body.dark-mode .toggle-dark:hover {
+            background: #FFDD44 !important;
+            box-shadow: 0 6px 16px rgba(177, 158, 70, 0.7) !important;
+            transform: scale(1.05);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f5f5f5;
+            color: #555555;
+            padding: 16px 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        td {
+            padding: 16px 12px;
+            border-bottom: 3px solid #000000;
+        }
+
+        body.dark-mode th {
+            background: #2a2a3e;
+            color: #cccccc;
+            border-bottom-color: #404050;
+        }
+
+        body.dark-mode td {
+            border-bottom-color: #404050;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(226, 232, 240, 0.3);
+            color: #1e293b;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        body.dark-mode td {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        tr:hover {
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .badge-entrada {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .badge-salida {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge-ajuste {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+
+        body.dark-mode .badge-entrada {
+            background-color: #1e4d2b;
+            color: #90ee90;
+        }
+
+        body.dark-mode .badge-salida {
+            background-color: #4d1e1e;
+            color: #ff6b6b;
+        }
+
+        body.dark-mode .badge-ajuste {
+            background-color: #1e3a4d;
+            color: #90d5ff;
+        }
+
+        body.dark-mode .badge-danger {
+            background: #fee2e2 !important;
+            color: #111827 !important;
+        }
+
+        body.dark-mode .btn-back {
+            background: transparent;
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        body.dark-mode .btn-back:hover {
+            background-color: rgba(102, 126, 234, 0.15);
+            color: #7a8df0;
+        }
+
+        /* KPI Cards Styling */
+        .stat-card-custom {
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            border: 1px solid #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            color: #1e3a8a;
+        }
+
+        .stat-card-custom h5 {
+            margin: 0;
+            font-size: 0.85rem;
+            color: #666666;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card-custom .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0;
+            color: #1e3a8a;
+        }
+
+        .stat-card-custom i {
+            font-size: 1.5rem;
+            color: #3b82f6;
+            opacity: 0.8;
+        }
+
+        body.dark-mode .stat-card-custom {
+            background: #2a2a3e;
+            border-color: #404050;
+            color: #5a9fd4;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        body.dark-mode .stat-card-custom h5 {
+            color: #aaaaaa;
+        }
+
+        body.dark-mode .stat-card-custom .stat-number {
+            color: #5a9fd4;
+        }
+
+        body.dark-mode .stat-card-custom i {
+            color: #667eea;
+        }
+
+        /* Filter Card */
+        .filter-card {
+            background: #ffffff;
+            border: 1px solid #f0f0f0;
+        }
+
+        body.dark-mode .filter-card {
+            background: #2a2a3e;
+            border-color: #404050;
+        }
+
+        #filtroSearch,
+        #filtroTipo,
+        #filtroFecha {
+            background: #ffffff;
+            color: #333333;
+            border: 1.5px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.95rem;
+        }
+
+        #filtroSearch::placeholder {
+            color: #999999;
+        }
+
+        #filtroSearch:focus,
+        #filtroTipo:focus,
+        #filtroFecha:focus {
+            border-color: #3b82f6;
+            outline: none;
+            box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.1);
+        }
+
+        body.dark-mode #filtroSearch,
+        body.dark-mode #filtroTipo,
+        body.dark-mode #filtroFecha {
+            background: #1e1e2e;
+            border-color: #404050;
+            color: #ffffff;
+        }
+
+        body.dark-mode #filtroSearch::placeholder {
+            color: #888888;
+        }
+
+        body.dark-mode #filtroSearch:focus,
+        body.dark-mode #filtroTipo:focus,
+        body.dark-mode #filtroFecha:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.1);
+        }
+
+        /* ========================================
+           RESPONSIVE DESIGN - MOBILE NAVBAR
+           ======================================== */
+
+        /* Mobile: Base styles (320px - 767px) */
+        @media (max-width: 767px) {
+
+            /* Navbar mobile fixes */
+            .navbar {
+                padding: 1rem 0.5rem !important;
+            }
+
+            .navbar>div {
+                gap: 0.75rem !important;
+                justify-content: center !important;
+                width: 100%;
+            }
+
+            /* Centrar elementos */
+            .navbar .flex {
+                flex-wrap: wrap !important;
+                justify-content: center !important;
+                gap: 0.5rem !important;
+            }
+
+            .navbar h1 {
+                font-size: 1.25rem !important;
+                text-align: center;
+                width: 100%;
+            }
+
+            /* Botones más compactos con espaciado */
+            .btn-nav,
+            .btn-back {
+                padding: 0.5rem 0.75rem !important;
+                font-size: 0.875rem !important;
+                margin-bottom: 0.25rem;
+            }
+
+            /* Ocultar texto en botones, solo icono */
+            .btn-nav i+*:not(i),
+            .btn-back i+*:not(i) {
+                display: none;
+            }
+
+            /* Toggle dark mode más pequeño */
+            .toggle-dark {
+                width: 2.5rem !important;
+                height: 2.5rem !important;
+            }
+        }
+
+        body.dark-mode .badge-ajuste {
+            background: #dbeafe !important;
+            color: #111827 !important;
+        }
+
+        /* Estilos para dropdown de exportación */
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            min-width: 200px;
+            border: 1px solid rgba(226, 232, 240, 0.6);
+            overflow: hidden;
+        }
+
+        body.dark-mode .dropdown-menu {
+            background: rgba(42, 42, 71, 0.95) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+        }
+
+        .dropdown-menu a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: #1e293b;
+            text-decoration: none;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        body.dark-mode .dropdown-menu a {
+            color: #f1f5f9 !important;
+        }
+
+        .dropdown-menu a:hover {
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        body.dark-mode .dropdown-menu a:hover {
+            background: rgba(99, 102, 241, 0.2) !important;
+        }
+
+        .dropdown-menu a i {
+            font-size: 18px;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar p-4 sticky top-0 z-50">
+        <div class="max-w-screen-2xl mx-auto flex justify-between items-center flex-wrap gap-4">
+            <div class="flex items-center gap-4">
+                <a href="/dashboard.html" class="btn-back"><i class="bi bi-arrow-left"></i> Volver a Análisis</a>
+                <h1 class="text-2xl font-bold text-white">Historial de Movimientos</h1>
+            </div>
+            <div class="flex items-center gap-4">
+                <a href="/productos.html" class="btn-nav"
+                    style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border: none; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; font-weight: 500; transition: all 0.3s; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">
+                    <i class="bi bi-box-seam"></i> Productos
+                </a>
+                <!-- Configuración (Solo Admin) -->
+                <a href="settings.html" id="adminSettingsLink"
+                    class="bg-white/20 hover:bg-white/30 p-2 rounded-lg flex items-center justify-center transition duration-300 hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] hidden"
+                    title="Configuraciones del sistema">
+                    <i class="bi bi-gear-fill text-xl"></i>
+                </a>
+                <button onclick="toggleDarkMode()" class="toggle-dark" aria-label="Alternar modo oscuro"
+                    title="Alternar modo oscuro">
+                    <i class="bi bi-moon" id="themeIcon"></i>
+                </button>
+                <img id="companyLogo" src="" alt="Logo"
+                    class="w-10 h-10 rounded-full border border-white/30 hidden object-cover">
+                <div class="text-white"><i class="bi bi-person-circle"></i> <span id="userName">ADMIN</span></div>
+            </div>
+        </div>
+    </nav>
+    <div class="max-w-screen-2xl mx-auto p-4 md:p-6 lg:p-8">
+        <!-- KPI Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="stat-card-custom">
+                <i class="bi bi-arrow-left-right"></i>
+                <h5>Total Movimientos</h5>
+                <p class="stat-number" id="totalMovimientosKPI">0</p>
+            </div>
+            <div class="stat-card-custom">
+                <i class="bi bi-box-arrow-in-right"></i>
+                <h5>Entradas Hoy</h5>
+                <p class="stat-number" id="entradasHoy">0</p>
+            </div>
+            <div class="stat-card-custom">
+                <i class="bi bi-box-arrow-out-left"></i>
+                <h5>Salidas Hoy</h5>
+                <p class="stat-number" id="salidasHoy">0</p>
+            </div>
+            <div class="stat-card-custom">
+                <i class="bi bi-person-check"></i>
+                <h5>Usuario Activo</h5>
+                <p class="stat-number" id="usuarioActivo">--</p>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="card p-6 mb-6 filter-card">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="relative">
+                    <i class="bi bi-search absolute left-3 top-3 text-gray-400"></i>
+                    <input type="text" id="filtroSearch" placeholder="Buscar por producto o motivo..."
+                        class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <select id="filtroTipo"
+                    class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">Todos los tipos</option>
+                    <option value="entrada">Entrada</option>
+                    <option value="salida">Salida</option>
+                    <option value="ajuste">Ajuste</option>
+                </select>
+                <input type="date" id="filtroFecha"
+                    class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+        </div>
+
+        <div class="card p-6">
+            <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+                <div class="flex items-center gap-4">
+                    <h2 class="text-2xl font-bold flex items-center gap-2"><i class="bi bi-arrow-left-right"></i> Todos
+                        los
+                        Movimientos</h2>
+                    <div class="text-sm"><span id="totalMovimientos">0</span> movimientos registrados</div>
+                </div>
+                <div class="relative">
+                    <button onclick="toggleExportMenu('movimientos')"
+                        class="bg-transparent border-2 border-green-600 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
+                        aria-label="Exportar movimientos">
+                        <i class="bi bi-download"></i>
+                        <span>Exportar</span>
+                        <i class="bi bi-chevron-down text-xs"></i>
+                    </button>
+                    <div id="exportMovimientosDropdown" class="dropdown-menu mt-2 right-0" style="display: none;">
+                        <a href="/api/reportes/movimientos/excel" download
+                            class="flex items-center gap-2 px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                            <i class="bi bi-file-earmark-excel text-green-600"></i>
+                            <span>Excel (.xlsx)</span>
+                        </a>
+                        <a href="/api/reportes/movimientos/pdf" download
+                            class="flex items-center gap-2 px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-t border-gray-200 dark:border-gray-700">
+                            <i class="bi bi-file-earmark-pdf text-red-600"></i>
+                            <span>PDF (Reporte)</span>
+                        </a>
+                        <a href="/api/reportes/movimientos/sql" download
+                            class="flex items-center gap-2 px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-t border-gray-200 dark:border-gray-700">
+                            <i class="bi bi-file-earmark-code text-purple-600"></i>
+                            <span>SQL (Sentencias INSERT)</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha</th>
+                            <th>Producto</th>
+                            <th>Tipo</th>
+                            <th>Cantidad</th>
+                            <th>Motivo</th>
+                            <th>Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody id="movimientosTable">
+                        <tr>
+                            <td colspan="7" class="text-center py-8">Cargando movimientos...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <script>
+        console.log('🚀 Iniciando script de movimientos...');
+        const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://127.0.0.1:3000'
+            : `http://${window.location.hostname}:3000`;
+
+        function getAuthHeaders() { const token = localStorage.getItem('authToken') || localStorage.getItem('token'); return { 'Authorization': token ? 'Bearer ' + token : '', 'Content-Type': 'application/json' }; }
+
+        function formatDateTime(dateString) {
+            if (!dateString) return '-';
+            try {
+                return new Date(dateString).toLocaleString('es-CO', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            } catch (e) { return '-'; }
+        }
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('darkMode', isDark);
+            const icon = document.getElementById('themeIcon');
+            if (icon) icon.className = isDark ? 'bi bi-sun' : 'bi bi-moon';
+        }
+
+        async function loadCompanyInfo() {
+            try {
+                const response = await fetch(API_BASE_URL + '/api/configuracion', { headers: getAuthHeaders() });
+                const result = await response.json();
+                if (result.success && result.data) {
+                    if (result.data['empresa.nombre']) document.title = `${result.data['empresa.nombre']} - Movimientos`;
+                    if (result.data['empresa.logo_path']) {
+                        const logoImg = document.getElementById('companyLogo');
+                        if (logoImg) {
+                            logoImg.src = result.data['empresa.logo_path'];
+                            logoImg.classList.remove('hidden');
+                        }
+                    }
+                }
+            } catch (e) { console.error('Error cargando info empresa:', e); }
+        }
+
+        async function loadMovimientos() {
+            try {
+                const response = await fetch(API_BASE_URL + '/api/movimientos', { headers: getAuthHeaders() });
+                const result = await response.json();
+                console.log('Movimientos cargados:', result); // Debug
+
+                const movimientos = (result.success && Array.isArray(result.data)) ? result.data : [];
+                const tbody = document.getElementById('movimientosTable');
+                if (!tbody) return;
+
+                // Actualizar KPIs
+                document.getElementById('totalMovimientosKPI').textContent = movimientos.length;
+                document.getElementById('totalMovimientos').textContent = movimientos.length;
+
+                // Calcular entradas y salidas de hoy
+                const hoy = new Date();
+                hoy.setHours(0, 0, 0, 0);
+
+                let entradasHoy = 0;
+                let salidasHoy = 0;
+                let usuarioActivo = '--';
+
+                movimientos.forEach(m => {
+                    const fecha = new Date(m.fecha);
+                    fecha.setHours(0, 0, 0, 0);
+                    if (fecha.getTime() === hoy.getTime()) {
+                        if ((m.tipo || '').toLowerCase() === 'entrada') entradasHoy++;
+                        if ((m.tipo || '').toLowerCase() === 'salida') salidasHoy++;
+                    }
+                });
+
+                if (movimientos.length > 0) {
+                    usuarioActivo = movimientos[movimientos.length - 1].usuario_nombre || 'Sistema';
+                }
+
+                document.getElementById('entradasHoy').textContent = entradasHoy;
+                document.getElementById('salidasHoy').textContent = salidasHoy;
+                document.getElementById('usuarioActivo').textContent = usuarioActivo;
+
+                if (movimientos.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8">No hay movimientos registrados</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = movimientos.map(m => {
+                    if (!m || !m.id) return ''; // Validación de seguridad reforzada
+                    try {
+                        const tipo = (m.tipo || 'desconocido').toLowerCase();
+                        const tipoBadge = tipo === 'entrada' ? 'badge-entrada' : tipo === 'salida' ? 'badge-salida' : 'badge-ajuste';
+
+                        return `<tr>
+                            <td><strong>#${m.id}</strong></td>
+                            <td>${formatDateTime(m.fecha)}</td>
+                            <td>${m.producto_nombre || '<span class="text-gray-400 italic">Producto eliminado</span>'}</td>
+                            <td><span class="badge ${tipoBadge}">${tipo.toUpperCase()}</span></td>
+                            <td><strong>${m.cantidad || 0}</strong></td>
+                            <td>${m.motivo || '-'}</td>
+                            <td>${m.usuario_nombre || 'Sistema'}</td>
+                        </tr>`;
+                    } catch (err) {
+                        console.error('Error en fila:', err);
+                        return '';
+                    }
+                }).join('');
+            } catch (error) {
+                console.error('Error cargando movimientos:', error);
+                const tbody = document.getElementById('movimientosTable');
+                if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-red-500">Error al cargar movimientos</td></tr>';
+            }
+        }
+        document.addEventListener('DOMContentLoaded', function () {
+            // Cargar rol y mostrar configuración
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+                const user = JSON.parse(userStr);
+                if (document.getElementById('userName')) document.getElementById('userName').textContent = user.nombre.toUpperCase();
+
+                const settingsButton = document.getElementById('adminSettingsLink');
+                if (settingsButton && user.rol_id === 1) {
+                    settingsButton.classList.remove('hidden');
+                }
+            }
+            const darkMode = localStorage.getItem('darkMode') === 'true';
+            if (darkMode) {
+                document.body.classList.add('dark-mode');
+                const icon = document.getElementById('themeIcon');
+                if (icon) icon.className = 'bi bi-sun';
+            }
+            loadMovimientos();
+            loadCompanyInfo();
+        });
+
+        function toggleExportMenu(type) {
+            const dropdownId = type === 'productos' ? 'exportProductosDropdown' : 'exportMovimientosDropdown';
+            const dropdown = document.getElementById(dropdownId);
+            if (dropdown) {
+                dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+
+        // Cerrar dropdown al hacer click fuera
+        document.addEventListener('click', function (event) {
+            const productosDropdown = document.getElementById('exportProductosDropdown');
+            const movimientosDropdown = document.getElementById('exportMovimientosDropdown');
+            const button = event.target.closest('button[onclick*="toggleExportMenu"]');
+
+            if (!button && productosDropdown && productosDropdown.style.display === 'block') {
+                productosDropdown.style.display = 'none';
+            }
+            if (!button && movimientosDropdown && movimientosDropdown.style.display === 'block') {
+                movimientosDropdown.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+
+</html>
