@@ -7,6 +7,24 @@ const API_BASE_URL = ''; // Ruta relativa automática para evitar errores de COR
 // HELPERS
 // =====================================================
 
+// Función segura para obtener y modificar elementos DOM
+function safeElementUpdate(id, textContent, display = null) {
+    try {
+        const element = document.getElementById(id);
+        if (element) {
+            if (textContent !== null) element.textContent = textContent;
+            if (display !== null) element.style.display = display;
+            return true;
+        } else {
+            console.warn(`⚠️ Elemento ${id} no encontrado`);
+            return false;
+        }
+    } catch (error) {
+        console.error(`❌ Error actualizando elemento ${id}:`, error);
+        return false;
+    }
+}
+
 // Obtener token de autenticación
 function getAuthToken() {
     return localStorage.getItem('authToken');
@@ -162,7 +180,7 @@ window.addEventListener('load', () => {
     const token = getAuthToken();
 
     if (!user || !token) {
-        window.location.href = 'pages/login.html';
+        window.location.href = '../pages/login.html';
         return;
     }
 
@@ -284,20 +302,25 @@ async function loadStats() {
         const data = await response.json();
 
         if (data.success) {
-            document.getElementById('totalProducts').textContent = data.data.totalProductos;
-            document.getElementById('totalStock').textContent = data.data.stockTotal;
-            document.getElementById('totalCategories').textContent = data.data.totalCategorias;
-            document.getElementById('totalMovements').textContent = data.data.totalMovimientos;
+            console.log('📊 Actualizando estadísticas con datos reales');
+            
+            // Usar función segura para actualizar elementos
+            safeElementUpdate('totalProducts', data.data.totalProductos);
+            safeElementUpdate('totalStock', data.data.stockTotal);
+            safeElementUpdate('totalCategories', data.data.totalCategorias);
+            safeElementUpdate('totalMovements', data.data.totalMovimientos);
         } else {
             throw new Error('API response not successful');
         }
     } catch (error) {
         console.warn('API no disponible, mostrando datos demo:', error.message);
-        // Fallback a datos mock SIEMPRE
-        document.getElementById('totalProducts').textContent = MOCK_DATA.stats.totalProductos;
-        document.getElementById('totalStock').textContent = MOCK_DATA.stats.stockTotal;
-        document.getElementById('totalCategories').textContent = MOCK_DATA.stats.totalCategorias;
-        document.getElementById('totalMovements').textContent = MOCK_DATA.stats.totalMovimientos;
+        
+        // Usar función segura para actualizar elementos con fallback
+        console.log('📊 Usando datos fallback (mock)');
+        safeElementUpdate('totalProducts', MOCK_DATA.stats.totalProductos);
+        safeElementUpdate('totalStock', MOCK_DATA.stats.stockTotal);
+        safeElementUpdate('totalCategories', MOCK_DATA.stats.totalCategorias);
+        safeElementUpdate('totalMovements', MOCK_DATA.stats.totalMovimientos);
     }
 }
 
@@ -328,6 +351,7 @@ async function loadRecentProducts() {
 
 // Función auxiliar para renderizar productos (reutilizable para mock)
 function renderProductosRecientes(productos) {
+    const container = document.getElementById('recentProducts');
     if (!container) return;
 
     if (!productos || productos.length === 0) {
@@ -415,6 +439,7 @@ async function loadRecentMovements() {
 
 // Función auxiliar para renderizar movimientos (reutilizable para mock)
 function renderMovimientosRecientes(movimientos) {
+    const container = document.getElementById('recentMovements');
     if (!container) return;
 
     if (!movimientos || movimientos.length === 0) {
@@ -530,24 +555,29 @@ async function loadAlertas() {
             );
 
             const totalAlertas = alertasActivas.length;
-            const badge = document.getElementById('alertasBadge');
-            const count = document.getElementById('alertasCount');
-            const btnAlertas = document.querySelector('.nav-icon-button[title="Notificaciones"]');
+            // Verificar si los elementos de alertas existen antes de intentar actualizarlos
+            const hasAlertasElements = document.getElementById('alertasBadge') && document.getElementById('alertasCount');
+            
+            if (hasAlertasElements) {
+                console.log('📊 Cargando alertas:', totalAlertas);
 
-            // Actualizar badge
-            if (totalAlertas > 0) {
-                badge.textContent = totalAlertas;
-                badge.style.display = 'block';
-                count.textContent = `${totalAlertas} ${totalAlertas === 1 ? 'alerta' : 'alertas'}`;
+                // Actualizar badge usando función segura
+                if (totalAlertas > 0) {
+                    safeElementUpdate('alertasBadge', totalAlertas, 'block');
+                    safeElementUpdate('alertasCount', `${totalAlertas} ${totalAlertas === 1 ? 'alerta' : 'alertas'}`);
 
-                // Agregar animación de shake si el botón existe
-                if (btnAlertas) {
-                    btnAlertas.classList.add('tiene-alertas');
-                    setTimeout(() => btnAlertas.classList.remove('tiene-alertas'), 500);
+                    // Agregar animación de shake si el botón existe
+                    const btnAlertas = document.querySelector('.nav-icon-button[title="Notificaciones"]');
+                    if (btnAlertas) {
+                        btnAlertas.classList.add('tiene-alertas');
+                        setTimeout(() => btnAlertas.classList.remove('tiene-alertas'), 500);
+                    }
+                } else {
+                    safeElementUpdate('alertasBadge', '0', 'none');
+                    safeElementUpdate('alertasCount', '0 alertas');
                 }
             } else {
-                badge.style.display = 'none';
-                count.textContent = '0 alertas';
+                console.log('📊 Elementos de alertas no encontrados - omitiendo actualización');
             }
 
             // Renderizar lista de alertas
@@ -1037,7 +1067,7 @@ async function handleSalida(event) {
 function logout() {
     localStorage.removeItem('user');
     localStorage.removeItem('authToken');
-    window.location.href = 'pages/login.html';
+    window.location.href = '../pages/login.html';
 }
 
 // =====================================================

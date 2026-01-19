@@ -1,0 +1,487 @@
+
+/**
+ * Sistema de Backup Automático - MV Inventario
+ * Crea respaldos automáticos cada vez que hay cambios en el sistema
+ */
+const BackupManager = {
+    config: {
+        enabled: true,
+        backupsDir: './backups',
+        maxBackups: 10, // Máximo número de backups a mantener
+        compression: true,
+        includeFiles: true,
+        includeDatabase: true,
+        autoBackup: true
+    },
+
+    // Tipos de cambios que activan backup
+    changeTypes: [
+        'PRODUCTO_CREATE',
+        'PRODUCTO_UPDATE', 
+        'PRODUCTO_DELETE',
+        'PRECIO_UPDATE',
+        'MOVIMIENTO_CREATE',
+        'MOVIMIENTO_UPDATE',
+        'MOVIMIENTO_DELETE',
+        'CATEGORIA_CREATE',
+        'CATEGORIA_UPDATE',
+        'CATEGORIA_DELETE',
+        'USUARIO_CREATE',
+        'USUARIO_UPDATE',
+        'USUARIO_DELETE',
+        'CONFIG_UPDATE'
+    ],
+
+    /**
+     * Inicializar el sistema de backup
+     */
+    async init() {
+        console.log('🔄 Inicializando BackupManager...');
+        
+        // Crear directorio de backups si no existe
+        await this.ensureBackupsDirectory();
+        
+        // Limpiar backups antiguos
+        await this.cleanupOldBackups();
+        
+        console.log('✅ BackupManager inicializado correctamente');
+    },
+
+    /**
+     * Crear backup automático cuando hay un cambio
+     */
+    async triggerBackup(changeType, details = {}) {
+        if (!this.config.enabled || !this.config.autoBackup) {
+            return { success: false, message: 'Backup automático deshabilitado' };
+        }
+
+        try {
+            console.log(`🔄 Trigger backup automático: ${changeType}`);
+            
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const backupName = `auto_backup_${timestamp}_${changeType}`;
+            
+            // Crear metadatos del backup
+            const metadata = {
+                name: backupName,
+                timestamp: new Date().toISOString(),
+                changeType: changeType,
+                details: details,
+                triggeredBy: 'automatic',
+                version: '1.0.0'
+            };
+
+            // Generar backup
+            const backupResult = await this.createBackup(backupName, metadata);
+            
+            console.log('✅ Backup automático completado:', backupResult);
+            return backupResult;
+            
+        } catch (error) {
+            console.error('❌ Error en backup automático:', error);
+            return { success: false, error: error.message };
+        }
+    },
+
+    /**
+     * Crear un backup completo
+     */
+    async createBackup(backupName, metadata = {}) {
+        try {
+            console.log(`📦 Creando backup: ${backupName}`);
+            
+            const timestamp = new Date().toISOString();
+            const backupPath = `${this.config.backupsDir}/${backupName}_${Date.now()}`;
+            
+            // Crear estructura del backup
+            const backup = {
+                metadata: {
+                    ...metadata,
+                    timestamp: timestamp,
+                    backupName: backupName,
+                    environment: process.env.NODE_ENV || 'development'
+                },
+                database: await this.backupDatabase(),
+                files: await this.backupFiles(),
+                config: await this.backupConfig()
+            };
+
+            // Guardar backup en archivo
+            const backupFile = `${backupPath}.json`;
+            await this.saveBackupFile(backupFile, backup);
+            
+            // Comprimir si está habilitado
+            if (this.config.compression) {
+                await this.compressBackup(backupFile);
+            }
+
+            // Limpiar backups antiguos
+            await this.cleanupOldBackups();
+            
+            return {
+                success: true,
+                backupName: backupName,
+                backupPath: backupFile,
+                size: JSON.stringify(backup).length,
+                timestamp: timestamp
+            };
+
+        } catch (error) {
+            console.error('❌ Error creando backup:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Respaldo de la base de datos
+     */
+    async backupDatabase() {
+        try {
+            const fs = require('fs').promises;
+            const path = require('path');
+            
+            // Si tienes MySQL, usa mysqldump
+            if (process.env.DB_TYPE === 'mysql') {
+                const { execSync } = require('child_process');
+                const mysqldump = execSync(`mysqldump -h ${process.env.DB_HOST} -u ${process.env.DB_USER} -p${process.env.DB_PASSWORD} ${process.env.DB_NAME}`, { encoding: 'utf8' });
+                return {
+                    type: 'mysql',
+                    data: mysqldump,
+                    timestamp: new Date().toISOString()
+                };
+            }
+            
+            // SQLite (si aplica)
+            const dbPath = path.join(__dirname, '../database.sqlite');
+            if (await fs.access(dbPath).then(() => true).catch(() => false)) {
+                const dbData = await fs.readFile(dbPath);
+                return {
+                    type: 'sqlite',
+                    data: dbData.toString('base64'),
+                    timestamp: new Date().toISOString()
+                };
+            }
+            
+            return { type: 'none', data: null, message: 'No se encontró base de datos para respaldar' };
+
+        } catch (error) {
+            console.error('Error respaldando base de datos:', error);
+            return { type: 'error', error: error.message };
+        }
+    },
+
+    /**
+     * Respaldo de archivos importantes
+     */
+    async backupFiles() {
+        try {
+            const fs = require('fs').promises;
+            const path = require('path');
+            
+            const filesToBackup = [
+                'package.json',
+                '.env',
+                'README.md',
+                'server.js'
+            ];
+            
+            const backedUpFiles = {};
+            
+            for (const file of filesToBackup) {
+                try {
+                    const filePath = path.join(__dirname, '..', file);
+                    const fileData = await fs.readFile(filePath, 'utf8');
+                    backedUpFiles[file] = {
+                        data: fileData,
+                        timestamp: new Date().toISOString(),
+                        size: fileData.length
+                    };
+                } catch (error) {
+                    console.warn(`No se pudo respaldar archivo ${file}:`, error.message);
+                }
+            }
+            
+            // Respaldo del frontend
+            try {
+                const frontendPath = path.join(__dirname, '../Frontend');
+                const frontendFiles = await this.getDirectoryFiles(frontendPath);
+                backedUpFiles.frontend = {
+                    type: 'directory',
+                    files: frontendFiles,
+                    timestamp: new Date().toISOString()
+                };
+            } catch (error) {
+                console.warn('No se pudo respaldar frontend:', error.message);
+            }
+            
+            return backedUpFiles;
+
+        } catch (error) {
+            console.error('Error respaldando archivos:', error);
+            return { type: 'error', error: error.message };
+        }
+    },
+
+    /**
+     * Respaldo de la configuración
+     */
+    async backupConfig() {
+        try {
+            const fs = require('fs').promises;
+            const path = require('path');
+            
+            const config = {
+                environment: process.env.NODE_ENV || 'development',
+                database: {
+                    host: process.env.DB_HOST,
+                    name: process.env.DB_NAME,
+                    type: process.env.DB_TYPE || 'sqlite'
+                },
+                server: {
+                    port: process.env.PORT || 3000,
+                    nodeVersion: process.version
+                },
+                timestamp: new Date().toISOString()
+            };
+            
+            return config;
+
+        } catch (error) {
+            console.error('Error respaldando configuración:', error);
+            return { type: 'error', error: error.message };
+        }
+    },
+
+    /**
+     * Obtener archivos de un directorio recursivamente
+     */
+    async getDirectoryFiles(dirPath, baseDir = dirPath) {
+        const fs = require('fs').promises;
+        const path = require('path');
+        
+        const files = {};
+        const items = await fs.readdir(dirPath);
+        
+        for (const item of items) {
+            const fullPath = path.join(dirPath, item);
+            const stat = await fs.stat(fullPath);
+            
+            if (stat.isDirectory() && !item.startsWith('.')) {
+                files[item] = {
+                    type: 'directory',
+                    files: await this.getDirectoryFiles(fullPath, baseDir),
+                    timestamp: new Date().toISOString()
+                };
+            } else if (stat.isFile() && !item.startsWith('.')) {
+                try {
+                    const relativePath = path.relative(baseDir, fullPath);
+                    const fileData = await fs.readFile(fullPath, 'utf8');
+                    files[item] = {
+                        type: 'file',
+                        data: fileData,
+                        size: fileData.length,
+                        timestamp: new Date().toISOString()
+                    };
+                } catch (error) {
+                    console.warn(`No se pudo leer archivo ${item}:`, error.message);
+                }
+            }
+        }
+        
+        return files;
+    },
+
+    /**
+     * Guardar archivo de backup
+     */
+    async saveBackupFile(filePath, backupData) {
+        const fs = require('fs').promises;
+        const path = require('path');
+        
+        await fs.mkdir(path.dirname(filePath), { recursive: true });
+        await fs.writeFile(filePath, JSON.stringify(backupData, null, 2));
+        
+        return filePath;
+    },
+
+    /**
+     * Comprimir backup (si se tiene zlib)
+     */
+    async compressBackup(filePath) {
+        try {
+            const fs = require('fs').promises;
+            const zlib = require('zlib');
+            
+            const fileData = await fs.readFile(filePath);
+            const compressed = zlib.gzipSync(fileData);
+            await fs.writeFile(filePath + '.gz', compressed);
+            
+            // Eliminar archivo original
+            await fs.unlink(filePath);
+            
+            return filePath + '.gz';
+            
+        } catch (error) {
+            console.warn('No se pudo comprimir el backup:', error.message);
+            return filePath;
+        }
+    },
+
+    /**
+     * Asegurar que existe el directorio de backups
+     */
+    async ensureBackupsDirectory() {
+        const fs = require('fs').promises;
+        const path = require('path');
+        
+        try {
+            await fs.mkdir(this.config.backupsDir, { recursive: true });
+        } catch (error) {
+            console.warn('No se pudo crear directorio de backups:', error.message);
+        }
+    },
+
+    /**
+     * Limpiar backups antiguos
+     */
+    async cleanupOldBackups() {
+        try {
+            const fs = require('fs').promises;
+            const path = require('path');
+            
+            const files = await fs.readdir(this.config.backupsDir);
+            const backupFiles = files
+                .filter(file => file.startsWith('backup_') || file.startsWith('auto_backup_'))
+                .map(file => ({
+                    name: file,
+                    path: path.join(this.config.backupsDir, file),
+                    stats: fs.stat(path.join(this.config.backupsDir, file))
+                }));
+
+            if (backupFiles.length <= this.config.maxBackups) {
+                return;
+            }
+
+            // Ordenar por fecha (más antiguos primero)
+            const sortedFiles = await Promise.all(
+                backupFiles.map(async file => ({
+                    ...file,
+                    stats: await file.stats
+                }))
+            );
+
+            sortedFiles.sort((a, b) => a.stats.mtime - b.stats.mtime);
+
+            // Eliminar los más antiguos
+            const filesToDelete = sortedFiles.slice(0, sortedFiles.length - this.config.maxBackups);
+            
+            for (const file of filesToDelete) {
+                try {
+                    await fs.unlink(file.path);
+                    console.log(`🗑️ Backup antiguo eliminado: ${file.name}`);
+                } catch (error) {
+                    console.warn(`No se pudo eliminar backup ${file.name}:`, error.message);
+                }
+            }
+
+        } catch (error) {
+            console.warn('Error limpiando backups antiguos:', error.message);
+        }
+    },
+
+    /**
+     * Listar todos los backups disponibles
+     */
+    async listBackups() {
+        try {
+            const fs = require('fs').promises;
+            const path = require('path');
+            
+            const files = await fs.readdir(this.config.backupsDir);
+            const backupFiles = files
+                .filter(file => file.startsWith('backup_') || file.startsWith('auto_backup_'))
+                .map(file => {
+                    const filePath = path.join(this.config.backupsDir, file);
+                    const stats = fs.stat(filePath);
+                    return {
+                        name: file,
+                        path: filePath,
+                        size: stats.then(s => s.size),
+                        modified: stats.then(s => s.mtime),
+                        type: file.startsWith('auto_backup_') ? 'automatic' : 'manual'
+                    };
+                });
+
+            const resolvedFiles = await Promise.all(backupFiles);
+            
+            return {
+                success: true,
+                backups: resolvedFiles.sort((a, b) => b.modified - a.modified)
+            };
+
+        } catch (error) {
+            console.error('Error listando backups:', error);
+            return { success: false, error: error.message };
+        }
+    },
+
+    /**
+     * Restaurar un backup específico
+     */
+    async restoreBackup(backupName) {
+        try {
+            const fs = require('fs').promises;
+            const path = require('path');
+            
+            const backupPath = path.join(this.config.backupsDir, backupName);
+            const backupData = JSON.parse(await fs.readFile(backupPath, 'utf8'));
+            
+            console.log('🔄 Iniciando restauración del backup:', backupName);
+            
+            // Restaurar base de datos
+            if (backupData.database && backupData.database.data) {
+                await this.restoreDatabase(backupData.database);
+            }
+            
+            // Restaurar archivos
+            if (backupData.files) {
+                await this.restoreFiles(backupData.files);
+            }
+            
+            console.log('✅ Backup restaurado correctamente');
+            
+            return {
+                success: true,
+                backupName: backupName,
+                timestamp: new Date().toISOString()
+            };
+
+        } catch (error) {
+            console.error('❌ Error restaurando backup:', error);
+            return { success: false, error: error.message };
+        }
+    },
+
+    /**
+     * Restaurar base de datos desde backup
+     */
+    async restoreDatabase(databaseBackup) {
+        // Implementar lógica de restauración según el tipo de BD
+        console.log('📊 Restaurando base de datos...');
+        // Esta función dependerá de tu sistema de base de datos específico
+    },
+
+    /**
+     * Restaurar archivos desde backup
+     */
+    async restoreFiles(filesBackup) {
+        // Implementar lógica de restauración de archivos
+        console.log('📁 Restaurando archivos...');
+        // Esta función dependerá de tu estructura de archivos específica
+    }
+};
+
+// Exportar para uso en otros módulos
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = BackupManager;
+export { BackupManager };

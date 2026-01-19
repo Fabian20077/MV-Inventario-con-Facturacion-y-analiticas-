@@ -1,0 +1,230 @@
+// Versión simplificada y depurada del JavaScript para historial-precios.html
+
+console.log('Script de historial-precios cargado');
+
+// APIs
+const API_BASE_URL = 'http://localhost:8080';
+
+function getAuthToken() {
+    return localStorage.getItem('authToken') || localStorage.getItem('token');
+}
+
+function getAuthHeaders() {
+    const token = getAuthToken();
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : ''
+    };
+}
+
+// Cargar productos - versión simplificada
+async function cargarProductos() {
+    console.log('Iniciando carga de productos...');
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/productos`, {
+            headers: getAuthHeaders()
+        });
+        
+        console.log('Response status:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Datos recibidos:', data);
+
+        const productos = data.data || data;
+        if (productos && productos.length > 0) {
+            mostrarProductos(productos);
+            cargarCategorias(productos);
+            console.log('Productos cargados exitosamente');
+        } else {
+            console.warn('No hay productos para mostrar');
+            const tabla = document.getElementById('productosTable');
+            if (tabla) {
+                tabla.innerHTML = '<tr><td colspan="6" class="text-center py-4">No hay productos</td></tr>';
+            }
+        }
+    } catch (error) {
+        console.error('Error cargando productos:', error);
+        const tabla = document.getElementById('productosTable');
+        if (tabla) {
+            tabla.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-red-500"><i class="bi bi-exclamation-triangle"></i> Error: ' + error.message + '</td></tr>';
+        }
+    }
+}
+
+// Mostrar productos - versión simplificada
+function mostrarProductos(productos) {
+    console.log('Renderizando productos:', productos);
+    
+    const tabla = document.getElementById('productosTable');
+    if (!tabla) {
+        console.error('Tabla de productos no encontrada');
+        return;
+    }
+    
+    if (!productos || productos.length === 0) {
+        tabla.innerHTML = '<tr><td colspan="6" class="text-center py-4">No hay productos</td></tr>';
+        return;
+    }
+
+    let html = '';
+    productos.forEach(p => {
+        const btnClass = 'btn btn-primary btn-sm';
+        
+        html += `
+            <tr class="table-row border-b" data-product-id="${p.id}">
+                <td class="p-3 font-mono text-sm">${p.codigo || 'N/A'}</td>
+                <td class="p-3">${p.nombre || 'N/A'}</td>
+                <td class="p-3">${p.categoria_nombre || 'N/A'}</td>
+                <td class="p-3 text-right font-bold">$${Number(p.precio_venta || 0).toLocaleString('es-CO')}</td>
+                <td class="p-3 text-right text-sm">${new Date(p.fecha_creacion).toLocaleDateString('es-CO')}</td>
+                <td class="p-3 text-center">
+                    <button onclick="verHistorial(${p.id}, '${(p.nombre || '').replace(/'/g, "\\'")}')" class="${btnClass}" data-product-id="${p.id}">
+                        <i class="bi bi-clock-history"></i> Ver
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    tabla.innerHTML = html;
+    console.log('Tabla renderizada correctamente');
+}
+
+// Cargar categorías - versión simplificada
+function cargarCategorias(productos) {
+    const select = document.getElementById('filterCategory');
+    if (!select) return;
+    
+    // Limpiar opciones existentes excepto la primera
+    while (select.children.length > 1) {
+        select.removeChild(select.lastChild);
+    }
+    
+    const categorias = [...new Set(productos.map(p => p.categoria_nombre).filter(Boolean))];
+    categorias.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = cat;
+        select.appendChild(option);
+    });
+}
+
+// Ver historial - versión simplificada
+async function verHistorial(productoId, nombreProducto) {
+    console.log('Ver historial para producto:', productoId, nombreProducto);
+    
+    try {
+        // Mostrar modal con carga
+        const modal = document.getElementById('historialModal');
+        const nombreElement = document.getElementById('productoNombre');
+        const tablaElement = document.getElementById('historialTable');
+        
+        if (modal && nombreElement && tablaElement) {
+            nombreElement.textContent = nombreProducto;
+            tablaElement.innerHTML = '<tr><td colspan="5" class="text-center py-4"><i class="bi bi-arrow-repeat animate-spin"></i> Cargando historial...</td></tr>';
+            modal.style.display = 'flex';
+        } else {
+            console.error('Elementos del modal no encontrados');
+            return;
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/api/productos/${productoId}/historial-precio`, {
+            headers: getAuthHeaders()
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Historial recibido:', data);
+        
+        mostrarHistorial(data || []);
+        
+    } catch (error) {
+        console.error('Error al cargar historial:', error);
+        const tablaElement = document.getElementById('historialTable');
+        if (tablaElement) {
+            tablaElement.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-red-500"><i class="bi bi-exclamation-triangle"></i> Error: ' + error.message + '</td></tr>';
+        }
+    }
+}
+
+// Mostrar historial en el modal - versión simplificada
+function mostrarHistorial(historial) {
+    console.log('Mostrando historial:', historial);
+    
+    const tabla = document.getElementById('historialTable');
+    if (!tabla) return;
+    
+    if (!historial || historial.length === 0) {
+        tabla.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-500"><i class="bi bi-inbox"></i> No hay registros de cambios de precios para este producto</td></tr>';
+        return;
+    }
+    
+    let html = '';
+    historial.forEach(h => {
+        const fecha = new Date(h.fecha_cambio).toLocaleString('es-CO');
+        const compra = '$' + Number(h.precio_compra_nuevo || 0).toLocaleString('es-CO');
+        const venta = '$' + Number(h.precio_venta_nuevo || 0).toLocaleString('es-CO');
+        const margen = h.precio_venta_nuevo && h.precio_compra_nuevo > 0 
+            ? Math.round(((h.precio_venta_nuevo - h.precio_compra_nuevo) / h.precio_venta_nuevo) * 100)
+            : 0;
+        const usuario = h.usuario_nombre || h.usuario || 'Sistema';
+        
+        html += `
+            <tr style="border-bottom: 1px solid #e5e7eb;">
+                <td style="padding: 12px; vertical-align: middle;">${fecha}</td>
+                <td style="padding: 12px; vertical-align: middle; text-align: right; font-weight: bold;">${compra}</td>
+                <td style="padding: 12px; vertical-align: middle; text-align: right; font-weight: bold;">${venta}</td>
+                <td style="padding: 12px; vertical-align: middle; text-align: center;">
+                    <span style="padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; background: ${margen >= 30 ? '#dcfce7; color: #15803d' : '#fef3c7; color: #92400e'}">
+                        ${margen}%
+                    </span>
+                </td>
+                <td style="padding: 12px; vertical-align: middle;">
+                    <div>${usuario}</div>
+                    ${h.razon ? `<div style="font-size: 12px; color: #6b7280; font-style: italic; margin-top: 4px;">"${h.razon}"</div>` : ''}
+                </td>
+            </tr>
+        `;
+    });
+    
+    tabla.innerHTML = html;
+}
+
+// Cerrar modal
+function cerrarModalHistorial() {
+    const modal = document.getElementById('historialModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Filtrar productos
+function filtrarHistorial() {
+    const search = document.getElementById('searchProduct');
+    const category = document.getElementById('filterCategory');
+    const rows = document.querySelectorAll('#productosTable tr');
+    
+    const searchTerm = search ? search.value.toLowerCase() : '';
+    const categoryFilter = category ? category.value : '';
+    
+    rows.forEach(row => {
+        const texto = row.textContent.toLowerCase();
+        const coincideSearch = searchTerm === '' || texto.includes(searchTerm);
+        const coincideCategoria = categoryFilter === '' || texto.includes(categoryFilter);
+        row.style.display = coincideSearch && coincideCategoria ? '' : 'none';
+    });
+}
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM cargado, inicializando...');
+    cargarProductos();
+});

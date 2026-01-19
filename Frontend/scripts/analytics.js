@@ -80,6 +80,11 @@ async function loadTopProductsChart() {
         if (result.success && result.data && result.data.length > 0) {
             if (typeof Chart === 'undefined') {
                 console.error('Chart.js no está cargado');
+                const canvas = document.getElementById('topProductsChart');
+                if (canvas) {
+                    const parent = canvas.parentElement;
+                    parent.innerHTML = '<p class="text-red-500 text-center py-8">Error: Chart.js no está disponible. Por favor, recarga la página.</p>';
+                }
                 return;
             }
 
@@ -180,6 +185,11 @@ async function loadGananciasChart() {
         if (result.success && result.data && result.data.length > 0) {
             if (typeof Chart === 'undefined') {
                 console.error('Chart.js no está cargado');
+                const canvas = document.getElementById('gananciasChart');
+                if (canvas) {
+                    const parent = canvas.parentElement;
+                    parent.innerHTML = '<p class="text-red-500 text-center py-8">Error: Chart.js no está disponible. Por favor, recarga la página.</p>';
+                }
                 return;
             }
 

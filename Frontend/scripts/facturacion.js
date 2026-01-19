@@ -15,6 +15,15 @@ let productosFacura = [];
 let ivaConfigurable = 19;
 let tokenActual = localStorage.getItem('authToken');
 
+// Productos de ejemplo para fallback cuando la API no está disponible
+const PRODUCTOS_EJEMPLO = [
+    { id: 1, nombre: 'Rueda Camioneta', codigo: 'PROD-001', cantidad: 45, precio_venta: 9000, categoria: 'Repuestos' },
+    { id: 2, nombre: 'Pantalón', codigo: 'PROD-002', cantidad: 120, precio_venta: 10000, categoria: 'Ropa' },
+    { id: 3, nombre: 'Camisa', codigo: 'PROD-003', cantidad: 85, precio_venta: 20000, categoria: 'Ropa' },
+    { id: 4, nombre: 'Tornillo M8', codigo: 'PROD-004', cantidad: 5, precio_venta: 500, categoria: 'Hardware' },
+    { id: 5, nombre: 'Batería 12V', codigo: 'PROD-005', cantidad: 12, precio_venta: 45000, categoria: 'Eléctrica' }
+];
+
 // ==================== INICIALIZACIÓN ====================
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -54,11 +63,18 @@ async function buscarProductos() {
             url += `&categoria=${categoriaId}`;
         }
 
+        // Mostrar indicador de carga
+        contenedorResultados.innerHTML = '<div class="text-center p-3"><i class="fas fa-spinner fa-spin"></i> Buscando...</div>';
+        contenedorResultados.style.display = 'block';
+        sinResultados.style.display = 'none';
+
         const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${tokenActual}` }
         });
 
-        if (!response.ok) throw new Error('Error al buscar productos');
+        if (!response.ok) {
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
 
         const data = await response.json();
         const productos = data.productos || [];
@@ -66,6 +82,7 @@ async function buscarProductos() {
         contenedorResultados.innerHTML = '';
 
         if (productos.length === 0) {
+            sinResultados.innerHTML = '<i class="fas fa-search"></i> No se encontraron productos';
             sinResultados.style.display = 'block';
             contenedorResultados.style.display = 'none';
             return;
@@ -111,8 +128,25 @@ async function buscarProductos() {
         }
 
     } catch (error) {
-        mostrarAlerta('Error al buscar productos', 'error');
-        console.error(error);
+        console.error('Error en buscarProductos:', error);
+        // Mostrar error específico al usuario
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            mostrarAlerta('❌ No se puede conectar con el servidor. Verifica que el backend esté corriendo.', 'error');
+            // Mostrar mensaje de conexión en el área de búsqueda
+            contenedorResultados.innerHTML = '<div class="alert alert-danger text-center p-3"><i class="fas fa-exclamation-triangle"></i> Error de conexión con el servidor</div>';
+            contenedorResultados.style.display = 'block';
+            sinResultados.style.display = 'none';
+        } else if (error.message.includes('401') || error.message.includes('403')) {
+            mostrarAlerta('❌ Tu sesión ha expirado. Por favor, inicia sesión nuevamente.', 'error');
+            contenedorResultados.innerHTML = '<div class="alert alert-warning text-center p-3"><i class="fas fa-lock"></i> Sesión expirada</div>';
+            contenedorResultados.style.display = 'block';
+            sinResultados.style.display = 'none';
+        } else {
+            mostrarAlerta(`❌ Error al buscar productos: ${error.message}`, 'error');
+            contenedorResultados.innerHTML = `<div class="alert alert-danger text-center p-3"><i class="fas fa-exclamation-triangle"></i> Error: ${error.message}</div>`;
+            contenedorResultados.style.display = 'block';
+            sinResultados.style.display = 'none';
+        }
     }
 }
 
@@ -213,6 +247,11 @@ function calcularTotales() {
     document.getElementById('subtotal-valor').textContent = `$${subtotal.toLocaleString('es-CO')}`;
 
     // Mostrar detalle del impuesto
+    const impuestosHabilitados = window.impuestosConfig ? window.impuestosConfig.activo : true;
+    const ivaPorcentaje = window.impuestosConfig ? window.impuestosConfig.porcentaje || 0 : ivaConfigurable;
+    const ivaValorFijo = window.impuestosConfig ? window.impuestosConfig.valor_fijo || 0 : 0;
+    const nombreImpuesto = window.impuestosConfig ? window.impuestosConfig.nombre : 'IVA';
+    
     if (!impuestosHabilitados) {
         document.getElementById('iva-porcentaje').textContent = 'Deshabilitado';
         document.getElementById('iva-porcentaje').classList.add('text-muted');

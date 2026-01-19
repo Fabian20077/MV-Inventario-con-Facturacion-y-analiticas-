@@ -1,0 +1,348 @@
+/**
+ * Rutas de API para gestión de Backups - MV Inventario
+ */
+
+const express = require('express');
+const router = express.Router();
+const BackupManager = require('../utils/backup-manager');
+const backupMiddleware = require('../middleware/backup-middleware');
+
+/**
+ * Obtener lista de backups disponibles
+ */
+router.get('/list', async (req, res) => {
+    try {
+        const result = await BackupManager.listBackups();
+        
+        if (result.success) {
+            res.json({
+                success: true,
+                data: result.backups,
+                count: result.backups.length
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: 'Error obteniendo lista de backups',
+                error: result.error
+            });
+        }
+    } catch (error) {
+        console.error('Error en /backups/list:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Crear backup manual
+ */
+router.post('/create', async (req, res) => {
+    try {
+        const { reason = 'MANUAL_API_REQUEST' } = req.body;
+        
+        const result = await backupMiddleware.triggerManualBackup(reason);
+        
+        if (result.success) {
+            res.json({
+                success: true,
+                message: 'Backup creado exitosamente',
+                backup: {
+                    name: result.backupName,
+                    path: result.backupPath,
+                    size: result.size,
+                    timestamp: result.timestamp
+                }
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: 'Error creando backup',
+                error: result.error
+            });
+        }
+    } catch (error) {
+        console.error('Error en /backups/create:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Restaurar un backup específico
+ */
+router.post('/restore/:backupName', async (req, res) => {
+    try {
+        const { backupName } = req.params;
+        
+        if (!backupName) {
+            return res.status(400).json({
+                success: false,
+                message: 'Nombre del backup es requerido'
+            });
+        }
+        
+        const result = await BackupManager.restoreBackup(backupName);
+        
+        if (result.success) {
+            res.json({
+                success: true,
+                message: 'Backup restaurado exitosamente',
+                backup: {
+                    name: result.backupName,
+                    timestamp: result.timestamp
+                }
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                message: 'Error restaurando backup',
+                error: result.error
+            });
+        }
+    } catch (error) {
+        console.error('Error en /backups/restore:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Eliminar un backup específico
+ */
+router.delete('/:backupName', async (req, res) => {
+    try {
+        const { backupName } = req.params;
+        
+        if (!backupName) {
+            return res.status(400).json({
+                success: false,
+                message: 'Nombre del backup es requerido'
+            });
+        }
+        
+        const fs = require('fs').promises;
+        const path = require('path');
+        const backupsDir = './backups';
+        const backupPath = path.join(backupsDir, backupName);
+        
+        try {
+            await fs.unlink(backupPath);
+            
+            res.json({
+                success: true,
+                message: 'Backup eliminado exitosamente',
+                backup: {
+                    name: backupName,
+                    path: backupPath
+                }
+            });
+        } catch (error) {
+            res.status(404).json({
+                success: false,
+                message: 'Backup no encontrado',
+                error: error.message
+            });
+        }
+        
+    } catch (error) {
+        console.error('Error en /backups/delete:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Obtener estado del sistema de backups
+ */
+router.get('/status', (req, res) => {
+    try {
+        const status = backupMiddleware.getStatus();
+        
+        res.json({
+            success: true,
+            data: status
+        });
+    } catch (error) {
+        console.error('Error en /backups/status:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error obteniendo estado',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Descargar un backup específico
+ */
+router.get('/download/:backupName', async (req, res) => {
+    try {
+        const { backupName } = req.params;
+        
+        if (!backupName) {
+            return res.status(400).json({
+                success: false,
+                message: 'Nombre del backup es requerido'
+            });
+        }
+        
+        const fs = require('fs').promises;
+        const path = require('path');
+        const backupsDir = './backups';
+        const backupPath = path.join(backupsDir, backupName);
+        
+        try {
+            const backupData = await fs.readFile(backupPath);
+            
+            res.setHeader('Content-Type', 'application/json');
+            res.setHeader('Content-Disposition', `attachment; filename="${backupName}"`);
+            res.send(backupData);
+            
+        } catch (error) {
+            res.status(404).json({
+                success: false,
+                message: 'Backup no encontrado',
+                error: error.message
+            });
+        }
+        
+    } catch (error) {
+        console.error('Error en /backups/download:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Configurar parámetros del sistema de backups
+ */
+router.put('/config', async (req, res) => {
+    try {
+        const { enabled, maxBackups, autoBackup, cooldownTime } = req.body;
+        
+        // Validar parámetros
+        if (maxBackups !== undefined && (isNaN(maxBackups) || maxBackups < 1 || maxBackups > 50)) {
+            return res.status(400).json({
+                success: false,
+                message: 'maxBackups debe ser un número entre 1 y 50'
+            });
+        }
+        
+        if (cooldownTime !== undefined && (isNaN(cooldownTime) || cooldownTime < 60000)) {
+            return res.status(400).json({
+                success: false,
+                message: 'cooldownTime debe ser al menos 60000ms (1 minuto)'
+            });
+        }
+        
+        // Actualizar configuración
+        if (enabled !== undefined) {
+            BackupManager.config.enabled = Boolean(enabled);
+        }
+        
+        if (maxBackups !== undefined) {
+            BackupManager.config.maxBackups = parseInt(maxBackups);
+        }
+        
+        if (autoBackup !== undefined) {
+            BackupManager.config.autoBackup = Boolean(autoBackup);
+        }
+        
+        if (cooldownTime !== undefined) {
+            backupMiddleware.cooldownTime = parseInt(cooldownTime);
+        }
+        
+        res.json({
+            success: true,
+            message: 'Configuración actualizada exitosamente',
+            config: {
+                enabled: BackupManager.config.enabled,
+                maxBackups: BackupManager.config.maxBackups,
+                autoBackup: BackupManager.config.autoBackup,
+                cooldownTime: backupMiddleware.cooldownTime
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error en /backups/config:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+            error: error.message
+        });
+    }
+});
+
+/**
+ * Obtener detalles de un backup específico
+ */
+router.get('/:backupName', async (req, res) => {
+    try {
+        const { backupName } = req.params;
+        
+        if (!backupName) {
+            return res.status(400).json({
+                success: false,
+                message: 'Nombre del backup es requerido'
+            });
+        }
+        
+        const fs = require('fs').promises;
+        const path = require('path');
+        const backupsDir = './backups';
+        const backupPath = path.join(backupsDir, backupName);
+        
+        try {
+            const backupData = JSON.parse(await fs.readFile(backupPath, 'utf8'));
+            const stats = await fs.stat(backupPath);
+            
+            res.json({
+                success: true,
+                data: {
+                    name: backupName,
+                    path: backupPath,
+                    size: stats.size,
+                    created: stats.birthtime.toISOString(),
+                    modified: stats.mtime.toISOString(),
+                    metadata: backupData.metadata,
+                    hasDatabase: !!backupData.database,
+                    hasFiles: !!backupData.files,
+                    hasConfig: !!backupData.config
+                }
+            });
+            
+        } catch (error) {
+            res.status(404).json({
+                success: false,
+                message: 'Backup no encontrado o no se puede leer',
+                error: error.message
+            });
+        }
+        
+    } catch (error) {
+        console.error('Error en /backups/details:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+            error: error.message
+        });
+    }
+});
+
+module.exports = router;

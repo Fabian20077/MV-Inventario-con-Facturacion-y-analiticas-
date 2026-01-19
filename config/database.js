@@ -2,9 +2,9 @@ import mysql from 'mysql2/promise';
 
 // Configuración de la base de datos
 const dbConfig = {
-    host: process.env.DB_HOST || 'db',
+    host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || 'outside1234',
+    password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'inventario_ropa',
     waitForConnections: true,
     connectionLimit: 10,

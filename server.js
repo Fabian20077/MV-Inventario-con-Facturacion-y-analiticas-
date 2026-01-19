@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import http from 'http';
 import fs from 'fs/promises';
 import { existsSync, createWriteStream, createReadStream } from 'fs';
@@ -27,6 +28,11 @@ import mysqldump from 'mysqldump';
 import configuracionLoader from './config/configuracionLoader.js';
 import { requirePermission, requireAdmin, requireGerente } from './middleware/rbac.js';
 import EmailService from './utils/email-service.js';
+// Temporalmente comentado para que el sistema funcione
+// Importaciones de sistema de backup - Temporalmente desactivado
+// import { BackupManager } from './utils/backup-manager.js';
+// import { backupMiddleware } from './middleware/backup-middleware.js';
+// import backupRoutes from './routes/backups.js';
 
 const PORT = 3000;
 
@@ -246,10 +252,18 @@ const server = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
+    // OPTIONS para CORS
     if (req.method === 'OPTIONS') {
         res.writeHead(200);
         res.end();
         return;
+    }
+
+    // Aplicar middleware de backup automático (solo para rutas API)
+    if (req.url.startsWith('/api')) {
+        // Sistema de backup temporalmente desactivado
+        // const backupResult = backupMiddleware.middleware()(req, res, () => {});
+        console.log('🔄 Request procesado sin backup automático');
     }
 
     // Health check (para Docker healthcheck)
@@ -657,6 +671,182 @@ const server = http.createServer(async (req, res) => {
             console.error('Error editando impuesto:', error);
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: false, message: error.message }));
+        }
+        return;
+    }
+
+    // ==================== SISTEMA DE BACKUPS ====================
+    
+        // GET /api/backups/status - Obtener estado del sistema de backups
+    if (req.url === '/api/backups/status' && req.method === 'GET') {
+        try {
+            // Sistema de backups temporalmente desactivado
+            const status = {
+                enabled: false,
+                message: 'Sistema de backups temporalmente desactivado para restaurar funcionamiento principal',
+                reason: 'Errores de importación - será reactivado en próxima versión'
+            };
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                data: status
+            }));
+        } catch (error) {
+            console.error('Error obteniendo estado de backups:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error obteniendo estado de backups',
+                error: error.message
+            }));
+        }
+        return;
+    }
+
+    // GET /api/backups/list - Listar backups disponibles
+    if (req.url === '/api/backups/list' && req.method === 'GET') {
+        try {
+            const result = await BackupManager.listBackups();
+            
+            if (result.success) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: true,
+                    data: result.backups,
+                    count: result.backups.length
+                }));
+            } else {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    message: 'Error obteniendo lista de backups',
+                    error: result.error
+                }));
+            }
+        } catch (error) {
+            console.error('Error listando backups:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error interno del servidor'
+            }));
+        }
+        return;
+    }
+
+        // POST /api/backups/create - Crear backup manual
+    if (req.url === '/api/backups/create' && req.method === 'POST') {
+        try {
+            // Sistema de backups temporalmente desactivado
+            const body = await parseBody(req);
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Sistema de backups temporalmente desactivado',
+                reason: 'En proceso de corrección de errores de importación. Próximamente disponible.',
+                backup: {
+                    name: null,
+                    path: null,
+                    size: 0,
+                    timestamp: new Date().toISOString()
+                }
+            }));
+        } catch (error) {
+            console.error('Error en endpoint de backup:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error interno del servidor',
+                error: error.message
+            }));
+        }
+        return;
+    }
+
+    // GET /api/backups/:backupName - Obtener detalles de un backup
+    if (req.url.match(/\/api\/backups\/[^\/]+$/) && req.method === 'GET') {
+        try {
+            const backupName = req.url.split('/').pop();
+            
+            const fs = require('fs').promises;
+            const path = require('path');
+            const backupsDir = './backups';
+            const backupPath = path.join(backupsDir, backupName);
+            
+            try {
+                const backupData = JSON.parse(await fs.readFile(backupPath, 'utf8'));
+                const stats = await fs.stat(backupPath);
+                
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: true,
+                    data: {
+                        name: backupName,
+                        path: backupPath,
+                        size: stats.size,
+                        created: stats.birthtime.toISOString(),
+                        modified: stats.mtime.toISOString(),
+                        metadata: backupData.metadata,
+                        hasDatabase: !!backupData.database,
+                        hasFiles: !!backupData.files,
+                        hasConfig: !!backupData.config
+                    }
+                }));
+            } catch (error) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    message: 'Backup no encontrado o no se puede leer'
+                }));
+            }
+        } catch (error) {
+            console.error('Error obteniendo detalles de backup:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error interno del servidor'
+            }));
+        }
+        return;
+    }
+
+    // DELETE /api/backups/:backupName - Eliminar un backup
+    if (req.url.match(/\/api\/backups\/[^\/]+$/) && req.method === 'DELETE') {
+        try {
+            const backupName = req.url.split('/').pop();
+            
+            const fs = require('fs').promises;
+            const path = require('path');
+            const backupsDir = './backups';
+            const backupPath = path.join(backupsDir, backupName);
+            
+            try {
+                await fs.unlink(backupPath);
+                
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: true,
+                    message: 'Backup eliminado exitosamente',
+                    backup: {
+                        name: backupName,
+                        path: backupPath
+                    }
+                }));
+            } catch (error) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    message: 'Backup no encontrado'
+                }));
+            }
+        } catch (error) {
+            console.error('Error eliminando backup:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error interno del servidor'
+            }));
         }
         return;
     }

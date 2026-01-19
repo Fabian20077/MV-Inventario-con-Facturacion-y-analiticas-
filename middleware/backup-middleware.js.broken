@@ -1,0 +1,355 @@
+/**
+ * Middleware de Backup Automático - MV Inventario
+ * Se activa automáticamente cuando hay cambios importantes en el sistema
+ */
+
+const BackupManager = require('./backup-manager');
+const fs = require('fs').promises;
+const path = require('path');
+
+class BackupMiddleware {
+    constructor() {
+        this.lastBackup = null;
+        this.backupQueue = [];
+        this.processing = false;
+        this.cooldownTime = 5 * 60 * 1000; // 5 minutos entre backups automáticos
+    }
+
+    /**
+     * Middleware para Express que captura cambios y activa backups
+     */
+    middleware() {
+        return (req, res, next) => {
+            // Guardar el método original de res.json y res.send
+            const originalJson = res.json;
+            const originalSend = res.send;
+
+            // Sobreescribir res.json para detectar cambios
+            res.json = (data) => {
+                // Analizar la respuesta para determinar si hay cambios importantes
+                if (this.shouldTriggerBackup(req, data)) {
+                    this.queueBackup(req, data);
+                }
+                
+                return originalJson.call(res, data);
+            };
+
+            // Sobreescribir res.send para detectar cambios
+            res.send = (data) => {
+                if (this.shouldTriggerBackup(req, data)) {
+                    this.queueBackup(req, data);
+                }
+                
+                return originalSend.call(res, data);
+            };
+
+            next();
+        };
+    }
+
+    /**
+     * Determinar si se debe activar un backup
+     */
+    shouldTriggerBackup(req, responseData) {
+        const method = req.method.toLowerCase();
+        const path = req.path;
+
+        // Solo POST, PUT, DELETE activan backups
+        if (!['post', 'put', 'delete'].includes(method)) {
+            return false;
+        }
+
+        // Analizar la ruta para determinar el tipo de cambio
+        const changeInfo = this.analyzePathAndMethod(path, method);
+        
+        if (!changeInfo) {
+            return false;
+        }
+
+        // Verificar que la operación fue exitosa
+        const isSuccess = this.isOperationSuccess(responseData);
+        
+        if (!isSuccess) {
+            return false;
+        }
+
+        // Evitar backups muy seguidos
+        if (this.isInCooldown()) {
+            console.log('⏳ Backup en cooldown, omitiendo...');
+            return false;
+        }
+
+        console.log(`🔄 Cambio detectado: ${changeInfo.type} en ${path}`);
+        return true;
+    }
+
+    /**
+     * Analizar la ruta y método para determinar el tipo de cambio
+     */
+    analyzePathAndMethod(path, method) {
+        const pathMappings = {
+            // Productos
+            '/api/productos': {
+                'post': 'PRODUCTO_CREATE',
+                'put': 'PRODUCTO_UPDATE',
+                'delete': 'PRODUCTO_DELETE'
+            },
+            '/api/productos/[0-9]+': {
+                'put': 'PRODUCTO_UPDATE',
+                'delete': 'PRODUCTO_DELETE'
+            },
+            // Historial de precios
+            '/api/productos/[0-9]+/historial-precio': {
+                'post': 'PRECIO_UPDATE'
+            },
+            // Movimientos
+            '/api/movimientos': {
+                'post': 'MOVIMIENTO_CREATE'
+            },
+            '/api/movimientos/[0-9]+': {
+                'put': 'MOVIMIENTO_UPDATE',
+                'delete': 'MOVIMIENTO_DELETE'
+            },
+            // Categorías
+            '/api/categorias': {
+                'post': 'CATEGORIA_CREATE',
+                'put': 'CATEGORIA_UPDATE',
+                'delete': 'CATEGORIA_DELETE'
+            },
+            '/api/categorias/[0-9]+': {
+                'put': 'CATEGORIA_UPDATE',
+                'delete': 'CATEGORIA_DELETE'
+            },
+            // Usuarios
+            '/api/auth/register': {
+                'post': 'USUARIO_CREATE'
+            },
+            '/api/users/[0-9]+': {
+                'put': 'USUARIO_UPDATE',
+                'delete': 'USUARIO_DELETE'
+            },
+            // Configuración
+            '/api/configuracion': {
+                'put': 'CONFIG_UPDATE',
+                'post': 'CONFIG_UPDATE'
+            }
+        };
+
+        // Verificar coincidencias exactas primero
+        if (pathMappings[path]) {
+            const changeType = pathMappings[path][method];
+            if (changeType) {
+                return { type: changeType, path: path, method: method };
+            }
+        }
+
+        // Verificar coincidencias con patrones (IDs numéricos)
+        for (const [pattern, methods] of Object.entries(pathMappings)) {
+            const regexPattern = new RegExp('^' + pattern.replace(/\[0-9\]+/g, '\\d+'));
+            if (regexPattern.test(path)) {
+                const changeType = methods[method];
+                if (changeType) {
+                    return { type: changeType, path: path, method: method };
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Verificar si la operación fue exitosa
+     */
+    isOperationSuccess(responseData) {
+        try {
+            // Si es string, convertir a JSON
+            let data = responseData;
+            if (typeof responseData === 'string') {
+                try {
+                    data = JSON.parse(responseData);
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            // Diferentes formatos de respuesta exitosa
+            if (data && data.success) {
+                return true;
+            }
+
+            if (data && (data.status === 'success' || data.status === 'ok')) {
+                return true;
+            }
+
+            // Respuestas HTTP 200-299 generalmente son exitosas
+            if (data && data.statusCode && data.statusCode >= 200 && data.statusCode < 300) {
+                return true;
+            }
+
+            return false;
+
+        } catch (error) {
+            console.warn('Error verificando éxito de operación:', error.message);
+            return false;
+        }
+    }
+
+    /**
+     * Verificar si estamos en período de cooldown
+     */
+    isInCooldown() {
+        if (!this.lastBackup) {
+            return false;
+        }
+        
+        const now = Date.now();
+        return (now - this.lastBackup) < this.cooldownTime;
+    }
+
+    /**
+     * Encolar backup para procesamiento asíncrono
+     */
+    queueBackup(req, responseData) {
+        const changeInfo = this.analyzePathAndMethod(req.path, req.method.toLowerCase());
+        
+        if (!changeInfo) {
+            return;
+        }
+
+        const backupData = {
+            type: changeInfo.type,
+            path: req.path,
+            method: req.method,
+            timestamp: new Date().toISOString(),
+            user: req.user ? req.user.nombre : 'unknown',
+            userId: req.user ? req.user.id : null,
+            requestData: this.sanitizeRequestData(req.body),
+            responseData: this.sanitizeResponseData(responseData),
+            ip: req.ip || req.connection.remoteAddress,
+            userAgent: req.get('User-Agent')
+        };
+
+        this.backupQueue.push(backupData);
+        
+        // Procesar la cola si no está ocupado
+        if (!this.processing) {
+            this.processQueue();
+        }
+    }
+
+    /**
+     * Procesar la cola de backups
+     */
+    async processQueue() {
+        if (this.processing || this.backupQueue.length === 0) {
+            return;
+        }
+
+        this.processing = true;
+
+        try {
+            const backupData = this.backupQueue.shift();
+            
+            console.log(`🔄 Procesando backup automático: ${backupData.type}`);
+            
+            // Activar backup con los detalles del cambio
+            const result = await BackupManager.triggerBackup(backupData.type, backupData);
+            
+            if (result.success) {
+                this.lastBackup = Date.now();
+                console.log(`✅ Backup automático completado: ${result.backupName}`);
+            } else {
+                console.warn(`⚠️ Backup automático fallido: ${result.message}`);
+            }
+
+        } catch (error) {
+            console.error('❌ Error procesando backup automático:', error);
+        } finally {
+            this.processing = false;
+            
+            // Continuar procesando si hay más en la cola
+            setTimeout(() => this.processQueue(), 1000);
+        }
+    }
+
+    /**
+     * Sanitizar datos sensibles del request
+     */
+    sanitizeRequestData(data) {
+        if (!data) return null;
+        
+        const sanitized = { ...data };
+        
+        // Eliminar campos sensibles
+        delete sanitized.password;
+        delete sanitized.confirmPassword;
+        delete sanitized.token;
+        delete sanitized.authToken;
+        
+        return sanitized;
+    }
+
+    /**
+     * Sanitizar datos sensibles del response
+     */
+    sanitizeResponseData(data) {
+        if (!data) return null;
+        
+        const sanitized = { ...data };
+        
+        // Eliminar tokens y datos sensibles
+        delete sanitized.token;
+        delete sanitized.authToken;
+        delete sanitized.jwt;
+        
+        return sanitized;
+    }
+
+    /**
+     * Activar backup manual
+     */
+    async triggerManualBackup(reason = 'MANUAL_TRIGGER') {
+        try {
+            console.log('🔄 Activando backup manual:', reason);
+            
+            const backupData = {
+                type: 'MANUAL_BACKUP',
+                reason: reason,
+                timestamp: new Date().toISOString(),
+                triggeredBy: 'manual'
+            };
+
+            const result = await BackupManager.triggerBackup('MANUAL_BACKUP', backupData);
+            
+            if (result.success) {
+                this.lastBackup = Date.now();
+                console.log(`✅ Backup manual completado: ${result.backupName}`);
+            }
+            
+            return result;
+
+        } catch (error) {
+            console.error('❌ Error en backup manual:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Obtener estado del sistema de backups
+     */
+    getStatus() {
+        return {
+            enabled: true,
+            lastBackup: this.lastBackup ? new Date(this.lastBackup).toISOString() : null,
+            queueLength: this.backupQueue.length,
+            processing: this.processing,
+            cooldownTime: this.cooldownTime,
+            nextAvailableBackup: this.lastBackup ? new Date(this.lastBackup + this.cooldownTime).toISOString() : new Date().toISOString()
+        };
+    }
+}
+
+// Instancia singleton
+const backupMiddleware = new BackupMiddleware();
+
+module.exports = backupMiddleware;export { backupMiddleware };

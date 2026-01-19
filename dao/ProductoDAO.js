@@ -87,7 +87,7 @@ async buscarPorId(id) {
      */
     async listar() {
         try {
-            const sql = `
+                const sql = `
                 SELECT p.*, c.nombre as categoria_nombre
                 FROM producto p
                 LEFT JOIN categoria c ON p.id_categoria = c.id
@@ -95,7 +95,13 @@ async buscarPorId(id) {
                 ORDER BY p.id DESC
             `;
             
-            return await query(sql);
+            console.log('📦 Ejecutando consulta SQL para productos...');
+            console.log('📋 SQL Query:', sql);
+            
+            const productos = await query(sql);
+            console.log('📋 Productos encontrados:', productos?.length || 0);
+            
+            return productos;
         } catch (error) {
             console.error('Error en ProductoDAO.listar:', error);
             throw error;
@@ -270,7 +276,9 @@ async buscarPorId(id) {
                 ORDER BY p.cantidad ASC
             `;
             
-            return await query(sql);
+            const productos = await query(sql);
+            return productos;
+
         } catch (error) {
             console.error('Error en ProductoDAO.obtenerStockBajo:', error);
             throw error;
