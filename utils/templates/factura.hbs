@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;700&display=swap');
+
+        body {
+            font-family: 'Roboto Mono', 'Courier New', monospace;
+            /* Receipt font style */
+            font-size: 11px;
+            line-height: 1.2;
+            background-color: #fff;
+            color: #000;
+        }
+
+        .receipt {
+            width: 76mm;
+            /* Slightly less than 80 to avoid clipping */
+            margin: 0 auto;
+            padding: 2mm 1mm;
+        }
+
+        .dashed-separator {
+            width: 100%;
+            margin: 8px 0;
+            border-top: 1px dashed #000;
+        }
+
+        .text-header {
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .text-subheader {
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .text-body {
+            font-size: 11px;
+        }
+
+        .text-small {
+            font-size: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            font-weight: bold;
+            border-bottom: 1px dashed #000;
+            padding-bottom: 4px;
+        }
+
+        td {
+            padding-top: 4px;
+            vertical-align: top;
+        }
+
+        .col-right {
+            text-align: right;
+        }
+
+        .col-center {
+            text-align: center;
+        }
+
+        .logo-img {
+            max-width: 60%;
+            height: auto;
+            margin: 0 auto;
+            display: block;
+        }
+
+        .bottom-logo {
+            max-width: 40px;
+            margin: 10px auto;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="receipt">
+        <!-- HEADER / LOGO -->
+        <div class="text-center mb-2">
+            {{#if logo_data}}
+            <img src="data:image/png;base64,{{logo_data}}" class="logo-img mb-2" alt="Logo">
+            {{/if}}
+
+            <div class="text-header my-1">{{nombre_negocio}}</div>
+
+            <div class="text-body">
+                {{#if direccion}}<div>{{direccion}}</div>{{/if}}
+                {{#if telefono}}<div>Tel: {{telefono}}</div>{{/if}}
+                {{#if nit}}<div>NIT: {{nit}}</div>{{/if}}
+            </div>
+        </div>
+
+        <div class="dashed-separator"></div>
+
+        <!-- FACTURA INFO -->
+        <div class="text-body">
+            <div><span class="font-bold">Factura #:</span> {{numero_factura}}</div>
+            <div><span class="font-bold">Fecha:</span> {{fecha_emision}}</div>
+        </div>
+
+        <!-- CLIENTE INFO -->
+        <div class="mt-2 text-body">
+            <div><span class="font-bold">Cliente:</span> {{cliente_nombre}}</div>
+            {{#if cliente_nit}}<div><span class="font-bold">NIT/CC:</span> {{cliente_nit}}</div>{{/if}}
+            {{#if direccion_cliente}}<div><span class="font-bold">Dirección:</span> {{direccion_cliente}}</div>{{/if}}
+            {{#if telefono_cliente}}<div><span class="font-bold">Teléfono:</span> {{telefono_cliente}}</div>{{/if}}
+        </div>
+
+        <div class="dashed-separator"></div>
+
+        <!-- PRODUCTOS -->
+        <div class="text-body mb-2">
+            <!-- Headers -->
+            <div class="flex font-bold border-b border-dashed border-black pb-1 mb-1">
+                <div style="width: 45%">Producto</div>
+                <div style="width: 15%" class="text-right">Cant.</div>
+                <div style="width: 20%" class="text-right">Precio</div>
+                <div style="width: 20%" class="text-right">Total</div>
+            </div>
+
+            <!-- Items -->
+            {{#each detalles}}
+            <div class="mb-2">
+                <!-- Line 1: Name -->
+                <div class="w-full font-medium truncate mb-0.5">{{this.nombre}}</div>
+                <!-- Line 2: Details -->
+                <div class="flex">
+                    <div style="width: 45%"></div> <!-- Spacer matches name col -->
+                    <div style="width: 15%" class="text-right">{{this.cantidad}}</div>
+                    <div style="width: 20%" class="text-right text-small">{{this.precio_unitario_clean}}</div>
+                    <div style="width: 20%" class="text-right font-medium">{{this.subtotal_linea_clean}}</div>
+                </div>
+            </div>
+            {{/each}}
+        </div>
+
+        <div class="dashed-separator"></div>
+
+        <!-- TOTALES -->
+        <div class="text-body flex flex-col items-end">
+            <div class="w-full flex justify-between">
+                <span>Subtotal:</span>
+                <span>{{subtotal_fmt}}</span>
+            </div>
+
+            {{#if impuesto_monto}}
+            <div class="w-full flex justify-between">
+                <span>{{impuesto_nombre}} ({{impuesto_porcentaje}}%):</span>
+                <span>{{impuesto_monto_fmt}}</span>
+            </div>
+            {{/if}}
+
+            <div class="w-full flex justify-between mt-1 text-subheader border-t border-dashed border-black pt-1">
+                <span>Total:</span>
+                <span>{{total_fmt}}</span>
+            </div>
+        </div>
+
+        <div class="dashed-separator"></div>
+
+        <!-- PIE DE PAGINA -->
+        <div class="text-center text-body mt-2">
+            <div><span class="font-bold">Forma de Pago:</span> {{forma_pago}}</div>
+
+            {{#if observaciones}}
+            <div class="mt-1 italic text-small">"{{observaciones}}"</div>
+            {{/if}}
+
+            <div class="mt-3 font-medium">{{pie_pagina}}</div>
+
+            <!-- Bottom Logo Placeholdler (like three.js in example) -->
+            <div class="mt-4 flex flex-col items-center opacity-50">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                </svg>
+                <div class="text-small mt-1">MV Inventario</div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
