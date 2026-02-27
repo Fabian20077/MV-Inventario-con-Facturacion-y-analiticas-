@@ -25,9 +25,40 @@ function safeElementUpdate(id, textContent, display = null) {
     }
 }
 
-// Obtener token de autenticación
+// Verificar si el token ha expirado
+function isTokenExpired(token) {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = JSON.parse(decodeURIComponent(atob(base64).split('').map(function (c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join('')));
+        
+        const currentTime = Math.floor(Date.now() / 1000);
+        return jsonPayload.exp < currentTime;
+    } catch (error) {
+        console.error('Error al verificar token:', error);
+        return true; // Si no se puede decodificar, considerar expirado
+    }
+}
+
+// Obtener token de autenticación verificando expiración
 function getAuthToken() {
-    return localStorage.getItem('authToken');
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        console.warn('❌ No hay token de autenticación');
+        return null;
+    }
+    
+    if (isTokenExpired(token)) {
+        console.warn('❌ Token ha expirado');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        window.location.href = '../pages/login.html';
+        return null;
+    }
+    
+    return token;
 }
 
 // Obtener usuario actual

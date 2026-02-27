@@ -11,7 +11,7 @@
  */
 
 const API_BASE = '/api';
-let productosFacura = [];
+let productosFactura = [];
 let ivaConfigurable = 19;
 let tokenActual = localStorage.getItem('authToken');
 
@@ -92,7 +92,7 @@ async function buscarProductos() {
         contenedorResultados.style.display = 'block';
 
         for (const producto of productos) {
-            if (productosFacura.some(p => p.id === producto.id)) {
+            if (productosFactura.some(p => p.id === producto.id)) {
                 continue; // No mostrar productos ya agregados
             }
 
@@ -152,11 +152,11 @@ async function buscarProductos() {
 
 function agregarProductoAFactura(producto) {
     // Verificar si ya está
-    const existente = productosFacura.find(p => p.id === producto.id);
+    const existente = productosFactura.find(p => p.id === producto.id);
     if (existente) {
         existente.cantidad++;
     } else {
-        productosFacura.push({
+        productosFactura.push({
             id: producto.id,
             nombre: producto.nombre,
             codigo: producto.codigo,
@@ -184,16 +184,19 @@ function actualizarTablaFactura() {
 
     tbody.innerHTML = '';
 
-    if (productosFacura.length === 0) {
-        filaVacia.style.display = 'table-row';
-        tbody.appendChild(filaVacia);
+    if (productosFactura.length === 0) {
+        if (filaVacia) filaVacia.style.display = 'table-row';
+        // Si no está en el DOM, lo agregamos de nuevo
+        if (filaVacia && !tbody.contains(filaVacia)) {
+            tbody.appendChild(filaVacia);
+        }
         return;
     }
 
-    filaVacia.style.display = 'none';
+    if (filaVacia) filaVacia.style.display = 'none';
 
-    for (let i = 0; i < productosFacura.length; i++) {
-        const producto = productosFacura[i];
+    for (let i = 0; i < productosFactura.length; i++) {
+        const producto = productosFactura[i];
         const subtotal = producto.precio_venta * producto.cantidad;
 
         const fila = document.createElement('tr');
@@ -225,14 +228,14 @@ function actualizarTablaFactura() {
 function actualizarCantidad(indice, nuevaCantidad) {
     const cantidad = parseInt(nuevaCantidad);
     if (cantidad > 0) {
-        productosFacura[indice].cantidad = cantidad;
+        productosFactura[indice].cantidad = cantidad;
         actualizarTablaFactura();
         calcularTotales();
     }
 }
 
 function eliminarProducto(indice) {
-    productosFacura.splice(indice, 1);
+    productosFactura.splice(indice, 1);
     actualizarTablaFactura();
     calcularTotales();
 }
@@ -240,18 +243,25 @@ function eliminarProducto(indice) {
 // ==================== CÁLCULOS ====================
 
 function calcularTotales() {
-    const subtotal = productosFacura.reduce((sum, p) => sum + (p.precio_venta * p.cantidad), 0);
-    const iva = Math.round(subtotal * (ivaConfigurable / 100));
+    const subtotal = productosFactura.reduce((sum, p) => sum + (p.precio_venta * p.cantidad), 0);
+
+    // Obtener configuración activa
+    const impuestosHabilitados = window.impuestosConfig ? window.impuestosConfig.activo : true;
+    const ivaPorcentaje = window.impuestosConfig ? window.impuestosConfig.porcentaje : ivaConfigurable;
+    const ivaValorFijo = window.impuestosConfig ? window.impuestosConfig.valor_fijo || 0 : 0;
+    const nombreImpuesto = window.impuestosConfig ? window.impuestosConfig.nombre : 'IVA';
+
+    // Calcular IVA solo si está habilitado
+    let iva = 0;
+    if (impuestosHabilitados) {
+        iva = Math.round(subtotal * (ivaPorcentaje / 100)) + ivaValorFijo;
+    }
+
     const total = subtotal + iva;
 
     document.getElementById('subtotal-valor').textContent = `$${subtotal.toLocaleString('es-CO')}`;
 
-    // Mostrar detalle del impuesto
-    const impuestosHabilitados = window.impuestosConfig ? window.impuestosConfig.activo : true;
-    const ivaPorcentaje = window.impuestosConfig ? window.impuestosConfig.porcentaje || 0 : ivaConfigurable;
-    const ivaValorFijo = window.impuestosConfig ? window.impuestosConfig.valor_fijo || 0 : 0;
-    const nombreImpuesto = window.impuestosConfig ? window.impuestosConfig.nombre : 'IVA';
-    
+    // Mostrar detalle del impuesto en la UI
     if (!impuestosHabilitados) {
         document.getElementById('iva-porcentaje').textContent = 'Deshabilitado';
         document.getElementById('iva-porcentaje').classList.add('text-muted');
@@ -279,12 +289,12 @@ function calcularTotales() {
 // ==================== CREAR FACTURA ====================
 
 async function emitirFactura() {
-    if (productosFacura.length === 0) {
+    if (productosFactura.length === 0) {
         mostrarAlerta('Agrega al menos un producto a la factura', 'error');
         return;
     }
 
-    const detalles = productosFacura.map(p => ({
+    const detalles = productosFactura.map(p => ({
         producto_id: p.id,
         cantidad: p.cantidad
     }));
@@ -325,7 +335,7 @@ async function emitirFactura() {
         }
 
         const data = await response.json();
-        const factura = data.data;
+        const factura = data.factura || data.data;
 
         // Mostrar modal
         document.getElementById('modal-numero-factura').textContent = factura.numero_factura;
@@ -338,11 +348,29 @@ async function emitirFactura() {
         // Guardar ID para descargar
         window.facturaActual = factura;
 
+        // 🔥 DESCARGA AUTOMÁTICA DEL PDF
+        // Esperar un momento para que el backend genere el PDF, luego descargar
+        setTimeout(() => {
+            try {
+                const pdfUrl = `/api/facturas/${factura.id}/pdf?token=${tokenActual}`;
+                const link = document.createElement('a');
+                link.href = pdfUrl;
+                link.download = `Factura_${factura.numero_factura}.pdf`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                console.log('📄 Descarga automática de PDF iniciada');
+            } catch (pdfError) {
+                console.error('Error al descargar PDF automáticamente:', pdfError);
+                mostrarAlerta('La factura se creó pero hubo un error al descargar el PDF. Usa el botón "Descargar PDF" en el modal.', 'error');
+            }
+        }, 500);
+
         // Limpiar y recargar
         limpiarFactura();
         await cargarHistorialFacturas();
 
-        mostrarAlerta('✅ Factura emitida correctamente', 'exito');
+        mostrarAlerta('✅ Factura emitida correctamente - PDF descargándose...', 'exito');
 
     } catch (error) {
         mostrarAlerta(error.message, 'error');
@@ -354,7 +382,7 @@ async function emitirFactura() {
 }
 
 function limpiarFactura() {
-    productosFacura = [];
+    productosFactura = [];
     document.getElementById('observaciones').value = '';
     actualizarTablaFactura();
     calcularTotales();
@@ -369,66 +397,54 @@ function descargarFacturaPDF() {
         return;
     }
 
-    try {
-        const factura = window.facturaActual;
-        const url = `/api/facturas/${factura.id}/pdf?token=${tokenActual}`;
+    const factura = window.facturaActual;
+    const url = `/api/facturas/${factura.id}/pdf?token=${tokenActual}`;
 
-        // Formatear nombre dinámico: Factura_[Cliente]_[Fecha].pdf
-        const nombreCliente = (factura.cliente_nombre || 'General')
-            .replace(/[^a-zA-Z0-9]/g, '_')
-            .substring(0, 20);
-        const fecha = new Date().toISOString().split('T')[0];
-        const fileName = `Factura_${nombreCliente}_${fecha}.pdf`;
+    const nombreCliente = (factura.cliente_nombre || 'General')
+        .replace(/[^a-zA-Z0-9]/g, '_')
+        .substring(0, 20);
+    const fecha = new Date().toISOString().split('T')[0];
+    const fileName = `Factura_${nombreCliente}_${fecha}.pdf`;
 
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        mostrarAlerta('✅ Descarga iniciada', 'exito');
-    } catch (error) {
-        mostrarAlerta('Error al descargar PDF: ' + error.message, 'error');
-        console.error(error);
-    }
+    fetch(url, { headers: { 'Authorization': `Bearer ${tokenActual}` } })
+        .then(response => {
+            if (!response.ok) throw new Error('Error ' + response.status);
+            return response.blob();
+        })
+        .then(blob => {
+            const blobUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = fileName;
+            link.click();
+            window.URL.revokeObjectURL(blobUrl);
+            mostrarAlerta('✅ Descarga completada', 'exito');
+        })
+        .catch(error => {
+            console.error(error);
+            mostrarAlerta('Error al descargar: ' + error.message, 'error');
+        });
 }
 
-function imprimirFactura() {
-    if (!window.facturaActual) {
+async function imprimirFactura(id) {
+    if (!id && (!window.facturaActual || !window.facturaActual.id)) {
         mostrarAlerta('No hay factura para imprimir', 'error');
         return;
     }
+    const facturaId = id || window.facturaActual.id;
+    const url = `/api/facturas/${facturaId}/pdf?token=${tokenActual}`;
 
     try {
-        const facturaId = window.facturaActual.id;
-        const url = `/api/facturas/${facturaId}/pdf?token=${tokenActual}`;
-
-        // Crear iframe para impresión
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = url;
-
-        iframe.onload = function () {
-            try {
-                setTimeout(() => {
-                    iframe.contentWindow.print();
-                    mostrarAlerta('✅ Abriendo diálogo de impresión', 'exito');
-                }, 500);
-            } catch (error) {
-                console.error('Error al imprimir:', error);
-                mostrarAlerta('Error al imprimir: ' + error.message, 'error');
-            }
-        };
-
-        iframe.onerror = function () {
-            mostrarAlerta('Error al cargar el PDF para imprimir', 'error');
-        };
-
-        document.body.appendChild(iframe);
-
+        // Usar window.open en lugar de iframe oculto para evitar conflictos con extensiones (Brave Leo/Mojo)
+        const printWindow = window.open(url, '_blank');
+        if (printWindow) {
+            printWindow.focus();
+            // Algunos navegadores bloquean print() inmediato, pero el usuario puede imprimir desde la nueva pestaña
+        } else {
+            mostrarAlerta('⚠️ Permite los pop-ups para imprimir', 'info');
+        }
     } catch (error) {
-        mostrarAlerta('Error al preparar impresión: ' + error.message, 'error');
+        mostrarAlerta('Error al abrir impresión: ' + error.message, 'error');
         console.error(error);
     }
 }
@@ -437,17 +453,71 @@ function imprimirFactura() {
 
 async function cargarConfiguracionIVA() {
     try {
-        const response = await fetch(`${API_BASE}/configuracion/finanzas.impuestos.iva_porcentaje`, {
+        // 1. Cargar Configuración Global (Habilitado/Deshabilitado)
+        const configResponse = await fetch(`${API_BASE}/admin/configuracion/finanzas.impuestos.habilitado`, {
             headers: { 'Authorization': `Bearer ${tokenActual}` }
         });
 
-        if (response.ok) {
-            const data = await response.json();
-            ivaConfigurable = parseFloat(data.valor) || 19;
-            document.getElementById('iva-porcentaje').textContent = ivaConfigurable;
+        let impuestosHabilitados = true;
+        if (configResponse.ok) {
+            const configData = await configResponse.json();
+            // El backend devuelve 'true'/'false' string o boolean
+            impuestosHabilitados = String(configData.valor) === 'true';
         }
+
+        // 2. Cargar Lista de Impuestos para buscar el activo
+        const taxResponse = await fetch(`${API_BASE}/impuestos`, {
+            headers: { 'Authorization': `Bearer ${tokenActual}` }
+        });
+
+        let activeTax = { porcentaje: 19, nombre: 'IVA', valor_fijo: 0 }; // Default
+
+        if (taxResponse.ok) {
+            const taxData = await taxResponse.json();
+            const impuestos = taxData.data || [];
+            const seleccionado = impuestos.find(t => t.seleccionado === 1 || t.seleccionado === true);
+
+            if (seleccionado) {
+                activeTax = {
+                    porcentaje: parseFloat(seleccionado.porcentaje),
+                    nombre: seleccionado.nombre,
+                    valor_fijo: parseFloat(seleccionado.valor_fijo || 0),
+                    impuesto_id: seleccionado.id
+                };
+            }
+        }
+
+        // 3. Configurar estado global para cálculos
+        window.impuestosConfig = {
+            activo: impuestosHabilitados,
+            porcentaje: activeTax.porcentaje,
+            valor_fijo: activeTax.valor_fijo,
+            nombre: activeTax.nombre,
+            impuesto_id: activeTax.impuesto_id
+        };
+
+        // 4. Actualizar variables legacy y UI
+        ivaConfigurable = impuestosHabilitados ? activeTax.porcentaje : 0;
+
+        const labelIva = document.getElementById('iva-porcentaje');
+        if (labelIva) {
+            if (!impuestosHabilitados) {
+                labelIva.textContent = '0% (Deshabilitado)';
+                labelIva.classList.add('text-muted');
+            } else {
+                labelIva.textContent = `${activeTax.nombre} ${activeTax.porcentaje}%`;
+                labelIva.classList.remove('text-muted');
+            }
+        }
+
+        console.log('✅ Configuración de impuestos cargada:', window.impuestosConfig);
+        calcularTotales(); // Recalcular con nuevos valores
+
     } catch (error) {
-        console.warn('No se pudo cargar IVA, usando default 19%');
+        console.warn('Error cargando configuración de impuestos, usando defaults:', error);
+        // Fallback
+        window.impuestosConfig = { activo: true, porcentaje: 19, valor_fijo: 0, nombre: 'IVA' };
+        ivaConfigurable = 19;
     }
 }
 

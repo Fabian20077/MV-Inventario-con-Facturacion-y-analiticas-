@@ -1,4 +1,4 @@
-﻿﻿<html lang="es-CO">
+﻿<html lang="es-CO">
 
 <head>
     <meta charset="UTF-8">
@@ -590,8 +590,8 @@
     <script>
         console.log('🚀 Iniciando script de movimientos...');
         const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-            ? 'http://127.0.0.1:3000'
-            : `http://${window.location.hostname}:3000`;
+            ? 'http://127.0.0.1:3001'
+            : `http://${window.location.hostname}:3001`;
 
         function getAuthHeaders() { const token = localStorage.getItem('authToken') || localStorage.getItem('token'); return { 'Authorization': token ? 'Bearer ' + token : '', 'Content-Type': 'application/json' }; }
 

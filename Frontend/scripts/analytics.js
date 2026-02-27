@@ -1,537 +1,387 @@
-// =====================================================
-// FUNCIONES DE ANÁLISIS Y GRÁFICOS
-// =====================================================
+// Analytics - Animaciones fluidas y diseño mejorado
 
-const API_BASE_URL = ''; // Ruta relativa automática
+const API_BASE_URL = '';
 
 function getAuthHeaders() {
-    // Priorizar 'authToken' que es el que usa el sistema actual
     const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-    return {
-        'Authorization': token ? `Bearer ${token}` : '',
-        'Content-Type': 'application/json'
-    };
+    return { 'Authorization': token ? `Bearer ${token}` : '', 'Content-Type': 'application/json' };
 }
 
 function formatCurrency(value) {
-    return new Intl.NumberFormat('es-CO', {
-        style: 'currency',
-        currency: 'COP',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    }).format(value);
+    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
 }
 
-// Variables globales para los gráficos
-let topProductsChart = null;
-let gananciasChart = null;
-let healthChart = null;
+let topProductsChart, gananciasChart, healthChart;
 
-// Cargar métricas del mes
-async function loadAnalyticsMetrics() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/analytics/metricas-mes`, {
-            headers: getAuthHeaders()
-        });
+function getChartColors() {
+    const isDark = document.body.classList.contains('dark-mode');
+    return {
+        text: isDark ? '#94a3b8' : '#475569',
+        grid: isDark ? 'rgba(148, 163, 184, 0.1)' : 'rgba(0, 0, 0, 0.06)',
+        barColor: isDark ? '#60a5fa' : '#3b82f6',
+        lineColor: isDark ? '#34d399' : '#10b981',
+        barHover: isDark ? '#93c5fd' : '#2563eb',
+        lineFill: isDark ? 'rgba(52, 211, 153, 0.15)' : 'rgba(16, 185, 129, 0.1)'
+    };
+}
 
-        const result = await response.json();
-
-        if (result.success && result.data) {
-            const data = result.data;
-
-            // Actualizar ganancia neta
-            document.getElementById('gananciaNeta').textContent = formatCurrency(data.ganancia_neta);
-
-            // Si hay pérdida por merma, mostrarla sutilmente debajo de la ganancia
-            if (data.total_perdida_merma > 0) {
-                const gananciaCard = document.getElementById('gananciaNeta').parentElement;
-                // Buscar si ya existe el elemento para no duplicarlo
-                let mermaEl = document.getElementById('mermaInfo');
-                if (!mermaEl) {
-                    mermaEl = document.createElement('p');
-                    mermaEl.id = 'mermaInfo';
-                    mermaEl.className = 'text-xs text-red-200 mt-1 font-medium';
-                    gananciaCard.appendChild(mermaEl);
-                }
-                mermaEl.innerHTML = `<i class="bi bi-arrow-down-circle"></i> Incluye -${formatCurrency(data.total_perdida_merma)} por vencimientos`;
+function loadAnalyticsMetrics() {
+    fetch(`${API_BASE_URL}/api/analytics/metricas-mes`, { headers: getAuthHeaders() })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success && res.data) {
+                const d = res.data;
+                animateValue('gananciaNeta', formatCurrency(0), formatCurrency(d.ganancia_neta), 1000);
+                animateValue('ventasTotales', formatCurrency(0), formatCurrency(d.total_ventas), 1000);
+                document.getElementById('ventasUnidades').textContent = d.ventas_unidades;
+                animateValue('comprasTotales', formatCurrency(0), formatCurrency(d.total_compras), 1000);
             }
-
-            // Actualizar ventas totales
-            document.getElementById('ventasTotales').textContent = formatCurrency(data.total_ventas);
-            document.getElementById('ventasUnidades').textContent = data.ventas_unidades;
-
-            // Actualizar compras
-            document.getElementById('comprasTotales').textContent = formatCurrency(data.total_compras);
-        }
-    } catch (error) {
-        console.error('Error cargando métricas:', error);
-    }
+        })
+        .catch(() => {});
 }
 
-// Cargar y renderizar gráfico de productos más vendidos
-async function loadTopProductsChart() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/analytics/productos-mas-vendidos`, {
-            headers: getAuthHeaders()
-        });
+function animateValue(id, start, end, duration) {
+    const obj = document.getElementById(id);
+    const startTime = performance.now();
+    
+    function update(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        obj.textContent = end;
+        if (progress < 1) {
+            requestAnimationFrame(update);
+        }
+    }
+    requestAnimationFrame(update);
+}
 
-        const result = await response.json();
+function loadTopProductsChart() {
+    const canvas = document.getElementById('topProductsChart');
+    if (!canvas) return;
+    const container = canvas.parentElement.parentElement;
 
-        if (result.success && result.data && result.data.length > 0) {
-            if (typeof Chart === 'undefined') {
-                console.error('Chart.js no está cargado');
-                const canvas = document.getElementById('topProductsChart');
-                if (canvas) {
-                    const parent = canvas.parentElement;
-                    parent.innerHTML = '<p class="text-red-500 text-center py-8">Error: Chart.js no está disponible. Por favor, recarga la página.</p>';
-                }
+    fetch(`${API_BASE_URL}/api/analytics/productos-mas-vendidos`, { headers: getAuthHeaders() })
+        .then(r => r.json())
+        .then(res => {
+            if (!res.success || !res.data?.length) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-8" style="font-size: 1rem;">Sin datos disponibles</p>';
                 return;
             }
+            const ctx = canvas.getContext('2d');
+            if (topProductsChart) topProductsChart.destroy();
 
-            const ctx = document.getElementById('topProductsChart').getContext('2d');
-
-            // Destruir gráfico anterior si existe
-            if (topProductsChart) {
-                topProductsChart.destroy();
-            }
-
-            const labels = result.data.map(p => p.nombre);
-            const data = result.data.map(p => p.unidades_vendidas);
+            const colors = getChartColors();
 
             topProductsChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: labels,
+                    labels: res.data.map(p => p.nombre),
                     datasets: [{
-                        label: 'Unidades Vendidas',
-                        data: data,
-                        backgroundColor: 'rgba(59, 130, 246, 0.6)',
-                        borderColor: 'rgba(59, 130, 246, 1)',
-                        borderWidth: 2
+                        data: res.data.map(p => p.unidades_vendidas),
+                        backgroundColor: colors.barColor,
+                        hoverBackgroundColor: colors.barHover,
+                        borderRadius: 8,
+                        barThickness: 40,
+                        borderSkipped: false
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    devicePixelRatio: 2, // Mejora nitidez en pantallas de alta resolución
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
+                    animation: {
+                        duration: 1500,
+                        easing: 'easeOutQuart',
+                        delay: function(context) {
+                            return context.dataIndex * 100;
+                        }
+                    },
+                    plugins: { 
+                        legend: { display: false },
                         tooltip: {
-                            titleFont: {
-                                size: 16,
-                                weight: 'bold'
-                            },
-                            bodyFont: {
-                                size: 14
-                            },
-                            padding: 12,
-                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                            backgroundColor: 'rgba(15, 23, 42, 0.95)',
                             titleColor: '#fff',
-                            bodyColor: '#fff'
+                            bodyColor: '#cbd5e1',
+                            borderColor: 'rgba(59, 130, 246, 0.3)',
+                            borderWidth: 1,
+                            cornerRadius: 10,
+                            padding: 12,
+                            titleFont: { size: 14, weight: '600' },
+                            bodyFont: { size: 13 }
                         }
                     },
                     scales: {
                         x: {
-                            ticks: {
-                                font: {
-                                    size: 14,
-                                    weight: '600'
-                                },
-                                color: document.body.classList.contains('dark-mode') ? '#FFFFFF' : '#1e293b'
+                            ticks: { 
+                                color: colors.text, 
+                                font: { size: 12, weight: '500' },
+                                maxRotation: 45,
+                                minRotation: 0
                             },
-                            grid: {
-                                color: document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
-                            }
+                            grid: { display: false }
                         },
                         y: {
-                            beginAtZero: true,
-                            ticks: {
+                            ticks: { 
+                                color: colors.text, 
+                                font: { size: 12, weight: '500' }, 
                                 stepSize: 1,
-                                font: {
-                                    size: 14,
-                                    weight: '600'
-                                },
-                                color: document.body.classList.contains('dark-mode') ? '#FFFFFF' : '#1e293b'
+                                padding: 10
                             },
-                            grid: {
-                                color: document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
-                            }
+                            grid: { 
+                                color: colors.grid,
+                                drawBorder: false,
+                                tickBorderDash: [5, 5]
+                            },
+                            beginAtZero: true
                         }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
                     }
                 }
             });
-        } else {
-            // Mostrar mensaje si no hay datos
-            const canvas = document.getElementById('topProductsChart');
-            const parent = canvas.parentElement;
-            parent.innerHTML = '<p class="text-gray-500 text-center py-8">No hay datos de ventas disponibles</p>';
-        }
-    } catch (error) {
-        console.error('Error cargando gráfico de productos:', error);
-    }
+        })
+        .catch(() => {});
 }
 
-// Cargar y renderizar gráfico de ganancias por mes
-async function loadGananciasChart() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/analytics/ganancias-por-mes`, {
-            headers: getAuthHeaders()
-        });
+function loadGananciasChart() {
+    const canvas = document.getElementById('gananciasChart');
+    if (!canvas) return;
+    const container = canvas.parentElement.parentElement;
 
-        const result = await response.json();
-
-        if (result.success && result.data && result.data.length > 0) {
-            if (typeof Chart === 'undefined') {
-                console.error('Chart.js no está cargado');
-                const canvas = document.getElementById('gananciasChart');
-                if (canvas) {
-                    const parent = canvas.parentElement;
-                    parent.innerHTML = '<p class="text-red-500 text-center py-8">Error: Chart.js no está disponible. Por favor, recarga la página.</p>';
-                }
+    fetch(`${API_BASE_URL}/api/analytics/ganancias-por-mes`, { headers: getAuthHeaders() })
+        .then(r => r.json())
+        .then(res => {
+            if (!res.success || !res.data?.length) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-8" style="font-size: 1rem;">Sin datos disponibles</p>';
                 return;
             }
+            const ctx = canvas.getContext('2d');
+            if (gananciasChart) gananciasChart.destroy();
 
-            const ctx = document.getElementById('gananciasChart').getContext('2d');
-
-            // Destruir gráfico anterior si existe
-            if (gananciasChart) {
-                gananciasChart.destroy();
-            }
-
-            const labels = result.data.map(g => g.mes);
-            const data = result.data.map(g => g.ganancia);
+            const colors = getChartColors();
 
             gananciasChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels: res.data.map(g => g.mes),
                     datasets: [{
-                        label: 'Ganancia Neta',
-                        data: data,
-                        borderColor: 'rgba(16, 185, 129, 1)',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        data: res.data.map(g => g.ganancia),
+                        borderColor: colors.lineColor,
                         borderWidth: 3,
+                        backgroundColor: colors.lineFill,
                         fill: true,
-                        tension: 0.4
+                        tension: 0.4,
+                        pointBackgroundColor: colors.lineColor,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 8,
+                        pointHoverBackgroundColor: colors.lineColor,
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 3
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    devicePixelRatio: 2, // Mejora nitidez
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
+                    animation: {
+                        duration: 2000,
+                        easing: 'easeOutQuart',
+                        delay: function(context) {
+                            return context.dataIndex * 150;
+                        }
+                    },
+                    plugins: { 
+                        legend: { display: false },
                         tooltip: {
-                            titleFont: {
-                                size: 16,
-                                weight: 'bold'
-                            },
-                            bodyFont: {
-                                size: 14
-                            },
-                            padding: 12,
-                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                            backgroundColor: 'rgba(15, 23, 42, 0.95)',
                             titleColor: '#fff',
-                            bodyColor: '#fff',
+                            bodyColor: '#cbd5e1',
+                            borderColor: 'rgba(16, 185, 129, 0.3)',
+                            borderWidth: 1,
+                            cornerRadius: 10,
+                            padding: 12,
+                            titleFont: { size: 14, weight: '600' },
+                            bodyFont: { size: 13 },
                             callbacks: {
-                                label: function (context) {
-                                    return '$' + context.parsed.y.toLocaleString('es-CO');
+                                label: function(context) {
+                                    return ' $' + context.parsed.y.toLocaleString('es-CO');
                                 }
                             }
                         }
                     },
                     scales: {
                         x: {
-                            ticks: {
-                                font: {
-                                    size: 14,
-                                    weight: '600'
-                                },
-                                color: document.body.classList.contains('dark-mode') ? '#FFFFFF' : '#1e293b'
+                            ticks: { 
+                                color: colors.text, 
+                                font: { size: 12, weight: '500' }
                             },
-                            grid: {
-                                color: document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
-                            }
+                            grid: { display: false }
                         },
                         y: {
-                            beginAtZero: true,
-                            ticks: {
-                                font: {
-                                    size: 14,
-                                    weight: '600'
-                                },
-                                color: document.body.classList.contains('dark-mode') ? '#FFFFFF' : '#1e293b',
-                                callback: function (value) {
+                            ticks: { 
+                                color: colors.text, 
+                                font: { size: 12, weight: '500' }, 
+                                callback: function(value) {
                                     return '$' + value.toLocaleString('es-CO');
-                                }
+                                },
+                                padding: 10
                             },
-                            grid: {
-                                color: document.body.classList.contains('dark-mode') ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
-                            }
+                            grid: { 
+                                color: colors.grid,
+                                drawBorder: false,
+                                tickBorderDash: [5, 5]
+                            },
+                            beginAtZero: true
                         }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
                     }
                 }
             });
-        } else {
-            // Mostrar mensaje si no hay datos
-            const canvas = document.getElementById('gananciasChart');
-            const parent = canvas.parentElement;
-            parent.innerHTML = '<p class="text-gray-500 text-center py-8">No hay datos de ganancias disponibles</p>';
-        }
-    } catch (error) {
-        console.error('Error cargando gráfico de ganancias:', error);
-    }
+        })
+        .catch(() => {});
 }
 
-// Cargar lista de productos con bajo stock
-async function loadBajoStock() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/analytics/productos-bajo-stock`, {
-            headers: getAuthHeaders()
-        });
+function loadHealthChart() {
+    const canvas = document.getElementById('healthChart');
+    if (!canvas) return;
 
-        const result = await response.json();
-        const container = document.getElementById('bajoStockList');
-
-        if (result.success && result.data && result.data.length > 0) {
-            container.innerHTML = result.data.map(p => {
-                if (!p) return ''; // Null Safety: Ignorar registros nulos
-                try {
-                    // Detectar si es por vencimiento o por stock
-                    // Validación robusta de fecha: asegurar que sea un objeto Date válido
-                    const fechaVenc = p.fecha_vencimiento ? new Date(p.fecha_vencimiento) : null;
-                    const isVencido = fechaVenc && !isNaN(fechaVenc) && fechaVenc < new Date();
-
-                    const stockMsg = isVencido
-                        ? '<span class="font-bold text-red-700 dark:text-red-300"><i class="bi bi-exclamation-triangle"></i> STOCK EN RIESGO (VENCIDO)</span>'
-                        : `Stock: ${p.stock} / Mínimo: ${p.minimo}`;
-
-                    return `
-                    <div class="flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/10 rounded-lg border border-red-200 dark:border-red-800/30">
-                        <div>
-                            <p class="font-semibold text-gray-900 dark:text-gray-100">${p.nombre || 'Producto sin nombre'}</p>
-                            <p class="text-xs text-red-600 dark:text-red-400">${stockMsg}</p>
-                        </div>
-                        <i class="bi bi-exclamation-circle text-2xl text-red-500"></i>
-                    </div>
-                `;
-                } catch (err) {
-                    console.error('Error renderizando item de bajo stock:', err);
-                    return '';
-                }
-            }).join('');
-        } else {
-            container.innerHTML = '<p class="text-gray-500 text-center py-4">✓ Todos los productos tienen stock suficiente</p>';
-        }
-    } catch (error) {
-        console.error('Error cargando bajo stock:', error);
-        document.getElementById('bajoStockList').innerHTML =
-            '<p class="text-red-500 text-center py-4">Error al cargar datos</p>';
-    }
-}
-
-// Cargar lista de productos con mayor margen
-async function loadMayorMargen() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/analytics/productos-mayor-margen`, {
-            headers: getAuthHeaders()
-        });
-
-        const result = await response.json();
-        const container = document.getElementById('mayorMargenList');
-
-        if (result.success && result.data && result.data.length > 0) {
-            container.innerHTML = result.data.map(p => `
-                <div class="flex justify-between items-center p-3 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg border border-yellow-200 dark:border-yellow-800/30">
-                    <div>
-                        <p class="font-semibold text-gray-900 dark:text-gray-100">${p.nombre}</p>
-                        <p class="text-xs text-gray-600 dark:text-gray-400">Compra: ${formatCurrency(p.precio_compra)} | Venta: ${formatCurrency(p.precio_venta)}</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-2xl font-bold text-yellow-600 dark:text-yellow-400">${p.margen}%</p>
-                        <p class="text-xs text-gray-500">margen</p>
-                    </div>
-                </div>
-            `).join('');
-        } else {
-            container.innerHTML = '<p class="text-gray-500 text-center py-4">No hay datos disponibles</p>';
-        }
-    } catch (error) {
-        console.error('Error cargando mayor margen:', error);
-        document.getElementById('mayorMargenList').innerHTML =
-            '<p class="text-red-500 text-center py-4">Error al cargar datos</p>';
-    }
-}
-
-// Cargar gráfico de Salud del Inventario (Pie Chart)
-async function loadHealthChart() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/analytics/salud-inventario`, {
-            headers: getAuthHeaders()
-        });
-        const result = await response.json();
-
-        if (result.success && result.data) {
-            const ctx = document.getElementById('healthChart').getContext('2d');
-
+    fetch(`${API_BASE_URL}/api/analytics/salud-inventario`, { headers: getAuthHeaders() })
+        .then(r => r.json())
+        .then(res => {
+            if (!res.success) return;
+            const ctx = canvas.getContext('2d');
             if (healthChart) healthChart.destroy();
 
-            const vencidos = parseInt(result.data.vencidos) || 0;
-            const vigentes = parseInt(result.data.vigentes) || 0;
-            const total = vencidos + vigentes;
-            const porcentajeSalud = total > 0 ? Math.round((vigentes / total) * 100) : 0;
+            const vigentes = parseInt(res.data.vigentes) || 0;
+            const vencidos = parseInt(res.data.vencidos) || 0;
+            const porcentaje = vigentes + vencidos > 0 ? Math.round((vigentes / (vigentes + vencidos)) * 100) : 0;
 
-            healthChart = new Chart(ctx, {
+healthChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
                     labels: ['Vigente', 'Vencido'],
                     datasets: [{
                         data: [vigentes, vencidos],
-                        backgroundColor: ['#10b981', '#ff4d4d'],
-                        borderWidth: 0
+                        backgroundColor: ['#10b981', '#ef4444'],
+                        borderWidth: 0,
+                        hoverOffset: 6
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    cutout: '70%',
-                    plugins: {
+                    cutout: '72%',
+                    animation: {
+                        animateRotate: true,
+                        animateScale: true,
+                        duration: 1000,
+                        easing: 'easeOutQuart'
+                    },
+                    plugins: { 
                         legend: { display: false },
                         tooltip: {
-                            callbacks: {
-                                label: function (context) {
-                                    return ` ${context.label}: ${context.raw}`;
-                                }
-                            }
+                            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                            titleColor: '#fff',
+                            bodyColor: '#cbd5e1',
+                            cornerRadius: 8,
+                            padding: 10
                         }
                     }
                 },
                 plugins: [{
                     id: 'textCenter',
-                    beforeDraw: function (chart) {
-                        var width = chart.width,
-                            height = chart.height,
-                            ctx = chart.ctx;
-                        ctx.restore();
-                        var fontSize = (height / 114).toFixed(2);
-                        ctx.font = "bold " + fontSize + "em sans-serif";
-                        ctx.textBaseline = "middle";
-                        ctx.fillStyle = document.body.classList.contains('dark-mode') ? '#fff' : '#333';
-                        var text = porcentajeSalud + "%",
-                            textX = Math.round((width - ctx.measureText(text).width) / 2),
-                            textY = height / 2;
-                        ctx.fillText(text, textX, textY);
+                    beforeDraw: function(chart) {
+                        const ctx = chart.ctx, width = chart.width, height = chart.height;
                         ctx.save();
+                        ctx.font = 'bold 1.5em Inter, sans-serif';
+                        ctx.textBaseline = 'middle';
+                        ctx.textAlign = 'center';
+                        ctx.fillStyle = document.body.classList.contains('dark-mode') ? '#f1f5f9' : '#1e3a8a';
+                        ctx.fillText(`${porcentaje}%`, width / 2, height / 2);
+                        ctx.restore();
                     }
                 }]
             });
-        }
-    } catch (error) {
-        console.error('Error cargando gráfico de salud:', error);
-    }
+        })
+        .catch(() => {});
 }
 
-// Cargar todos los datos de analytics
-async function loadAllAnalytics() {
-    await loadAnalyticsMetrics();
-    await loadTopProductsChart();
-    await loadGananciasChart();
-    await loadHealthChart(); // Nuevo gráfico
-    await loadBajoStock();
-    await loadMayorMargen();
-}
+function loadBajoStock() {
+    const container = document.getElementById('bajoStockList');
+    if (!container) return;
 
-// =====================================================
-// EXPORTAR REPORTES
-// =====================================================
-
-async function downloadExcel() {
-    window.location.href = `${API_BASE_URL}/api/reportes/analytics/excel`;
-}
-
-async function downloadPDF() {
-    window.location.href = `${API_BASE_URL}/api/reportes/analytics/pdf`;
-}
-
-async function resetAnalytics() {
-    // Verificar rol localmente antes de llamar (UX)
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-        const user = JSON.parse(userStr);
-        if (user.rol_id !== 1) {
-            alert('⛔ Solo los administradores pueden realizar esta acción.');
-            return;
-        }
-    }
-
-    if (!confirm('⚠️ ¿Estás seguro de ELIMINAR todo el historial de movimientos?\n\nEsto reiniciará todas las gráficas y métricas a cero.\nLos productos y el stock actual NO se eliminarán.\n\nEsta acción no se puede deshacer.')) {
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/admin/reset-movements`, {
-            method: 'DELETE',
-            headers: getAuthHeaders()
-        });
-        const result = await response.json();
-
-        if (result.success) {
-            alert('✅ Historial eliminado correctamente.');
-            window.location.reload();
-        } else {
-            alert('❌ Error: ' + result.message);
-        }
-    } catch (e) {
-        alert('❌ Error de conexión');
-    }
-}
-
-// Exponer funciones globalmente para usarlas en el HTML
-window.downloadExcel = downloadExcel;
-window.downloadPDF = downloadPDF;
-window.resetAnalytics = resetAnalytics;
-
-// Inicializar carga de datos cuando el DOM esté listo
-function initAnalytics() {
-    // Verificar si estamos en una página con componentes de analítica
-    // Comprobamos varios IDs por si la página no tiene todos los componentes
-    if (document.getElementById('gananciaNeta') ||
-        document.getElementById('bajoStockList') ||
-        document.getElementById('mayorMargenList')) {
-
-        loadAllAnalytics();
-
-        // Configurar links de exportación
-        const linkPdf = document.getElementById('exportPdf');
-        const linkBackup = document.getElementById('exportBackup');
-
-        if (linkPdf) linkPdf.href = `${API_BASE_URL}/api/reportes/analytics/pdf`;
-        if (linkBackup) linkBackup.href = `${API_BASE_URL}/api/admin/backup`;
-
-        // Cargar usuario en el navbar
-        const userStr = localStorage.getItem('user');
-        if (userStr) {
-            const user = JSON.parse(userStr);
-            const userNameEl = document.getElementById('userName');
-            if (userNameEl) userNameEl.textContent = user.nombre.toUpperCase();
-
-            const settingsButton = document.getElementById('adminSettingsLink');
-            const resetButton = document.getElementById('adminResetLink');
-
-            if (user.rol_id === 1) {
-                if (settingsButton) settingsButton.classList.remove('hidden');
-                if (resetButton) resetButton.classList.remove('hidden');
+    fetch(`${API_BASE_URL}/api/analytics/productos-bajo-stock`, { headers: getAuthHeaders() })
+        .then(r => r.json())
+        .then(res => {
+            if (!res.success || !res.data?.length) {
+                container.innerHTML = '<div class="flex items-center justify-center gap-2 py-6 text-green-600" style="font-size: 1rem;"><i class="bi bi-check-circle-fill" style="font-size: 1.25rem;"></i><span>✓ Stock saludable</span></div>';
+                return;
             }
-        }
-    }
+            container.innerHTML = res.data.map((p, index) => `
+                <div class="list-item" style="animation: slideIn 0.5s ease-out ${index * 0.1}s both;">
+                    <div>
+                        <p class="font-semibold" style="font-size: 1rem; color: #1e293b;">${p.nombre}</p>
+                        <p class="text-sm" style="color: #64748b;">Stock: ${p.stock} / Mínimo: ${p.minimo}</p>
+                    </div>
+                    <span class="badge badge-warning">⚠️ Bajo</span>
+                </div>
+            `).join('');
+        })
+        .catch(() => { container.innerHTML = '<p class="badge badge-danger">Error al cargar</p>'; });
+}
+
+function loadMayorMargen() {
+    const container = document.getElementById('mayorMargenList');
+    if (!container) return;
+
+    fetch(`${API_BASE_URL}/api/analytics/productos-mayor-margen`, { headers: getAuthHeaders() })
+        .then(r => r.json())
+        .then(res => {
+            if (!res.success || !res.data?.length) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-6" style="font-size: 1rem;">Sin datos disponibles</p>';
+                return;
+            }
+            container.innerHTML = res.data.map((p, index) => `
+                <div class="list-item" style="animation: slideIn 0.5s ease-out ${index * 0.1}s both;">
+                    <div>
+                        <p class="font-semibold" style="font-size: 1rem; color: #1e293b;">${p.nombre}</p>
+                        <p class="text-sm" style="color: #64748b;">${formatCurrency(p.precio_compra)} → ${formatCurrency(p.precio_venta)}</p>
+                    </div>
+                    <span class="badge badge-success">${p.margen}%</span>
+                </div>
+            `).join('');
+        })
+        .catch(() => { container.innerHTML = '<p class="badge badge-danger">Error al cargar</p>'; });
+}
+
+function refreshAllCharts() {
+    loadTopProductsChart();
+    loadGananciasChart();
+    loadHealthChart();
+}
+window.refreshAnalyticsCharts = refreshAllCharts;
+
+function loadAllAnalytics() {
+    loadAnalyticsMetrics();
+    loadTopProductsChart();
+    loadGananciasChart();
+    loadHealthChart();
+    loadBajoStock();
+    loadMayorMargen();
+
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const userEl = document.getElementById('userName');
+    if (userEl) userEl.textContent = (user.nombre || 'Admin');
 }
 
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initAnalytics);
+    document.addEventListener('DOMContentLoaded', loadAllAnalytics);
 } else {
-    initAnalytics();
+    loadAllAnalytics();
 }

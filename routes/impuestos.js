@@ -5,12 +5,12 @@
 
 import express from 'express';
 import ImpuestoDAO from '../dao/ImpuestoDAO.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateJWT } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // Middleware de autenticación para todas las rutas
-router.use(authenticateToken);
+router.use(authenticateJWT);
 
 /**
  * GET /api/impuestos - Obtener todos los impuestos

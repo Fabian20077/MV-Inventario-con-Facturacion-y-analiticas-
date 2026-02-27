@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import http from 'http';
 import fs from 'fs/promises';
-import { existsSync, createWriteStream, createReadStream } from 'fs';
+import { existsSync, statSync, createWriteStream, createReadStream } from 'fs';
 import path from 'path';
 import { testConnection, query } from './config/database.js';
 import UsuarioDAO from './dao/UsuarioDAO.js';
@@ -10,9 +10,10 @@ import PasswordResetDAO from './dao/PasswordResetDAO.js';
 import ConfiguracionDAO from './dao/ConfiguracionDAO.js';
 import HistorialPrecioDAO from './dao/HistorialPrecioDAO.js';
 import FacturaDAO from './dao/FacturaDAO.js';
+import ImpuestoDAO from './dao/ImpuestoDAO.js';
 import ReportesService from './routes/reportes.js';
 import GeneradorFacturaPDF from './utils/generador-factura-pdf-mejorado.js';
-import { generateToken, verifyToken } from './auth/jwt.js';
+import { generateToken, verifyToken, decodeToken } from './auth/jwt.js';
 import { authenticateJWT } from './middleware/auth.js';
 import { validateRequest } from './middleware/validate.js';
 import {
@@ -36,12 +37,25 @@ import EmailService from './utils/email-service.js';
 
 const PORT = 3000;
 
+// ==================== GLOBAL ERROR HANDLERS ====================
+// Prevenir que excepciones no manejadas tumben el servidor
+process.on('uncaughtException', (err) => {
+    console.error('💥 UNCAUGHT EXCEPTION (servidor NO se detendrá):', err.message);
+    console.error(err.stack);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('💥 UNHANDLED REJECTION:', reason);
+});
+
 // ==================== CONFIGURACIÓN DE TIMEZONE ====================
 // Soporta: 'America/Guatemala', 'America/Managua', etc.
-const APP_TIMEZONE = configuracionLoader.getConfigOrDefault('app.timezone', 'America/Guatemala');
+// Nota: La zona horaria se resuelve dinámicamente desde la configuración en memoria
+// para reflejar cambios en runtime sin necesidad de reiniciar el servidor.
 
 // Función para obtener fecha/hora actual en timezone del cliente
 function getNowInTimezone() {
+    const APP_TIMEZONE = configuracionLoader.getConfigOrDefault('app.timezone', 'America/Guatemala');
     const formatter = new Intl.DateTimeFormat('es-GT', {
         timeZone: APP_TIMEZONE,
         year: 'numeric',
@@ -60,18 +74,23 @@ function getNowInTimezone() {
     );
 }
 
-// Helper para parsear body
+// Helper para parsear body (JSON)
+// Lee el body de la request y lo parsea como JSON. Rechaza en caso de JSON inválido.
 const parseBody = (req) => {
     return new Promise((resolve, reject) => {
         let body = '';
-        req.on('data', chunk => body += chunk.toString());
+        req.on('data', (chunk) => {
+            body += chunk.toString();
+        });
         req.on('end', () => {
             try {
-                resolve(JSON.parse(body));
-            } catch (error) {
-                reject(error);
+                const parsed = JSON.parse(body || '{}');
+                resolve(parsed);
+            } catch (err) {
+                reject(err);
             }
         });
+        req.on('error', (err) => reject(err));
     });
 };
 
@@ -79,6 +98,7 @@ const parseBody = (req) => {
  * Helper para parsear multipart/form-data (binario)
  * Implementación nativa para evitar dependencias externas.
  * REESCRITA: Búsqueda binaria robusta de boundaries.
+ * MEJORADO: Manejo de eventos 'close' y timeout para evitar promesas colgadas.
  */
 const parseMultipart = (req) => {
     return new Promise((resolve, reject) => {
@@ -99,14 +119,64 @@ const parseMultipart = (req) => {
         let boundary = (boundaryMatch[1] || boundaryMatch[2]).trim().replace(/^"+|"+$/g, '');
 
         const chunks = [];
-        req.on('data', chunk => chunks.push(chunk));
-        req.on('end', () => {
+        let totalSize = 0;
+        const MAX_UPLOAD_SIZE = 20 * 1024 * 1024; // 20 MB de límite de seguridad para evitar leaks
+        let isResolved = false;
+
+        // Función helper para limpiar listeners y resolver/rechazar de forma segura
+        const cleanup = () => {
+            req.removeListener('data', onData);
+            req.removeListener('end', onEnd);
+            req.removeListener('error', onError);
+            req.removeListener('close', onClose);
+        };
+
+        const resolveOnce = (value) => {
+            if (!isResolved) {
+                isResolved = true;
+                cleanup();
+                resolve(value);
+            }
+        };
+
+        const rejectOnce = (err) => {
+            if (!isResolved) {
+                isResolved = true;
+                cleanup();
+                reject(err);
+            }
+        };
+
+        // Timeout de 30 segundos
+        const timeout = setTimeout(() => {
+            if (!isResolved) {
+                console.error('⏰ Timeout en parseMultipart (30 segundos)');
+                rejectOnce(new Error('Timeout: El procesamiento del multipart excedió 30 segundos'));
+            }
+        }, 30000);
+
+        // Listener para datos
+        const onData = (chunk) => {
+            chunks.push(chunk);
+            totalSize += chunk.length;
+
+            // Corte defensivo: si el upload supera el límite, abortar para proteger la memoria
+            if (totalSize > MAX_UPLOAD_SIZE) {
+                console.error('❌ Upload demasiado grande, abortando para proteger memoria (>', MAX_UPLOAD_SIZE, 'bytes)');
+                req.pause();
+                rejectOnce(new Error('Payload demasiado grande: límite de 20MB excedido'));
+            }
+        };
+
+        // Listener para fin del stream
+        const onEnd = () => {
+            clearTimeout(timeout);
             try {
                 const buffer = Buffer.concat(chunks);
                 const parts = [];
 
                 if (buffer.length === 0) {
-                    return resolve([]);
+                    return resolveOnce([]);
                 }
 
                 // El boundary en el cuerpo siempre empieza con --
@@ -178,13 +248,34 @@ const parseMultipart = (req) => {
                         });
                     }
                 }
-                resolve(parts);
+                resolveOnce(parts);
             } catch (err) {
                 console.error('Multipart parsing error:', err);
-                reject(err);
+                rejectOnce(err);
             }
-        });
-        req.on('error', err => reject(err));
+        };
+
+        // Listener para errores del stream
+        const onError = (err) => {
+            clearTimeout(timeout);
+            console.error('❌ Error en stream multipart:', err);
+            rejectOnce(err);
+        };
+
+        // Listener para cierre de conexión (crítico para evitar promesas colgadas)
+        const onClose = () => {
+            clearTimeout(timeout);
+            if (!isResolved) {
+                console.warn('⚠️ Cliente cerró la conexión durante parseMultipart');
+                rejectOnce(new Error('Cliente cerró la conexión antes de completar el upload'));
+            }
+        };
+
+        // Registrar todos los listeners
+        req.on('data', onData);
+        req.on('end', onEnd);
+        req.on('error', onError);
+        req.on('close', onClose);
     });
 };
 
@@ -211,39 +302,97 @@ const server = http.createServer(async (req, res) => {
 
     // ==================== SERVIR ARCHIVOS ESTÁTICOS ====================
     // Servir archivos HTML, CSS, JS desde Frontend/
-    if (req.method === 'GET' && !req.url.startsWith('/api')) {
-        let filePath = path.join(process.cwd(), 'Frontend', req.url === '/' ? 'pages/login.html' : req.url.substring(1));
-
+    if (req.method === 'GET' && !req.url.startsWith('/api') && !req.url.startsWith('/uploads')) {
+        let filePath = req.url;
+        
+        // Si es raíz, servir login.html
+        if (filePath === '/' || filePath === '') {
+            filePath = '/pages/login.html';
+        }
+        
+        // Normalizar rutas que empiezan con /
+        if (filePath.startsWith('/')) {
+            filePath = filePath.substring(1);
+        }
+        
+        // Construir ruta completa
+        const frontendDir = path.normalize(path.join(process.cwd(), 'Frontend'));
+        let fullPath = path.join(frontendDir, filePath);
+        
+        // Si es un HTML sin /pages/, buscar en pages/
+        if (filePath.endsWith('.html') && !filePath.includes('/pages/') && 
+            !filePath.includes('/assets/') && !filePath.includes('/scripts/') && 
+            !filePath.includes('/styles/')) {
+            const pagesPath = path.join(frontendDir, 'pages', path.basename(filePath));
+            if (existsSync(pagesPath)) {
+                fullPath = pagesPath;
+            }
+        }
+        
         // Normalizar la ruta
-        filePath = path.normalize(filePath);
+        fullPath = path.normalize(fullPath);
 
         // Verificar que el archivo existe y está dentro de Frontend/
-        const frontendDir = path.normalize(path.join(process.cwd(), 'Frontend'));
-        if (filePath.startsWith(frontendDir) && existsSync(filePath) && !fs.statSync(filePath).isDirectory()) {
+        if (fullPath.startsWith(frontendDir) && existsSync(fullPath) && !statSync(fullPath).isDirectory()) {
             try {
-                const ext = path.extname(filePath).toLowerCase();
+                const ext = path.extname(fullPath).toLowerCase();
                 const mimeTypes = {
-                    '.html': 'text/html',
+                    '.html': 'text/html; charset=utf-8',
                     '.css': 'text/css',
                     '.js': 'application/javascript',
                     '.json': 'application/json',
                     '.jpg': 'image/jpeg',
+                    '.jpeg': 'image/jpeg',
                     '.png': 'image/png',
                     '.gif': 'image/gif',
                     '.svg': 'image/svg+xml',
                     '.woff': 'font/woff',
-                    '.woff2': 'font/woff2'
+                    '.woff2': 'font/woff2',
+                    '.ttf': 'font/ttf',
+                    '.ico': 'image/x-icon'
                 };
 
                 const contentType = mimeTypes[ext] || 'application/octet-stream';
-                const fileContent = await fs.readFile(filePath);
+                const fileContent = await fs.readFile(fullPath);
 
-                res.writeHead(200, { 'Content-Type': contentType });
-                res.end(fileContent);
+                if (!res.headersSent) {
+                    res.writeHead(200, { 'Content-Type': contentType });
+                    res.end(fileContent);
+                }
                 return;
             } catch (error) {
-                console.error(`Error sirviendo archivo ${filePath}:`, error.message);
+                console.error(`Error sirviendo archivo ${fullPath}:`, error.message);
             }
+        }
+    }
+    
+    // Servir uploads (logos, etc.)
+    if (req.method === 'GET' && req.url.startsWith('/uploads/')) {
+        try {
+            const filePath = path.join(process.cwd(), req.url.substring(1));
+            const normalizedPath = path.normalize(filePath);
+            const uploadsDir = path.normalize(path.join(process.cwd(), 'uploads'));
+            
+            if (normalizedPath.startsWith(uploadsDir) && existsSync(normalizedPath) && !statSync(normalizedPath).isDirectory()) {
+                const ext = path.extname(normalizedPath).toLowerCase();
+                const mimeTypes = {
+                    '.png': 'image/png',
+                    '.jpg': 'image/jpeg',
+                    '.jpeg': 'image/jpeg',
+                    '.gif': 'image/gif',
+                    '.svg': 'image/svg+xml'
+                };
+                const contentType = mimeTypes[ext] || 'application/octet-stream';
+                const fileContent = await fs.readFile(normalizedPath);
+                
+                if (!res.headersSent) {
+                    res.writeHead(200, { 'Content-Type': contentType });
+                    res.end(fileContent);
+                }
+                return;
+            }
+        } catch (error) {
+            console.error(`Error sirviendo upload ${req.url}:`, error.message);
         }
     }
 
@@ -326,6 +475,35 @@ const server = http.createServer(async (req, res) => {
                 success: false,
                 message: 'Error en el servidor'
             }));
+        }
+        return;
+    }
+
+    // Refresh token endpoint (token rotation)
+    if (req.url === '/api/auth/refresh' && req.method === 'POST') {
+        try {
+            const authHeader = req.headers['authorization'];
+            const token = authHeader && authHeader.split(' ')[1];
+            if (!token) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, message: 'Token de acceso no proporcionado' }));
+                return;
+            }
+
+            const payload = decodeToken(token);
+            if (!payload) {
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, message: 'Token de acceso inválido' }));
+                return;
+            }
+
+            const newToken = generateToken(payload);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ accessToken: newToken }));
+        } catch (err) {
+            console.error('Error al renovar token:', err);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, message: 'Error al renovar token' }));
         }
         return;
     }
@@ -676,8 +854,8 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ==================== SISTEMA DE BACKUPS ====================
-    
-        // GET /api/backups/status - Obtener estado del sistema de backups
+
+    // GET /api/backups/status - Obtener estado del sistema de backups
     if (req.url === '/api/backups/status' && req.method === 'GET') {
         try {
             // Sistema de backups temporalmente desactivado
@@ -707,7 +885,7 @@ const server = http.createServer(async (req, res) => {
     if (req.url === '/api/backups/list' && req.method === 'GET') {
         try {
             const result = await BackupManager.listBackups();
-            
+
             if (result.success) {
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
@@ -734,12 +912,12 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-        // POST /api/backups/create - Crear backup manual
+    // POST /api/backups/create - Crear backup manual
     if (req.url === '/api/backups/create' && req.method === 'POST') {
         try {
             // Sistema de backups temporalmente desactivado
             const body = await parseBody(req);
-            
+
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 success: false,
@@ -768,16 +946,16 @@ const server = http.createServer(async (req, res) => {
     if (req.url.match(/\/api\/backups\/[^\/]+$/) && req.method === 'GET') {
         try {
             const backupName = req.url.split('/').pop();
-            
+
             const fs = require('fs').promises;
             const path = require('path');
             const backupsDir = './backups';
             const backupPath = path.join(backupsDir, backupName);
-            
+
             try {
                 const backupData = JSON.parse(await fs.readFile(backupPath, 'utf8'));
                 const stats = await fs.stat(backupPath);
-                
+
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
                     success: true,
@@ -815,15 +993,15 @@ const server = http.createServer(async (req, res) => {
     if (req.url.match(/\/api\/backups\/[^\/]+$/) && req.method === 'DELETE') {
         try {
             const backupName = req.url.split('/').pop();
-            
+
             const fs = require('fs').promises;
             const path = require('path');
             const backupsDir = './backups';
             const backupPath = path.join(backupsDir, backupName);
-            
+
             try {
                 await fs.unlink(backupPath);
-                
+
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
                     success: true,
@@ -853,20 +1031,62 @@ const server = http.createServer(async (req, res) => {
 
     // ==================== PRODUCTOS ====================
 
-    // Listar productos
-    if (req.url === '/api/productos' && req.method === 'GET') {
+    // Listar productos (soporta búsqueda y filtrado)
+    if (req.url.startsWith('/api/productos') && req.method === 'GET' && !req.url.match(/^\/api\/productos\/\d+$/)) {
         try {
-            const productos = await ProductoDAO.listar();
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
-                success: true,
-                data: productos
-            }));
+            // Parsear parámetros de búsqueda
+            const urlParsed = new URL('http://localhost' + req.url);
+            const filtros = {
+                buscar: urlParsed.searchParams.get('buscar') || '',
+                categoria: urlParsed.searchParams.get('categoria') || null
+            };
+
+            const productos = await ProductoDAO.listar(filtros);
+            if (!res.headersSent) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: true,
+                    data: productos, // Compatible con dashboard (app.js)
+                    productos: productos // Compatible con facturación (facturacion.js)
+                }));
+            }
+        } catch (error) {
+            console.error('Error al obtener productos:', error);
+            if (!res.headersSent) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    message: 'Error al obtener productos'
+                }));
+            }
+        }
+        return;
+    }
+
+    // Obtener producto por ID
+    const productoMatch = req.url.match(/^\/api\/productos\/(\d+)$/);
+    if (productoMatch && req.method === 'GET') {
+        const id = parseInt(productoMatch[1]);
+        try {
+            const producto = await ProductoDAO.buscarPorId(id);
+            if (producto) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: true,
+                    data: producto
+                }));
+            } else {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    message: 'Producto no encontrado'
+                }));
+            }
         } catch (error) {
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 success: false,
-                message: 'Error al obtener productos'
+                message: 'Error al obtener producto'
             }));
         }
         return;
@@ -1107,7 +1327,7 @@ const server = http.createServer(async (req, res) => {
     // ==================== MOVIMIENTOS ====================
 
     // Listar movimientos
-    if (req.url === '/api/movimientos' && req.method === 'GET') {
+    if (req.url.startsWith('/api/movimientos') && req.method === 'GET' && !req.url.startsWith('/api/movimientos/')) {
         try {
             const sql = `
                 SELECT 
@@ -1257,31 +1477,44 @@ const server = http.createServer(async (req, res) => {
 
             if (generar_factura && cliente_nombre) {
                 try {
-                    const ivaConfig = configuracionLoader.getConfigOrDefault('finanzas.impuestos.iva_porcentaje', 19);
-                    const iva = parseFloat(ivaConfig);
+                    // Obtener configuración de impuestos dinâmica
+                    const habilitado = String(configuracionLoader.getConfigOrDefault('finanzas.impuestos.habilitado', 'true')) === 'true';
+                    const ivaPorcentaje = parseFloat(configuracionLoader.getConfigOrDefault('finanzas.impuestos.iva_porcentaje', 0));
+                    const ivaValorFijo = parseFloat(configuracionLoader.getConfigOrDefault('finanzas.impuestos.iva_valor_fijo', 0));
+                    const nombreImpuesto = configuracionLoader.getConfigOrDefault('finanzas.impuestos.nombre_activo', 'IVA');
 
                     // Obtener configuración de empresa desde settings personalizados
                     const nombreEmpresa = configuracionLoader.getConfigOrDefault('empresa.nombre', 'MI NEGOCIO');
                     const direccionEmpresa = configuracionLoader.getConfigOrDefault('empresa.direccion', '');
                     const telefonoEmpresa = configuracionLoader.getConfigOrDefault('empresa.telefono', '');
                     const nitEmpresa = configuracionLoader.getConfigOrDefault('empresa.nit', '');
-                    const logoUrl = configuracionLoader.getConfigOrDefault('empresa.logo_url', '');
+                    // Leer logo_path (archivo local) con fallback a logo_url (URL externa)
+                    const logoPathConfig = configuracionLoader.getConfigOrDefault('empresa.logo_path', '');
+                    const logoUrlConfig = configuracionLoader.getConfigOrDefault('empresa.logo_url', '');
 
                     // Obtener logo si existe
                     let logoData = null;
                     let logoType = 'image/png';
-                    if (logoUrl) {
+                    const logoSource = logoPathConfig || logoUrlConfig;
+                    if (logoSource) {
                         try {
-                            const logoPath = path.join('./Frontend', logoUrl);
-                            if (existsSync(logoPath)) {
-                                const logoBuffer = await fs.readFile(logoPath);
+                            // Resolver path: quitar / inicial y buscar desde cwd (dentro de Docker = /app)
+                            let cleanLogoPath = logoSource;
+                            if (cleanLogoPath.startsWith('/')) cleanLogoPath = cleanLogoPath.substring(1);
+                            const resolvedLogoPath = path.join(process.cwd(), cleanLogoPath);
+                            if (existsSync(resolvedLogoPath)) {
+                                const logoBuffer = await fs.readFile(resolvedLogoPath);
                                 logoData = logoBuffer.toString('base64');
                                 // Detectar tipo de imagen
-                                if (logoUrl.toLowerCase().includes('.jpg') || logoUrl.toLowerCase().includes('.jpeg')) {
+                                if (logoSource.toLowerCase().includes('.jpg') || logoSource.toLowerCase().includes('.jpeg')) {
                                     logoType = 'image/jpeg';
-                                } else if (logoUrl.toLowerCase().includes('.png')) {
+                                } else if (logoSource.toLowerCase().includes('.webp')) {
+                                    logoType = 'image/webp';
+                                } else {
                                     logoType = 'image/png';
                                 }
+                            } else {
+                                console.warn(`⚠️ Logo no encontrado en: ${resolvedLogoPath}`);
                             }
                         } catch (logoErr) {
                             console.warn('⚠️ No se pudo cargar el logo:', logoErr.message);
@@ -1303,12 +1536,21 @@ const server = http.createServer(async (req, res) => {
 
                     // Preparar datos de factura
                     const subtotal = producto.precio_venta * cantidad;
-                    const impuesto = subtotal * (iva / 100);
+                    let impuesto = 0;
+                    if (habilitado) {
+                        impuesto = (subtotal * (ivaPorcentaje / 100)) + ivaValorFijo;
+                    }
                     const total = subtotal + impuesto;
 
                     const factura = {
                         numero_factura: `FAC-${Date.now()}`,
-                        fecha: new Date(),
+                        fecha_emision: new Date().toLocaleString('es-CO', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        }),
                         cliente_nombre: cliente_nombre || 'Consumidor Final',
                         nit: config.nit || '',
                         direccion: config.direccion || '',
@@ -1477,11 +1719,15 @@ const server = http.createServer(async (req, res) => {
                 });
             }, 10000);
         } catch (error) {
-            console.error('Error descargando factura:', error);
+            console.error('❌ Error CRÍTICO descargando/generando factura PDF:', error);
+            // Mostrar stack trace para depuración
+            if (error.stack) console.error(error.stack);
+
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 success: false,
-                message: 'Error al descargar factura'
+                message: 'Error al descargar factura: ' + error.message,
+                detail: error.toString()
             }));
         }
         return;
@@ -1499,7 +1745,7 @@ const server = http.createServer(async (req, res) => {
             }
 
             const impuestos = await ImpuestoDAO.obtenerTodos();
-            
+
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 success: true,
@@ -1527,7 +1773,7 @@ const server = http.createServer(async (req, res) => {
 
             const id = req.url.split('/')[3];
             const impuesto = await ImpuestoDAO.obtenerPorId(id);
-            
+
             if (!impuesto) {
                 res.writeHead(404, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
@@ -1536,7 +1782,7 @@ const server = http.createServer(async (req, res) => {
                 }));
                 return;
             }
-            
+
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 success: true,
@@ -1723,7 +1969,7 @@ const server = http.createServer(async (req, res) => {
 
             const id = req.url.split('/')[3];
             const impuesto = await ImpuestoDAO.obtenerPorId(id);
-            
+
             if (!impuesto) {
                 res.writeHead(404, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
@@ -1770,7 +2016,13 @@ const server = http.createServer(async (req, res) => {
             }
 
             const body = await parseBody(req);
-            const { detalles, iva_porcentaje = 19, observaciones = '' } = body;
+            const {
+                detalles,
+                iva_porcentaje = 19,
+                observaciones = '',
+                cliente_nombre = 'Consumidor Final',
+                impuesto_id = null
+            } = body;
 
             if (!detalles || !Array.isArray(detalles) || detalles.length === 0) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -1819,8 +2071,34 @@ const server = http.createServer(async (req, res) => {
                 });
             }
 
-            // Calcular IVA
-            const ivaMonto = Math.round(subtotal * (iva_porcentaje / 100));
+            let ivaMonto = 0;
+            let ivaAplicado = 0;
+            let ivaValorFijo = 0;
+            let ivaNombre = 'IVA';
+            let ivaTipo = 'porcentaje';
+
+            if (impuesto_id) {
+                const [impuestoData] = await query('SELECT * FROM impuesto WHERE id = ?', [impuesto_id]);
+                if (impuestoData && impuestoData.length > 0) {
+                    const imp = impuestoData[0];
+                    ivaNombre = imp.nombre;
+                    ivaTipo = imp.tipo;
+                    ivaAplicado = parseFloat(imp.porcentaje);
+                    ivaValorFijo = parseFloat(imp.valor_fijo);
+
+                    if (ivaTipo === 'porcentaje') {
+                        ivaMonto = Math.round(subtotal * (ivaAplicado / 100));
+                    } else if (ivaTipo === 'fijo') {
+                        ivaMonto = ivaValorFijo;
+                    } else if (ivaTipo === 'mixto') {
+                        ivaMonto = Math.round(subtotal * (ivaAplicado / 100)) + ivaValorFijo;
+                    }
+                }
+            } else if (habilitado) {
+                ivaMonto = Math.round(subtotal * (ivaPorcentajeConfig / 100)) + parseFloat(configuracionLoader.getConfigOrDefault('finanzas.impuestos.iva_valor_fijo', 0));
+                ivaAplicado = ivaPorcentajeConfig;
+            }
+
             const total = subtotal + ivaMonto;
 
             // Obtener usuario desde token
@@ -1838,8 +2116,23 @@ const server = http.createServer(async (req, res) => {
 
             // Crear factura
             const resultFactura = await query(
-                `INSERT INTO factura (numero_factura, usuario_id, subtotal, iva_porcentaje, iva_monto, total, observaciones, estado) VALUES (?, ?, ?, ?, ?, ?, ?, 'emitida')`,
-                [numeroFactura, usuario_id, subtotal, iva_porcentaje, ivaMonto, total, observaciones]
+                `INSERT INTO factura 
+                (numero_factura, usuario_id, cliente_nombre, subtotal, impuesto_id, impuesto_nombre, impuesto_tipo, impuesto_porcentaje, impuesto_valor_fijo, impuesto_monto, total, observaciones, estado) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'emitida')`,
+                [
+                    numeroFactura,
+                    usuario_id,
+                    cliente_nombre,
+                    subtotal,
+                    impuesto_id,
+                    ivaNombre,
+                    ivaTipo,
+                    ivaAplicado,
+                    ivaValorFijo,
+                    ivaMonto,
+                    total,
+                    observaciones
+                ]
             );
 
             const facturaId = resultFactura.insertId;
@@ -1868,7 +2161,7 @@ const server = http.createServer(async (req, res) => {
                     fecha_emision: new Date(),
                     usuario_id,
                     subtotal,
-                    iva_porcentaje,
+                    iva_porcentaje: ivaAplicado,
                     iva_monto: ivaMonto,
                     total,
                     detalles: detallesConPrecio,
@@ -1887,7 +2180,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Listar facturas
-    if (req.url === '/api/facturas' && req.method === 'GET') {
+    if (req.method === 'GET' && (req.url === '/api/facturas' || req.url.startsWith('/api/facturas?'))) {
         try {
             if (!authenticateToken(req)) {
                 res.writeHead(401, { 'Content-Type': 'application/json' });
@@ -1909,8 +2202,14 @@ const server = http.createServer(async (req, res) => {
                 params.push(estado);
             }
 
-            const total_result = await query('SELECT COUNT(*) as total FROM (' + query_str + ') as sub', params);
-            const total = total_result[0].total;
+            // Conteo simplificado para evitar errores de argumentos
+            const countParams = (estado && estado !== 'todas') ? [estado] : [];
+            const countSql = (estado && estado !== 'todas')
+                ? 'SELECT COUNT(*) as total FROM factura WHERE estado = ?'
+                : 'SELECT COUNT(*) as total FROM factura';
+
+            const countResult = await query(countSql, countParams);
+            const total = countResult[0].total;
 
             query_str += ' ORDER BY f.fecha_emision DESC LIMIT ? OFFSET ?';
             params.push(limite, offset);
@@ -1984,8 +2283,17 @@ const server = http.createServer(async (req, res) => {
             // Log para debug
             console.log('📄 Solicitud de PDF recibida:', req.url);
 
-            // Verificar autenticación (soporta query param)
-            await runMiddleware(req, res, authenticateJWT);
+            // Validar Token (Soporta Header y Query para PDFs)
+            const authHeader = req.headers['authorization'];
+            const urlParams = new URL('http://localhost' + req.url).searchParams;
+            const token = (authHeader && authHeader.split(' ')[1]) || urlParams.get('token');
+
+            if (!token || !verifyToken(token)) {
+                console.warn(`[AUTH] Intento de acceso a PDF denegado: ${req.url}`);
+                res.writeHead(401, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, error: 'No autorizado para ver PDF' }));
+                return;
+            }
 
             const id = req.url.split('/')[3];
             const factura = await query('SELECT f.*, u.nombre as usuario_nombre FROM factura f JOIN usuario u ON f.usuario_id = u.id WHERE f.id = ?', [id]);
@@ -2000,21 +2308,24 @@ const server = http.createServer(async (req, res) => {
 
             // Obtener configuración de empresa para el PDF
             const config = {
-                nombre_negocio: configuracionLoader.getConfigOrDefault('empresa.nombre', 'MV Inventario'),
+                nombre_negocio: configuracionLoader.getConfigOrDefault('empresa.nombre', 'Factura de Venta'),
                 direccion: configuracionLoader.getConfigOrDefault('empresa.direccion', ''),
                 telefono: configuracionLoader.getConfigOrDefault('empresa.telefono', ''),
                 nit: configuracionLoader.getConfigOrDefault('empresa.nit', ''),
-                pie_pagina: '¡Gracias por su compra!',
-                mostrar_logo: true,
+                pie_pagina: configuracionLoader.getConfigOrDefault('empresa.pie_pagina', '¡Gracias por su compra!'),
+                mostrar_logo: String(configuracionLoader.getConfigOrDefault('empresa.logo.apply_reports', 'true')) === 'true',
                 mostrar_qr: false
             };
 
-            // Cargar logo si existe
-            const logoUrl = configuracionLoader.getConfigOrDefault('empresa.logo_url', '');
-            if (logoUrl) {
+            // Cargar logo si existe (usando lógica mejorada)
+            const logoPathRaw = configuracionLoader.getConfigOrDefault('empresa.logo_path', null);
+            if (config.mostrar_logo && logoPathRaw) {
                 try {
-                    const logoPath = path.join('./Frontend', logoUrl);
-                    if (existsSync(logoPath)) {
+                    // Importación dinámica para evitar ciclos
+                    const ReportesService = (await import('./routes/reportes.js')).default;
+                    const logoPath = ReportesService._getLogoPath();
+                    if (logoPath && existsSync(logoPath)) {
+                        const fs_promises = (await import('fs/promises'));
                         const logoBuffer = await fs_promises.readFile(logoPath);
                         config.logo_data = logoBuffer.toString('base64');
                     }
@@ -2041,7 +2352,7 @@ const server = http.createServer(async (req, res) => {
             const fileStream = createReadStream(tempPath);
             res.writeHead(200, {
                 'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename="Factura-${datos_factura.numero_factura}.pdf"`
+                'Content-Disposition': `inline; filename="Factura-${datos_factura.numero_factura}.pdf"`
             });
 
             fileStream.pipe(res);
@@ -2923,8 +3234,10 @@ const server = http.createServer(async (req, res) => {
 
     // ==================== CONFIGURACIÓN: LOGO ====================
 
-    // Subir y actualizar Logo de Empresa
+    // Subir y actualizar Logo de Empresa (JSON Base64, sin multipart pesado)
     if (req.url === '/api/admin/configuracion/logo' && req.method === 'POST') {
+        console.log('📡 Logo upload request received (JSON Base64)');
+
         try {
             // 1. Validar Token y Rol Admin
             const authHeader = req.headers['authorization'];
@@ -2935,144 +3248,125 @@ const server = http.createServer(async (req, res) => {
                 try {
                     user = verifyToken(token);
                 } catch (e) {
-                    // Token inválido
+                    console.error('❌ Error verificando token en upload de logo:', e.message);
                 }
             }
 
             if (!user || user.rol_id !== 1) {
-                res.writeHead(403, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: false, message: 'Acceso denegado: Requiere rol de Administrador' }));
+                if (!res.headersSent) {
+                    res.writeHead(403, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, message: 'Acceso denegado' }));
+                }
                 return;
             }
 
-            // 2. Procesar Multipart
-            const parts = await parseMultipart(req);
+            // 2. Leer cuerpo JSON con imagen en Base64
+            const body = await parseBody(req);
+            const { imageBase64, logo_url, apply_ui, apply_reports } = body || {};
 
-            // Buscar la parte del archivo (campo 'file' o cualquiera con filename)
-            const filePart = parts.find(p => p.name === 'file' || p.filename);
-
-            // Buscar campo de URL
-            const urlPart = parts.find(p => p.name === 'logo_url');
-
-            // Extraer preferencias del usuario (campos de texto en multipart)
-            const applyUiPart = parts.find(p => p.name === 'apply_ui');
-            const applyReportsPart = parts.find(p => p.name === 'apply_reports');
+            if (!imageBase64 && !logo_url) {
+                if (!res.headersSent) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, message: 'Imagen requerida' }));
+                }
+                return;
+            }
 
             let finalPath = '';
             let finalMime = '';
             let isFile = false;
 
-            // LÓGICA DE PRIORIDAD: Archivo > URL
-            if (filePart && filePart.data && filePart.data.length > 0) {
-                // CASO 1: SE SUBIÓ UN ARCHIVO
+            if (imageBase64) {
                 isFile = true;
 
-                // Validar Tipo MIME
-                const allowedMimes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
-                if (!allowedMimes.includes(filePart.contentType)) {
-                    res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ success: false, message: 'Formato no permitido. Use PNG, JPG, JPEG o WEBP.' }));
-                    return;
-                }
-
-                // Validar Tamaño (2MB)
-                const MAX_SIZE = 2 * 1024 * 1024;
-                if (filePart.data.length > MAX_SIZE) {
-                    res.writeHead(400, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ success: false, message: 'El archivo excede el tamaño máximo de 2MB.' }));
-                    return;
-                }
-
-                // Gestión de Archivos
-                const uploadDir = path.join(process.cwd(), 'Frontend', 'assets', 'uploads');
-                await fs.mkdir(uploadDir, { recursive: true });
-
-                // Limpiar logos anteriores
-                const existingFiles = await fs.readdir(uploadDir);
-                for (const file of existingFiles) {
-                    if (file.startsWith('logo_empresa')) {
-                        await fs.unlink(path.join(uploadDir, file)).catch(e => console.error('Error borrando archivo viejo:', e));
-                    }
-                }
-
-                // Guardar nuevo
+                // Extraer cabecera data URL si existe
+                let base64String = imageBase64;
                 let ext = '.png';
-                if (filePart.filename) {
-                    const originalExt = path.extname(filePart.filename);
-                    if (originalExt) ext = originalExt;
+
+                const dataUrlMatch = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(imageBase64);
+                if (dataUrlMatch) {
+                    const mime = dataUrlMatch[1];
+                    base64String = dataUrlMatch[2];
+
+                    if (mime.includes('jpeg') || mime.includes('jpg')) ext = '.jpg';
+                    else if (mime.includes('webp')) ext = '.webp';
+                    else if (mime.includes('gif')) ext = '.gif';
+
+                    finalMime = mime;
                 }
 
-                const filename = `logo_empresa${ext}`;
+                const buffer = Buffer.from(base64String, 'base64');
+
+                const MAX_SIZE = 5 * 1024 * 1024;
+                if (buffer.length > MAX_SIZE) {
+                    if (!res.headersSent) {
+                        res.writeHead(400, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: false, message: 'Archivo > 5MB' }));
+                    }
+                    return;
+                }
+
+                const filename = `logo_${Date.now()}${ext}`;
+                const uploadDir = path.join(process.cwd(), 'uploads', 'logo');
                 const filePath = path.join(uploadDir, filename);
-                finalPath = `/assets/uploads/${filename}`;
-                finalMime = filePart.contentType;
 
-                await fs.writeFile(filePath, filePart.data);
+                await fs.mkdir(uploadDir, { recursive: true });
+                await fs.writeFile(filePath, buffer);
 
-            } else if (urlPart && urlPart.data.toString().trim() !== '') {
-                // CASO 2: NO HAY ARCHIVO, PERO HAY URL
-                finalPath = urlPart.data.toString().trim();
-                finalMime = 'url'; // Marcador especial
+                finalPath = `/uploads/logo/${filename}`;
+
+                if (!finalMime) {
+                    finalMime = 'image/png';
+                }
+            } else if (logo_url && typeof logo_url === 'string' && logo_url.trim() !== '') {
+                finalPath = logo_url.trim();
+                finalMime = 'url';
+            }
+
+            // 3. Actualizar configuración en BD
+            if (isFile) {
+                await upsertConfig('empresa.logo_path', finalPath, 'string', 'Empresa', 'Ruta logo');
+                await upsertConfig('empresa.logo_url', '', 'string', 'Empresa', 'URL logo');
+                await upsertConfig('empresa.logo_mime', finalMime, 'string', 'Empresa', 'MIME logo');
             } else {
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: false, message: 'Debe subir una imagen o proporcionar una URL válida.' }));
-                return;
+                await upsertConfig('empresa.logo_url', finalPath, 'string', 'Empresa', 'URL logo');
+                await upsertConfig('empresa.logo_path', '', 'string', 'Empresa', 'Ruta logo');
+                await upsertConfig('empresa.logo_mime', 'url', 'string', 'Empresa', 'MIME logo');
             }
 
-            // 5. Actualizar Base de Datos
+            const applyUiVal = typeof apply_ui === 'boolean' ? apply_ui : true;
+            const applyReportsVal = typeof apply_reports === 'boolean' ? apply_reports : true;
+
+            await upsertConfig('empresa.logo.apply_ui', applyUiVal, 'boolean', 'Empresa', 'UI');
+            await upsertConfig('empresa.logo.apply_reports', applyReportsVal, 'boolean', 'Empresa', 'Reportes');
+
+            // Recargar configuraciones en memoria
             try {
-                if (isFile) {
-                    // Si es archivo: Guardamos path y BORRAMOS url para evitar conflictos
-                    await upsertConfig('empresa.logo_path', finalPath, 'string', 'Empresa', 'Ruta del logo local');
-                    await upsertConfig('empresa.logo_url', '', 'string', 'Empresa', 'URL externa del logo');
-                    await upsertConfig('empresa.logo_mime', finalMime, 'string', 'Empresa', 'MIME type');
-                } else {
-                    // Si es URL: Guardamos url y BORRAMOS path
-                    await upsertConfig('empresa.logo_url', finalPath, 'string', 'Empresa', 'URL externa del logo');
-                    await upsertConfig('empresa.logo_path', '', 'string', 'Empresa', 'Ruta del logo local');
-                    await upsertConfig('empresa.logo_mime', 'url', 'string', 'Empresa', 'MIME type');
-                }
-
-                // Guardar preferencias de aplicación (Sistema vs Reportes)
-                const applyUiVal = applyUiPart ? (applyUiPart.data.toString() === 'true') : true;
-                const applyReportsVal = applyReportsPart ? (applyReportsPart.data.toString() === 'true') : true;
-
-                await upsertConfig('empresa.logo.apply_ui', applyUiVal, 'boolean', 'Empresa', 'Mostrar logo en interfaz');
-                await upsertConfig('empresa.logo.apply_reports', applyReportsVal, 'boolean', 'Empresa', 'Mostrar logo en reportes');
-
-            } catch (dbError) {
-                console.error('❌ Error DB al guardar logo:', dbError);
-                throw new Error('Error al guardar configuración en BD: ' + dbError.message);
-            }
-
-            // 6. Recargar Configuración en Memoria
-            try {
-                // Intentamos recargar. Si falla, NO detenemos el proceso ni lanzamos error.
-                if (configuracionLoader && typeof configuracionLoader.loadConfiguraciones === 'function') {
+                if (configuracionLoader) {
                     await configuracionLoader.loadConfiguraciones();
+                    console.log('✅ Configuraciones recargadas después de actualizar logo');
                 }
-            } catch (loaderError) {
-                // Silenciar error para que el cliente reciba success: true
-                // console.log('ℹ️ Configuración guardada en BD. El caché se actualizará al reiniciar el servidor.');
+            } catch (reloadErr) {
+                console.error('❌ Error recargando configuraciones después de logo:', reloadErr);
             }
 
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
-                success: true,
-                message: 'Configuración de marca actualizada',
-                data: {
-                    path: finalPath,
-                    type: isFile ? 'file' : 'url'
-                }
-            }));
-
+            if (!res.headersSent) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: true,
+                    message: 'Logo actualizado correctamente',
+                    data: {
+                        path: finalPath,
+                        type: isFile ? 'file' : 'url'
+                    }
+                }));
+            }
         } catch (error) {
-            console.error('❌ Error CRÍTICO en subida de logo:', error);
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
-                success: false,
-                message: `Error interno: ${error.message}`
-            }));
+            console.error('❌ Error general en handler de logo (JSON Base64):', error);
+            if (!res.headersSent) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, message: 'Error interno procesando logo' }));
+            }
         }
         return;
     }
@@ -3080,7 +3374,7 @@ const server = http.createServer(async (req, res) => {
     // --- ENDPOINTS ADMINISTRATIVOS DE CONFIGURACIÓN ---
     // Requieren rol de ADMIN (rol_id = 1) e iniciación de sesión (JWT)
 
-    if (req.url.startsWith('/api/admin/configuracion')) {
+    if (req.url.startsWith('/api/admin/configuracion') && !req.url.includes('/logo')) {
         const authHeader = req.headers['authorization'];
         const token = authHeader && authHeader.split(' ')[1];
         const user = token ? verifyToken(token) : null;
@@ -3134,13 +3428,19 @@ const server = http.createServer(async (req, res) => {
         // PUT /api/admin/configuracion/:clave - Actualizar una configuración
         if (req.method === 'PUT') {
             const clave = req.url.split('/').pop();
+            console.log(`🔧 PUT Config Request for: ${clave}`); // UPDATE LOG
             try {
                 const body = await parseBody(req);
+                console.log('📦 Body received:', JSON.stringify(body)); // UPDATE LOG
+
                 let valor = body.valor;
 
                 // Casting automático para tipos definidos
                 const configExistente = await ConfiguracionDAO.getByClave(clave);
+
                 if (configExistente) {
+                    console.log(`📄 Config found. Type: ${configExistente.tipo_dato}, Current Value: ${configExistente.valor}`); // UPDATE LOG
+
                     if (configExistente.tipo_dato === 'boolean' && typeof valor === 'string') {
                         if (valor.toLowerCase() === 'true') valor = true;
                         if (valor.toLowerCase() === 'false') valor = false;
@@ -3148,7 +3448,11 @@ const server = http.createServer(async (req, res) => {
                         const num = Number(valor);
                         if (!isNaN(num)) valor = num;
                     }
+                } else {
+                    console.warn(`⚠️ Config NOT found: ${clave}`); // UPDATE LOG
                 }
+
+                console.log(`📝 Attempting update with value: ${valor} (Type: ${typeof valor})`); // UPDATE LOG
 
                 const resultado = await ConfiguracionDAO.update(clave, valor);
 
@@ -3158,7 +3462,7 @@ const server = http.createServer(async (req, res) => {
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(resultado));
             } catch (error) {
-                console.error(`Error actualizando config ${clave}:`, error);
+                console.error(`❌ Error actualizando config ${clave}:`, error);
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: false, message: error.message }));
             }
@@ -3169,7 +3473,7 @@ const server = http.createServer(async (req, res) => {
         // ==========================================
 
         // Listar Impuestos
-        if (req.url === '/api/impuestos' && req.method === 'GET') {
+        if (req.url.startsWith('/api/impuestos') && req.method === 'GET') {
             try {
                 await runMiddleware(req, res, authenticateJWT);
 
@@ -3289,100 +3593,10 @@ const server = http.createServer(async (req, res) => {
         }
     }
 
-    // ==================== SERVIR ARCHIVOS ESTÁTICOS ====================
-    // Manejar rutas de archivos HTML y recursos estáticos
-
-    let filePath = req.url;
-
-    // Si es raíz, servir login.html
-    if (filePath === '/' || filePath === '') {
-        filePath = '/Frontend/pages/login.html';
-    } else if (!filePath.startsWith('/')) {
-        filePath = '/' + filePath;
-    }
-
-    // Construir ruta completa del archivo
-    let fullPath = path.join(process.cwd(), filePath);
-
-    try {
-        // Validar que la ruta esté dentro de Frontend o uploads
-        const frontendPath = path.join(process.cwd(), 'Frontend');
-
-        // Normalizar rutas que no empiezan con /Frontend
-        if (!filePath.startsWith('/Frontend/') && !filePath.startsWith('/api/')) {
-            // Si pide /uploads/..., buscar en Frontend/uploads/...
-            if (filePath.startsWith('/uploads/')) {
-                fullPath = path.join(frontendPath, filePath);
-            }
-            // Si pide /assets/..., buscar en Frontend/assets/...
-            else if (filePath.startsWith('/assets/')) {
-                fullPath = path.join(frontendPath, filePath);
-            }
-            // Para el resto (como /scripts/...), intentar servir desde Frontend/
-            else if (!filePath.includes('/pages/')) {
-                const testPath = path.join(frontendPath, filePath);
-                if (existsSync(testPath)) fullPath = testPath;
-            }
-        }
-
-        // Si es una solicitud de HTML simple (como /dashboard.html), buscar en pages/
-        const fileName = path.basename(filePath);
-        if (fileName.endsWith('.html') && !filePath.includes('/pages/') &&
-            !filePath.includes('/assets/') && !filePath.includes('/uploads/')) {
-            // Intentar servir desde pages/
-            const pagesPath = path.join(process.cwd(), `Frontend/pages/${fileName}`);
-            if (existsSync(pagesPath)) {
-                fullPath = pagesPath;
-            }
-        }
-
-        // Si no tiene extensión, intentar agregar .html
-        if (!path.extname(filePath)) {
-            const htmlPath = path.join(process.cwd(), `Frontend/pages${filePath}.html`);
-            if (existsSync(htmlPath)) {
-                fullPath = htmlPath;
-            }
-        }
-
-        const resolvedPath = path.resolve(fullPath);
-
-        if (!resolvedPath.startsWith(path.resolve(frontendPath))) {
-            throw new Error('Acceso denegado');
-        }
-
-        // Intentar servir el archivo
-        if (existsSync(fullPath)) {
-            const ext = path.extname(fullPath).toLowerCase();
-            let contentType = 'application/octet-stream';
-
-            // Determinar Content-Type
-            switch (ext) {
-                case '.html': contentType = 'text/html; charset=utf-8'; break;
-                case '.css': contentType = 'text/css'; break;
-                case '.js': contentType = 'application/javascript'; break;
-                case '.json': contentType = 'application/json'; break;
-                case '.png': contentType = 'image/png'; break;
-                case '.jpg':
-                case '.jpeg': contentType = 'image/jpeg'; break;
-                case '.gif': contentType = 'image/gif'; break;
-                case '.svg': contentType = 'image/svg+xml'; break;
-                case '.woff': contentType = 'font/woff'; break;
-                case '.woff2': contentType = 'font/woff2'; break;
-                case '.ttf': contentType = 'font/ttf'; break;
-            }
-
-            const fileContent = await fs.readFile(fullPath);
-            res.writeHead(200, { 'Content-Type': contentType });
-            res.end(fileContent);
-            return;
-        }
-    } catch (error) {
-        console.error(`Error sirviendo archivo ${filePath}:`, error.message);
-    }
-
-    // 404 - Ruta no encontrada
-    res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(`
+    // 404 - Ruta no encontrada (solo si no se ha enviado respuesta)
+    if (!res.headersSent) {
+        res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(`
         <!DOCTYPE html>
         <html>
         <head>
@@ -3396,11 +3610,12 @@ const server = http.createServer(async (req, res) => {
         </head>
         <body>
             <h1>404 - Página no encontrada</h1>
-            <p>La ruta solicitada no existe: ${filePath}</p>
+            <p>La ruta solicitada no existe: ${req.url}</p>
             <a href="/">Volver al inicio</a>
         </body>
         </html>
     `);
+    }
 });
 
 // Helper para insertar o actualizar configuración (Upsert simplificado)
@@ -3513,11 +3728,13 @@ async function startServer() {
         await ensureAdminUser();
 
         // 3. Iniciar escucha de peticiones
+        // 3. Iniciar escucha de peticiones
         server.listen(PORT, () => {
             console.log('\n╔═══════════════════════════════════════╗');
             console.log('║   MV Inventario - Backend API          ║');
-            console.log('║   Servidor ejecutándose en puerto 3000 ║');
+            console.log(`║   Servidor ejecutándose en puerto ${PORT} ║`);
             console.log('╚═══════════════════════════════════════╝\n');
+            console.log('⭐ Nueva versión de factura (80mm) cargada.');
 
             console.log('✅ Sistema listo y configuraciones cargadas.');
             console.log('\n🔌 Endpoints disponibles:');

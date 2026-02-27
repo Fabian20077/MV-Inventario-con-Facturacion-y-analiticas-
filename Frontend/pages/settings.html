@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MV Inventario - Configuraciones</title>
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
 
     <!-- 🔐 PROTECCIÓN DE SESIÓN (IIFE Bloqueante para evitar parpadeo de contenido) -->
     <script>
@@ -137,7 +138,7 @@
                 </button>
 
                 <!-- Logo MV en la esquina -->
-                <img id="headerLogo" src="../uploads/logo/logo_1768077153101.png" alt="MV Logo"
+                <img id="headerLogo" src="../assets/img/logo_default.png" alt="MV Logo"
                     class="w-12 h-12 rounded-full border-2 border-white/30 shadow-md object-cover"
                     onerror="this.onerror=null; this.style.display='none'; this.nextElementSibling.style.display='flex';">
                 <div class="w-12 h-12 rounded-full border-2 border-white/30 shadow-md bg-blue-600 items-center justify-center text-white text-xl font-bold"
@@ -187,7 +188,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="../scripts/settings.js?v=8"></script>
+    <script src="../scripts/settings.js?v=9"></script>
     <script>
         // Lógica de Modo Oscuro
         function toggleDarkMode() {
@@ -203,6 +204,28 @@
             document.body.classList.add('dark-mode');
             document.getElementById('themeIcon').className = 'bi bi-sun';
         }
+
+        // Cargar logo dinámicamente
+        async function loadHeaderLogo() {
+            try {
+                // Usar ruta relativa para evitar dependencias de API_BASE_URL
+                const response = await fetch('/api/configuracion');
+                const result = await response.json();
+                if (result.success && result.data) {
+                    const logoPath = result.data['empresa.logo_path'];
+                    if (logoPath) {
+                        const src = `${logoPath}?t=${Date.now()}`;
+                        const headerLogo = document.getElementById('headerLogo');
+                        if (headerLogo) headerLogo.src = src;
+                    }
+                }
+            } catch (e) {
+                console.error('Error cargando logo del header:', e);
+            }
+        }
+
+        // Cargar logo al iniciar
+        loadHeaderLogo();
     </script>
 </body>
 

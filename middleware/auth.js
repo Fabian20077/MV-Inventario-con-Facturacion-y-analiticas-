@@ -1,4 +1,6 @@
-import { verifyToken } from '../auth/jwt.js';
+import jwt from 'jsonwebtoken';
+import { decodeToken } from '../auth/jwt.js';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 /**
  * Middleware para autenticar requests con JWT
@@ -6,26 +8,19 @@ import { verifyToken } from '../auth/jwt.js';
  */
 export function authenticateJWT(req, res, next) {
     const authHeader = req.headers['authorization'];
+    let token = null;
 
-    if (!authHeader) {
-        res.writeHead(401, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-            success: false,
-            message: 'Token de autenticación no proporcionado'
-        }));
-        return;
-    }
-
-    // Extraer token del header "Bearer TOKEN"
-    let token = authHeader && authHeader.split(' ')[1];
-
-    // Si no hay header, intentar buscar en query params (para descargas)
-    if (!token && req.url.includes('?')) {
-        try {
-            const url = new URL('http://localhost' + req.url);
-            token = url.searchParams.get('token');
-        } catch (e) {
-            // Ignorar error de parsing
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+    } else {
+        // Intento alternativo: token en query (históricamente usado)
+        if (authHeader && authHeader.includes('?')) {
+            try {
+                const url = new URL('http://localhost' + req.url);
+                token = url.searchParams.get('token');
+            } catch (e) {
+                // ignore parse errors
+            }
         }
     }
 
@@ -38,21 +33,19 @@ export function authenticateJWT(req, res, next) {
         return;
     }
 
-    // Verificar token
-    const decoded = verifyToken(token);
-
-    if (!decoded) {
-        res.writeHead(401, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-            success: false,
-            message: 'Token inválido o expirado'
-        }));
-        return;
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (err) {
+        if (err && err.name === 'TokenExpiredError') {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ code: 'token_expired', message: 'Token expirado' }));
+        } else {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ code: 'invalid_token', message: 'Token inválido' }));
+        }
     }
-
-    // Agregar datos del usuario al request
-    req.user = decoded;
-    next();
 }
 
 /**
@@ -61,16 +54,14 @@ export function authenticateJWT(req, res, next) {
  */
 export function optionalAuth(req, res, next) {
     const authHeader = req.headers['authorization'];
-
-    if (authHeader) {
-        const token = authHeader.split(' ')[1];
-        if (token) {
-            const decoded = verifyToken(token);
-            if (decoded) {
-                req.user = decoded;
-            }
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        try {
+            const decoded = jwt.verify(token, JWT_SECRET);
+            req.user = decoded;
+        } catch (e) {
+            // ignore verification errors for optional auth
         }
     }
-
     next();
 }

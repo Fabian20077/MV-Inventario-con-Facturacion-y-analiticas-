@@ -15,7 +15,7 @@ import FacturaDAO from '../dao/FacturaDAO.js';
 import { verificarToken, verificarAdmin } from '../middleware/auth.js';
 import { validarDatos } from '../middleware/validate.js';
 import { z } from 'zod';
-import GeneradorFacturaPDF from '../utils/generador-factura-pdf.js';
+import GeneradorFacturaPDF from '../utils/generador-factura-pdf-mejorado.js';
 
 const router = express.Router();
 
@@ -265,7 +265,6 @@ router.get('/:id/pdf', verificarToken, async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Obtener factura
         const factura = await FacturaDAO.obtenerFacturaPorId(id);
 
         if (!factura) {
@@ -275,7 +274,6 @@ router.get('/:id/pdf', verificarToken, async (req, res) => {
             });
         }
 
-        // Si no es admin, solo puede descargar sus propias facturas
         if (req.usuario.rol_id !== 1 && factura.usuario_id !== req.usuario.id) {
             return res.status(403).json({
                 success: false,
@@ -283,14 +281,13 @@ router.get('/:id/pdf', verificarToken, async (req, res) => {
             });
         }
 
-        // Generar PDF
-        const doc = GeneradorFacturaPDF.generarFacturaCoucher(factura);
+        const config = await ConfiguracionDAO.obtenerConfiguracionParaPDF();
 
-        // Configurar headers para descarga
+        const doc = GeneradorFacturaPDF.generarFacturaCoucher(factura, config);
+
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="Factura-${factura.numero_factura}.pdf"`);
+        res.setHeader('Content-Disposition', `inline; filename="Factura-${factura.numero_factura}.pdf"`);
 
-        // Enviar PDF al cliente
         doc.pipe(res);
         doc.end();
 

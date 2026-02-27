@@ -10,7 +10,10 @@ const dbConfig = {
     connectionLimit: 10,
     queueLimit: 0,
     enableKeepAlive: true,
-    keepAliveInitialDelay: 0
+    keepAliveInitialDelay: 0,
+    charset: 'utf8mb4',
+    timezone: 'America/Guatemala',
+    multipleStatements: true
 };
 
 // Crear pool de conexiones
@@ -21,7 +24,7 @@ const pool = mysql.createPool(dbConfig);
  */
 export async function query(sql, params = []) {
     try {
-        const [rows] = await pool.execute(sql, params);
+        const [rows] = await pool.query(sql, params);
         return rows;
     } catch (error) {
         console.error('Error ejecutando consulta:', error);

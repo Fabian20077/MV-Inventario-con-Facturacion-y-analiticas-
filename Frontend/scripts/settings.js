@@ -2,7 +2,46 @@
 // CONFIGURACIÓN DE LA PÁGINA DE AJUSTES
 // Módulo de Administración de Configuraciones (Admin Only)
 // =====================================================
-const API_BASE_URL = 'http://127.0.0.1:3000';
+var API_BASE_URL = ''; // Ruta relativa automática para evitar errores de CORS/Puerto
+console.log('🔗 API_BASE_URL in settings.js:', API_BASE_URL);
+
+// Verificar si el token ha expirado
+function isTokenExpired(token) {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = JSON.parse(decodeURIComponent(atob(base64).split('').map(function (c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join('')));
+
+        const currentTime = Math.floor(Date.now() / 1000);
+        return jsonPayload.exp < currentTime;
+    } catch (error) {
+        console.error('Error al verificar token:', error);
+        return true; // Si no se puede decodificar, considerar expirado
+    }
+}
+
+// Obtener token de autenticación verificando expiración
+function getAuthToken() {
+    // Soportar ambos keys para compatibilidad con diferentes flujos de login
+    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+    if (!token) {
+        console.warn('❌ No hay token de autenticación');
+        return null;
+    }
+
+    if (isTokenExpired(token)) {
+        console.warn('❌ Token ha expirado');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'login.html';
+        return null;
+    }
+
+    return token;
+}
 
 /**
  * 🛠️ TRACKING DE CAMBIOS (DIRTY STATE)
@@ -132,7 +171,7 @@ function markAsDirty(clave, valor, element) {
 
         // Agregar badge de "Modificado" si no existe
         if (!card.querySelector('.badge-modified')) {
-            const labelContainer = card.querySelector('.flex.items-center.gap-2.mb-1');
+            const labelContainer = card.querySelector('.flex.items-center.gap-3.mb-2');
             const badge = document.createElement('span');
             badge.className = 'badge-modified text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full animate-pulse';
             badge.innerHTML = '<i class="bi bi-pencil-fill"></i> Modificado';
@@ -161,7 +200,7 @@ async function loadSettings(category) {
     }
 
     const contentArea = document.getElementById('settingsContent');
-    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+    const token = getAuthToken();
 
     contentArea.innerHTML = `
         <div class="flex items-center justify-center h-full">
@@ -172,13 +211,27 @@ async function loadSettings(category) {
     `;
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/admin/configuracion`, {
+        const fullUrl = `${API_BASE_URL}/api/admin/configuracion`;
+        console.log('🌐 Fetching from URL:', fullUrl);
+        
+        // Timeout de 15 segundos
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        
+        const response = await fetch(fullUrl, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
-            }
+            },
+            signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
 
         const result = await response.json();
 
@@ -187,9 +240,34 @@ async function loadSettings(category) {
             renderSection(category, itemsInCategory);
         } else {
             showToast(`Error: ${result.message}`, 'error');
+            contentArea.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-full text-center py-20">
+                    <i class="bi bi-exclamation-triangle text-5xl text-yellow-400 mb-4"></i>
+                    <h3 class="text-xl font-bold text-yellow-400 mb-2">Error del Servidor</h3>
+                    <p class="text-gray-400 mb-4">${result.message || 'Error desconocido'}</p>
+                    <button onclick="loadSettings('${category}')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+                        <i class="bi bi-arrow-clockwise"></i> Reintentar
+                    </button>
+                </div>
+            `;
         }
 
     } catch (error) {
+        console.error('Error cargando configuraciones:', error);
+        const errorMessage = error.name === 'AbortError' 
+            ? 'La solicitud tardó demasiado tiempo'
+            : error.message || 'No se pudo conectar con el servidor';
+            
+        contentArea.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-full text-center py-20">
+                <i class="bi bi-exclamation-triangle text-5xl text-red-400 mb-4"></i>
+                <h3 class="text-xl font-bold text-red-400 mb-2">Error de Conexión</h3>
+                <p class="text-gray-400 mb-4">${errorMessage}</p>
+                <button onclick="loadSettings('${category}')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">
+                    <i class="bi bi-arrow-clockwise"></i> Reintentar
+                </button>
+            </div>
+        `;
         showToast('Error de conexión al servidor', 'error');
     }
 }
@@ -197,170 +275,141 @@ async function loadSettings(category) {
 /**
  * Renderiza la interfaz de una sección específica
  */
+// =====================================================
+// RENDERIZADO DE SECCIONES (NUEVO DISEÑO FASE 2)
+// =====================================================
+
 function renderSection(title, items) {
     const container = document.getElementById('settingsContent');
 
+    // 🎨 DISEÑO ESPECÍFICO PARA LA SECCIÓN GENERAL
+    if (title === 'General') {
+        const logoItem = items.find(i => i.clave === 'empresa.logo_path');
+        const urlItem = items.find(i => i.clave === 'empresa.logo_url');
+        const currentLogoSrc = (logoItem && logoItem.valor) ? logoItem.valor : (urlItem ? urlItem.valor : '');
+
+        // Filtrar items de texto (todo menos logos y configs técnicas)
+        const textItems = items.filter(item =>
+            item.clave.startsWith('empresa.') &&
+            !['empresa.logo_path', 'empresa.logo_mime', 'empresa.logo_url', 'empresa.logo.apply_ui', 'empresa.logo.apply_reports'].includes(item.clave)
+        );
+
+        let html = `
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold flex items-center gap-2 text-white">
+                    <i class="bi bi-building"></i> Configuración General
+                </h2>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- COLUMNA IZQUIERDA: DATOS DE LA EMPRESA -->
+                <div class="bg-white/5 p-6 rounded-2xl border border-white/10 backdrop-blur-sm">
+                    <h3 class="text-lg font-bold text-blue-300 mb-4 flex items-center gap-2">
+                        <i class="bi bi-file-text"></i> Datos de la Empresa
+                    </h3>
+                    <div class="space-y-4">
+                        ${textItems.map(item => renderCompactField(item)).join('')}
+                    </div>
+                    <div class="mt-6 flex justify-end">
+                         <button id="btnSaveGeneral" onclick="saveAllSettings()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold transition-all shadow-lg flex items-center gap-2">
+                            <i class="bi bi-save"></i> Guardar Datos
+                        </button>
+                    </div>
+                </div>
+
+                <!-- COLUMNA DERECHA: GESTIÓN DE LOGO (RECONSTRUIDO) -->
+                <div class="bg-white/5 p-6 rounded-2xl border border-white/10 backdrop-blur-sm">
+                    <h3 class="text-lg font-bold text-blue-300 mb-4 flex items-center gap-2">
+                        <i class="bi bi-card-image"></i> Identidad Visual (Logo)
+                    </h3>
+                    
+                    <div class="flex flex-col items-center justify-center mb-6">
+                        <div class="w-48 h-48 relative border-2 border-dashed border-gray-500 rounded-xl flex justify-center items-center bg-black/20 overflow-hidden mb-4 group">
+                            <img id="logoPreview" src="${currentLogoSrc ? currentLogoSrc + '?t=' + Date.now() : ''}" 
+                                 class="${currentLogoSrc ? '' : 'hidden'} max-w-full max-h-full object-contain z-10 transition-transform duration-300 group-hover:scale-105" 
+                                 alt="Logo Preview" 
+                                 onerror="this.classList.add('hidden'); document.getElementById('noLogoText').classList.remove('hidden');">
+                            
+                            <div id="noLogoText" class="${currentLogoSrc ? 'hidden' : ''} text-center text-gray-500">
+                                <i class="bi bi-image text-4xl mb-2 block"></i>
+                                <span class="text-xs">Sin logo</span>
+                            </div>
+
+                            <!-- Overlay de carga -->
+                            <div id="logoUploadOverlay" class="absolute inset-0 bg-black/80 z-20 hidden flex-col items-center justify-center text-white">
+                                <div class="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                                <span class="text-xs font-bold" id="uploadProgressText">Subiendo...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <!-- Selector de Archivo -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-1">Seleccionar Archivo (Máx 5MB)</label>
+                            <input type="file" id="logoInput" accept="image/*" class="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 transition-all cursor-pointer bg-slate-800 rounded-lg border border-slate-700">
+                        </div>
+
+                        <!-- Opciones de Aplicación -->
+                        <div class="grid grid-cols-2 gap-3 text-xs text-gray-400">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="checkApplyUI" checked class="rounded border-gray-600 bg-slate-800 text-blue-600">
+                                Aplicar en Interfaz
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="checkApplyReports" checked class="rounded border-gray-600 bg-slate-800 text-blue-600">
+                                Aplicar en Facturas
+                            </label>
+                        </div>
+
+                        <!-- Botón Subir -->
+                        <button id="btnUploadLogo" onclick="uploadLogo()" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold transition-all shadow-lg flex items-center justify-center gap-2">
+                            <i class="bi bi-cloud-upload"></i> Subir Logo
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.innerHTML = html;
+        setupLogoListeners(); // Inicializar listeners del preview
+        return;
+    }
+
+    // 🎨 RENDERIZADO GENÉRICO PARA OTRAS SECCIONES (SISTEMA, IMPUESTOS, ETC)
     let html = `
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-xl font-bold flex items-center gap-2">
                 <i class="bi bi-sliders"></i> Sección: ${title}
             </h2>
             <button id="btnSaveAll" onclick="saveAllSettings()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 shadow-lg hover:shadow-blue-500/20">
-                <i class="bi bi-save"></i> <span>Guardar Todo</span>
+                <i class="bi bi-save"></i> <span>Guardar Cambios</span>
             </button>
         </div>
         <div class="space-y-4">
     `;
 
     if (items.length === 0) {
-        if (title !== 'General') {
-            html += `<p class="text-gray-400 italic text-center py-20">No hay configuraciones disponibles para "${title}".</p>`;
-        }
+        html += `<p class="text-gray-400 italic text-center py-20">No hay configuraciones disponibles para "${title}".</p>`;
     } else {
-        // Filtrar configuraciones técnicas que no queremos mostrar como texto
-        let filteredItems;
-
-        if (title === 'General') {
-            // Mostrar todos los campos de empresa excepto logo_path y logo_mime que son técnicos
-            filteredItems = items.filter(item =>
-                item.clave.startsWith('empresa.') &&
-                !['empresa.logo_path', 'empresa.logo_mime'].includes(item.clave)
-            );
-        } else {
-            filteredItems = items.filter(item => !['empresa.logo_path', 'empresa.logo_mime', 'empresa.logo_url', 'empresa.logo.apply_ui', 'empresa.logo.apply_reports'].includes(item.clave));
-        }
-
-        // Organizar configuraciones: Separar vencimientos del resto en Inventario
-        if (title === 'Inventario') {
-            const vencimientos = filteredItems.filter(item => item.clave.startsWith('inventario.vencimiento'));
-            const otras = filteredItems.filter(item => !item.clave.startsWith('inventario.vencimiento'));
-
-            // Renderizar otras configuraciones primero
-            otras.forEach(item => {
-                html += renderConfigCard(item);
-            });
-
-            // Renderizar sección de Gestión de Vencimientos
-            if (vencimientos.length > 0) {
-                html += `
-                    <div class="mt-8 mb-6">
-                        <div class="border-t-2 border-blue-500 pt-4">
-                            <h3 class="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2 mb-4">
-                                <i class="bi bi-calendar-event text-blue-600 text-xl"></i> Gestión de Vencimientos
-                            </h3>
-                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Configuración de alertas y controles para productos con fecha de caducidad</p>
-                        </div>
-                    </div>
-                `;
-                vencimientos.forEach(item => {
-                    html += renderConfigCard(item);
-                });
-            }
-        } else {
-            // Para otras secciones, renderizar normalmente
-            filteredItems.forEach(item => {
-                html += renderConfigCard(item);
-            });
-        }
-    }
-
-    // Si estamos en la sección General, agregar el módulo de Logo al final
-    if (title === 'General') {
-        // Buscar el path actual del logo en los items originales (antes de filtrar)
-        const logoItem = items.find(i => i.clave === 'empresa.logo_path');
-        const urlItem = items.find(i => i.clave === 'empresa.logo_url');
-
-        // Prioridad visual: Si hay path local úsalo, si no, usa la URL
-        const currentLogoSrc = (logoItem && logoItem.valor) ? logoItem.valor : (urlItem ? urlItem.valor : '');
-
-        html += `
-            <div class="config-card p-6 mt-6 transition-all duration-300">
-                <div class="flex flex-col md:flex-row gap-8 items-center">
-                    <div class="flex-1">
-                        <div class="flex items-center gap-3 mb-2">
-                            <label class="block font-bold text-xl text-black dark:text-white flex items-center gap-2">
-                                <i class="bi bi-card-image text-blue-600 text-2xl"></i> Logo del Sistema
-                            </label>
-                        </div>
-                        <p class="text-base text-black dark:text-slate-300 mb-4 ml-9 font-medium opacity-90">
-                            Personaliza la imagen que aparece en el menú y los reportes. Formatos: PNG, JPG, WEBP (Max 2MB).
-                            <br><span class="text-xs text-gray-500">Nota: Si subes un archivo, tendrá prioridad sobre la URL.</span>
-                        </p>
-                        <div class="ml-9 space-y-4">
-                            <!-- Opción 1: Archivo -->
-                            <div>
-                                <label class="text-sm font-bold text-gray-700 dark:text-gray-300 mb-1 block">Opción A: Subir Archivo</label>
-                                <input type="file" id="logoInput" accept="image/*" class="block w-full text-sm text-black dark:text-gray-300 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition-all cursor-pointer bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg">
-                            </div>
-                            
-                            <!-- Opción 2: URL -->
-                            <div>
-                                <label class="text-sm font-bold text-gray-700 dark:text-gray-300 mb-1 block">Opción B: URL de Imagen</label>
-                                <div class="flex gap-2">
-                                    <input type="url" id="logoUrlInput" placeholder="https://ejemplo.com/mi-logo.png" value="${urlItem ? urlItem.valor : ''}" class="flex-1 bg-slate-50 dark:bg-slate-800 text-black dark:text-white p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm">
-                                </div>
-                            </div>
-
-                            <button id="btnUploadLogo" onclick="uploadLogo()" class="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-bold transition-all flex items-center gap-2 shadow-md">
-                                <i class="bi bi-check-circle"></i> Subir y Actualizar
-                            </button>
-                        </div>
-                    </div>
-                    <div class="w-48 h-48 flex-shrink-0 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-xl flex justify-center items-center bg-slate-50 dark:bg-slate-800 p-2 relative overflow-hidden">
-                        <img id="logoPreview" src="${currentLogoSrc ? currentLogoSrc + '?t=' + Date.now() : ''}" class="${currentLogoSrc ? '' : 'hidden'} max-w-full max-h-full object-contain z-10" alt="Logo Preview" onerror="this.style.display='none'; document.getElementById('noLogoText').classList.remove('hidden');">
-                        <div id="noLogoText" class="${currentLogoSrc ? 'hidden' : ''} text-center text-slate-400">
-                            <i class="bi bi-image text-4xl mb-2 block"></i>
-                            <span class="text-xs">Sin logo</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- MODAL DE PERSONALIZACIÓN DE IDENTIDAD -->
-            <div id="identityModal" class="fixed inset-0 bg-black/50 z-[9999] hidden backdrop-blur-sm">
-                <div class="flex items-center justify-center min-h-screen p-4">
-                    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all scale-100">
-                        <div class="p-6 border-b border-gray-100 dark:border-gray-700">
-                            <h3 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                <i class="bi bi-palette text-blue-600"></i> Personalizar Identidad del Sistema
-                            </h3>
-                        </div>
-                        <div class="p-6 space-y-6">
-                            <p class="text-gray-600 dark:text-gray-300 text-sm">¿Dónde deseas aplicar estos cambios?</p>
-                            
-                            <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
-                                <span class="font-medium text-gray-800 dark:text-gray-200"><i class="bi bi-laptop me-2"></i> Interfaz del Sistema</span>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="checkApplyUI" class="sr-only peer" checked>
-                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                                </label>
-                            </div>
-
-                            <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-slate-700/50 rounded-lg">
-                                <span class="font-medium text-gray-800 dark:text-gray-200"><i class="bi bi-file-earmark-pdf me-2"></i> Documentos Oficiales</span>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="checkApplyReports" class="sr-only peer" checked>
-                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="p-6 bg-gray-50 dark:bg-slate-900/50 flex justify-end gap-3">
-                            <button onclick="document.getElementById('identityModal').style.display='none'" class="px-4 py-2 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors">Cancelar</button>
-                            <button id="btnConfirmIdentity" onclick="confirmIdentityUpdate()" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg shadow-blue-500/30 transition-all transform hover:scale-105">Confirmar y Aplicar Cambios</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
+        const otherItems = items.filter(item => !['empresa.logo_path', 'empresa.logo_mime', 'empresa.logo_url'].includes(item.clave));
+        otherItems.forEach(item => {
+            html += renderConfigCard(item);
+        });
     }
 
     html += `</div>`;
     container.innerHTML = html;
+}
 
-    // Activar listeners para el logo si estamos en General
-    if (title === 'General') {
-        setupLogoListeners();
-    }
+// Helper para renderizar campos compactos en la sección General
+function renderCompactField(item) {
+    const ui = getConfigUI(item.clave);
+    return `
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-1">${ui.label}</label>
+            ${renderInputField(item)} <!-- Reutiliza la función existente -->
+        </div>
+    `;
 }
 
 /**
@@ -421,7 +470,7 @@ function renderInputField(item) {
 }
 
 /**
- * 🚀 PROCESO DE GUARDADO (SAVE ALL)
+ * 🚀 PROCESO DE GUARDADO (SAVE ALL) con manejo robusto de errores y timeout
  * Envía peticiones individuales para cada ajuste modificado.
  */
 async function saveAllSettings() {
@@ -430,9 +479,23 @@ async function saveAllSettings() {
         return;
     }
 
-    const btn = document.getElementById('btnSaveAll');
+    // Identificar el botón activo (puede ser el genérico o el de la sección General)
+    const btn = document.getElementById('btnSaveAll') || document.getElementById('btnSaveGeneral');
+
+    if (!btn) {
+        console.error('❌ No se encontró el botón de guardado');
+        showToast('Error interno: Botón no encontrado', 'error');
+        return;
+    }
+
     const originalContent = btn.innerHTML;
-    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+    const token = getAuthToken();
+
+    // Validar token antes de comenzar
+    if (!token) {
+        showToast('❌ No hay token de autenticación. Inicia sesión nuevamente.', 'error');
+        return;
+    }
 
     // Estado visual del botón
     btn.disabled = true;
@@ -440,48 +503,112 @@ async function saveAllSettings() {
 
     let successCount = 0;
     let failCount = 0;
+    const totalItems = dirtySettings.size;
 
-    // Procesar cada ajuste modificado de forma independiente
-    for (const [clave, valor] of dirtySettings) {
-        const card = document.querySelector(`[data-key="${clave}"]`).closest('.config-card');
-        const errorDisplay = card.querySelector('.error-msg');
-        errorDisplay.classList.add('hidden');
+    try {
+        // Procesar cada ajuste modificado de forma independiente
+        const settingsArray = Array.from(dirtySettings.entries());
 
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/admin/configuracion/${clave}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ valor })
-            });
+        for (let i = 0; i < settingsArray.length; i++) {
+            const [clave, valor] = settingsArray[i];
+            const card = document.querySelector(`[data-key="${clave}"]`);
 
-            const result = await response.json();
-
-            if (result.success) {
-                markAsClean(card);
-                dirtySettings.delete(clave);
-                successCount++;
-                showToast(`✅ ${clave} actualizado`, 'success');
-            } else {
-                failCount++;
-                errorDisplay.textContent = `❌ ${result.message || 'Error de validación'}`;
-                errorDisplay.classList.remove('hidden');
-                showToast(`❌ Error en ${clave}`, 'error');
+            if (!card) {
+                console.warn(`Card no encontrado para la configuración: ${clave}`);
+                continue;
             }
-        } catch (error) {
-            failCount++;
-            showToast(`🔥 Error de red al guardar ${clave}`, 'error');
+
+            const errorDisplay = card.querySelector('.error-msg');
+            if (errorDisplay) {
+                errorDisplay.classList.add('hidden');
+            }
+
+            try {
+                // Agregar timeout individual para cada petición (12 segundos)
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Timeout')), 12000)
+                );
+
+                const savePromise = fetch(`${API_BASE_URL}/api/admin/configuracion/${clave}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ valor })
+                });
+
+                // Ejecutar con timeout
+                const response = await Promise.race([timeoutPromise, savePromise]);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    markAsClean(card);
+                    dirtySettings.delete(clave);
+                    successCount++;
+                    showToast(`✅ ${getConfigUI(clave).label || clave} actualizado`, 'success');
+                } else {
+                    failCount++;
+                    if (errorDisplay) {
+                        errorDisplay.textContent = `❌ ${result.message || 'Error de validación'}`;
+                        errorDisplay.classList.remove('hidden');
+                    }
+                    showToast(`❌ Error en ${getConfigUI(clave).label || clave}`, 'error');
+                }
+            } catch (error) {
+                failCount++;
+                console.error(`Error guardando ${clave}:`, error);
+
+                if (errorDisplay) {
+                    let errorMessage = '❌ Error de conexión';
+                    if (error.message.includes('Timeout')) {
+                        errorMessage = '❌ Tiempo de espera agotado';
+                    } else if (error.message.includes('HTTP 401')) {
+                        errorMessage = '❌ Sesión expirada';
+                    } else if (error.message.includes('HTTP 403')) {
+                        errorMessage = '❌ Permiso denegado';
+                    }
+                    errorDisplay.textContent = errorMessage;
+                    errorDisplay.classList.remove('hidden');
+                }
+
+                showToast(`🔥 Error al guardar ${getConfigUI(clave).label || clave}`, 'error');
+
+                // Si hay error de autenticación, detener todo
+                if (error.message.includes('HTTP 401') || error.message.includes('403')) {
+                    showToast('🔐 Sesión expirada. Redirigiendo al login...', 'warning');
+                    setTimeout(() => {
+                        window.location.href = '../pages/login.html';
+                    }, 2000);
+                    break;
+                }
+            }
+
+            // Actualizar progreso en el botón
+            const progress = Math.round(((i + 1) / totalItems) * 100);
+            btn.innerHTML = `<i class="bi bi-arrow-repeat animate-spin"></i> Guardando... ${progress}%`;
         }
-    }
+    } catch (error) {
+        console.error('Error general en saveAllSettings:', error);
+        showToast('❌ Error inesperado al guardar configuraciones', 'error');
+    } finally {
+        // Restaurar botón siempre
+        btn.disabled = false;
+        btn.innerHTML = originalContent;
 
-    // Restaurar botón
-    btn.disabled = false;
-    btn.innerHTML = originalContent;
-
-    if (successCount > 0) {
-        showToast(`🎉 Proceso terminado. ${successCount} guardados con éxito.`, 'success');
+        // Mensaje final resumido
+        if (successCount > 0 && failCount === 0) {
+            showToast(`🎉 ¡Éxito! ${successCount} configuración(es) guardada(s) correctamente.`, 'success');
+        } else if (successCount > 0 && failCount > 0) {
+            showToast(`⚠️ Proceso completado: ${successCount} guardada(s), ${failCount} con error(es).`, 'warning');
+        } else if (failCount > 0) {
+            showToast(`❌ Falló el guardado de ${failCount} configuración(es).`, 'error');
+        }
     }
 }
 
@@ -515,82 +642,305 @@ function showToast(message, type = 'info') {
 function createToastContainer() {
     const container = document.createElement('div');
     container.id = 'toast-container';
-    container.className = 'fixed bottom-5 right-5 z-[9999] flex flex-col items-end pointer-events-none';
-    const children = container.querySelectorAll('div');
-    container.style.pointerEvents = 'none'; // Permitir clicks en lo que hay debajo
+    container.className = 'fixed bottom-5 right-5 z-[9999] flex flex-col items-end';
+    container.style.pointerEvents = 'auto';
     document.body.appendChild(container);
     return container;
+}
+
+/**
+ * Comprime una imagen usando canvas antes de subirla al servidor.
+ * Evita bloquear el hilo principal al procesar imágenes grandes.
+ * @param {File} file - Archivo de imagen original
+ * @param {number} maxDimension - Dimensión máxima (ancho o alto) en px
+ * @param {number} quality - Calidad de compresión (0-1, donde 1 = máxima calidad)
+ * @returns {Promise<File>} - Archivo comprimido
+ */
+async function compressImageForUpload(file, maxDimension = 1200, quality = 0.85) {
+    // Si el archivo es pequeño, no comprimir
+    if (file.size <= 800 * 1024) {
+        return file;
+    }
+
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(file);
+
+        img.onload = function () {
+            URL.revokeObjectURL(objectUrl);
+
+            // Calcular nuevas dimensiones manteniendo aspect ratio
+            let { width, height } = img;
+            if (width > maxDimension || height > maxDimension) {
+                if (width > height) {
+                    height = Math.round((height * maxDimension) / width);
+                    width = maxDimension;
+                } else {
+                    width = Math.round((width * maxDimension) / height);
+                    height = maxDimension;
+                }
+            }
+
+            // Comprimir con canvas (operación asíncrona via toBlob)
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob(
+                (blob) => {
+                    if (!blob) {
+                        resolve(file); // Fallback al original si toBlob falla
+                        return;
+                    }
+                    // Crear nuevo File con el blob comprimido
+                    const compressedFile = new File([blob], file.name, {
+                        type: 'image/jpeg',
+                        lastModified: Date.now()
+                    });
+                    console.log(`🗜️ Imagen comprimida: ${(file.size / 1024).toFixed(0)}KB → ${(compressedFile.size / 1024).toFixed(0)}KB`);
+                    resolve(compressedFile);
+                },
+                'image/jpeg',
+                quality
+            );
+        };
+
+        img.onerror = function () {
+            URL.revokeObjectURL(objectUrl);
+            resolve(file); // Fallback al original si no se puede cargar
+        };
+
+        img.src = objectUrl;
+    });
 }
 
 function setupLogoListeners() {
     const logoInput = document.getElementById('logoInput');
     if (!logoInput) return;
     const urlInput = document.getElementById('logoUrlInput');
+    const preview = document.getElementById('logoPreview');
+    const noLogoText = document.getElementById('noLogoText');
 
+    // Validar archivo seleccionado
     logoInput.addEventListener('change', function (e) {
         const file = e.target.files[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                document.getElementById('logoPreview').src = e.target.result;
-                document.getElementById('logoPreview').classList.remove('hidden');
-                document.getElementById('noLogoText').classList.add('hidden');
+            // Validar tipo de archivo
+            if (!file.type.startsWith('image/')) {
+                showToast('⚠️ Por favor selecciona un archivo de imagen válido', 'warning');
+                logoInput.value = '';
+                return;
             }
-            reader.readAsDataURL(file);
+
+            // Validar tamaño (máximo 5MB - se comprimirá antes de subir)
+            if (file.size > 5 * 1024 * 1024) {
+                showToast('⚠️ La imagen no debe superar los 5MB', 'warning');
+                logoInput.value = '';
+                return;
+            }
+
+            // ✅ Usar createObjectURL en lugar de FileReader.readAsDataURL
+            // createObjectURL es instantáneo y no bloquea el hilo principal
+            if (preview) {
+                preview.style.opacity = '0.5';
+            }
+
+            const objectUrl = URL.createObjectURL(file);
+
+            // Validar que es una imagen cargable
+            const img = new Image();
+            img.onload = function () {
+                if (preview) {
+                    // Revocar URL anterior si existe para liberar memoria
+                    if (preview.src && preview.src.startsWith('blob:')) {
+                        URL.revokeObjectURL(preview.src);
+                    }
+                    preview.src = objectUrl;
+                    preview.classList.remove('hidden');
+                    preview.style.opacity = '1';
+                    preview.onerror = null;
+                }
+
+                if (noLogoText) {
+                    noLogoText.classList.add('hidden');
+                }
+            };
+
+            img.onerror = function () {
+                URL.revokeObjectURL(objectUrl);
+                showToast('⚠️ El archivo seleccionado no es una imagen válida', 'error');
+                logoInput.value = '';
+                if (preview) {
+                    preview.style.opacity = '1';
+                }
+            };
+
+            img.src = objectUrl;
         }
     });
 
     // Preview de URL en tiempo real
     if (urlInput) {
         urlInput.addEventListener('input', function (e) {
-            const url = e.target.value;
+            const url = e.target.value.trim();
+
             if (url && !logoInput.files[0]) { // Solo si no hay archivo seleccionado
-                document.getElementById('logoPreview').src = url;
-                document.getElementById('logoPreview').classList.remove('hidden');
-                document.getElementById('noLogoText').classList.add('hidden');
+                // Validar URL básica
+                if (!url.match(/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)$/i)) {
+                    showToast('⚠️ URL debe apuntar a una imagen válida (jpg, png, gif, webp)', 'warning');
+                    return;
+                }
+
+                // Mostrar indicador de carga
+                if (preview) {
+                    preview.style.opacity = '0.5';
+                }
+
+                const img = new Image();
+                img.onload = function () {
+                    if (preview) {
+                        preview.src = url;
+                        preview.classList.remove('hidden');
+                        preview.style.opacity = '1';
+                        preview.onerror = null;
+                    }
+
+                    if (noLogoText) {
+                        noLogoText.classList.add('hidden');
+                    }
+                };
+
+                img.onerror = function () {
+                    showToast('⚠️ No se pudo cargar la imagen desde la URL', 'error');
+                    if (preview) {
+                        preview.style.opacity = '1';
+                    }
+                };
+
+                img.src = url;
+            } else if (!url && !logoInput.files[0]) {
+                // Limpiar preview si no hay ni archivo ni URL
+                if (preview) {
+                    preview.classList.add('hidden');
+                    preview.src = '';
+                }
+                if (noLogoText) {
+                    noLogoText.classList.remove('hidden');
+                }
             }
         });
     }
 }
 
+// Flag para prevenir múltiples subidas simultáneas
+let isUploading = false;
+
+/**
+ * 🚀 SUBIDA DIRECTA DE LOGO (Sin modal)
+ * Lee el archivo desde el input de la sección General y lo envía al backend.
+ */
 window.uploadLogo = async function () {
-    // Abrir modal directamente, la validación se hace al confirmar
-    document.getElementById('identityModal').style.display = 'block';
-}
+    console.log('📂 Función uploadLogo llamada');
 
-window.confirmIdentityUpdate = async function () {
-    const file = document.getElementById('logoInput').files[0];
-    const url = document.getElementById('logoUrlInput').value;
-
-    const btn = document.getElementById('btnConfirmIdentity');
-    const originalContent = btn.innerHTML;
-
-    // 1. Feedback Visual: Estado de Carga
-    btn.disabled = true;
-    btn.innerHTML = `<span class="flex items-center gap-2"><i class="bi bi-arrow-repeat animate-spin"></i> Guardando...</span>`;
-
-    const formData = new FormData();
-    if (file) {
-        formData.append('file', file);
+    // Prevenir múltiples subidas simultáneas
+    if (isUploading) {
+        console.warn('⚠️ Subida ya en progreso, ignorando click');
+        return;
     }
-    formData.append('logo_url', url);
-    // Enviar preferencias del usuario
-    formData.append('apply_ui', document.getElementById('checkApplyUI').checked);
-    formData.append('apply_reports', document.getElementById('checkApplyReports').checked);
+
+    // Verificar autenticación
+    const token = getAuthToken();
+    if (!token) {
+        console.error('❌ No hay token de autenticación');
+        showToast('❌ Debes iniciar sesión para subir logos', 'error');
+        return;
+    }
+
+    // Leer archivo directamente del input de la sección General
+    const logoInput = document.getElementById('logoInput');
+    const file = logoInput ? logoInput.files[0] : null;
+
+    // Validar que hay un archivo seleccionado
+    if (!file) {
+        showToast('⚠️ Selecciona un archivo de imagen primero', 'warning');
+        return;
+    }
+
+    // Obtener referencia al botón para feedback visual
+    const btn = document.getElementById('btnUploadLogo');
+    const originalContent = btn ? btn.innerHTML : '';
+
+    // Marcar como subiendo
+    isUploading = true;
+
+    // Mostrar overlay de carga
+    const overlay = document.getElementById('logoUploadOverlay');
+    if (overlay) {
+        overlay.classList.remove('hidden');
+        overlay.classList.add('flex');
+    }
+
+    // Feedback Visual: Estado de Carga en el botón
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="flex items-center gap-2"><i class="bi bi-arrow-repeat animate-spin"></i> Subiendo...</span>`;
+    }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/admin/configuracion/logo`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken') || localStorage.getItem('token')}` },
-            body: formData
-        });
-        const result = await response.json();
-        if (result.success) {
-            // 2. Éxito: Cerrar modal y notificar
-            document.getElementById('identityModal').style.display = 'none';
-            showToast('¡Configuración de marca actualizada!', 'success');
+        console.log('📁 Archivo seleccionado:', file.name, `(${(file.size / 1024).toFixed(0)}KB)`);
 
-            // 3. Actualización en Tiempo Real (Anti-Caché)
+        // Comprimir imagen antes de subir para evitar congelamientos con archivos grandes
+        const compressedFile = await compressImageForUpload(file, 1200, 0.85);
+
+        // Convertir la imagen comprimida a Base64 para enviarla como JSON
+        const base64Data = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = (e) => reject(e);
+            reader.readAsDataURL(compressedFile);
+        });
+
+        // Enviar preferencias del usuario
+        const applyUI = document.getElementById('checkApplyUI');
+        const applyReports = document.getElementById('checkApplyReports');
+
+        const payload = {
+            imageBase64: base64Data,
+            logo_url: '',
+            apply_ui: applyUI ? applyUI.checked : true,
+            apply_reports: applyReports ? applyReports.checked : true
+        };
+
+        console.log('🚀 Iniciando subida de logo (JSON)...');
+
+        const response = await fetch('/api/admin/configuracion/logo', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        console.log('📡 Respuesta del servidor:', response.status);
+
+        let result;
+        try {
+            result = await response.json();
+        } catch (e) {
+            console.error('❌ Respuesta no es JSON válido', e);
+            showToast('❌ Respuesta inválida del servidor al subir logo', 'error');
+            return;
+        }
+
+        console.log('📦 Resultado:', result);
+
+        if (result.success) {
+            showToast('✅ ¡Logo actualizado correctamente!', 'success');
+
+            // Actualización en Tiempo Real (Anti-Caché)
             const newSrc = result.data.path + '?t=' + Date.now();
 
             // Actualizar vista previa en settings
@@ -598,23 +948,39 @@ window.confirmIdentityUpdate = async function () {
             if (preview) {
                 preview.src = newSrc;
                 preview.classList.remove('hidden');
-                document.getElementById('noLogoText').classList.add('hidden');
+                const noLogoText = document.getElementById('noLogoText');
+                if (noLogoText) noLogoText.classList.add('hidden');
             }
 
             // Actualizar logo del header globalmente
             const headerLogo = document.getElementById('headerLogo');
             if (headerLogo) headerLogo.src = newSrc;
 
+            // Limpiar el input de archivo
+            if (logoInput) logoInput.value = '';
+
         } else {
-            showToast(`Error: ${result.message}`, 'error');
+            console.error('❌ Error del servidor:', result.message);
+            showToast(`❌ Error: ${result.message}`, 'error');
         }
     } catch (error) {
-        console.error(error);
-        showToast('Error de conexión con el servidor', 'error');
+        console.error('❌ Error en subida:', error);
+        showToast('❌ Error de conexión con el servidor', 'error');
     } finally {
-        // 4. Restaurar botón
-        btn.disabled = false;
-        btn.innerHTML = originalContent;
+        // Restaurar botón
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+        }
+
+        // Ocultar overlay de carga
+        if (overlay) {
+            overlay.classList.add('hidden');
+            overlay.classList.remove('flex');
+        }
+
+        isUploading = false; // Reset flag
+        console.log('🔄 Subida finalizada');
     }
 }
 
@@ -677,29 +1043,105 @@ async function loadImpuestosUI() {
     loadImpuestosData(); // Cargar estado del switch y tabla
 }
 
-// Cargar datos (Switch + Tabla)
+// Cargar datos (Switch + Tabla) con timeout y manejo robusto de errores
 async function loadImpuestosData() {
+    const listaElement = document.getElementById('lista-impuestos');
+    const switchElement = document.getElementById('masterTaxSwitch');
+
+    // Mostrar estado de carga
+    if (listaElement) {
+        listaElement.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-gray-500"><i class="bi bi-arrow-repeat animate-spin text-2xl mb-2 block"></i> Cargando impuestos...</td></tr>';
+    }
+
     try {
-        const [resImpuestos, resConfig] = await Promise.all([
-            fetch(`${API_BASE_URL}/api/impuestos`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` } }),
-            fetch(`${API_BASE_URL}/api/admin/configuracion`, { headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` } }) // Endpoint genérico si existe, o individual
-        ]);
+        // Agregar timeout de 15 segundos para evitar carga infinita
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Timeout: La carga de impuestos tomó demasiado tiempo')), 15000)
+        );
 
-        // Cargar Switch state
-        // Usamos el endpoint de admin recién creado
-        const configData = await fetch(`${API_BASE_URL}/api/admin/configuracion/finanzas.impuestos.habilitado`, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
-        }).then(r => r.json()).catch(() => ({ valor: 'true' })); // Default true
+        const dataPromise = async () => {
+            const taxesUrl = `${API_BASE_URL}/api/impuestos`;
+            console.log('💰 Fetching taxes from:', taxesUrl);
 
-        document.getElementById('masterTaxSwitch').checked = (configData.valor === 'true');
+            const configUrl = `${API_BASE_URL}/api/admin/configuracion/finanzas.impuestos.habilitado`;
+            console.log('⚙️ Fetching config from:', configUrl);
 
-        if (resImpuestos.ok) {
-            const data = await resImpuestos.json();
-            renderImpuestosTable(data.impuestos || []);
-        }
+            const responses = await Promise.allSettled([
+                fetch(taxesUrl, {
+                    headers: { 'Authorization': `Bearer ${getAuthToken()}` }
+                }).catch(() => ({ ok: false, json: () => ({ impuestos: [] }) })),
+
+                fetch(configUrl, {
+                    headers: { 'Authorization': `Bearer ${getAuthToken()}` }
+                }).catch(() => ({ ok: false, json: () => ({ valor: 'true' }) }))
+            ]);
+
+            // Procesar respuesta de impuestos
+            const impuestosResult = responses[0];
+            let impuestos = [];
+            if (impuestosResult.status === 'fulfilled' && impuestosResult.value.ok) {
+                const data = await impuestosResult.value.json();
+                impuestos = data.data || data.impuestos || [];
+            }
+
+            // Procesar respuesta de configuración
+            const configResult = responses[1];
+            let configValor = 'true';
+            if (configResult.status === 'fulfilled' && configResult.value.ok) {
+                const config = await configResult.value.json();
+                configValor = config.valor || 'true';
+            }
+
+            // Actualizar UI
+            if (switchElement) {
+                switchElement.checked = (configValor === 'true');
+            }
+
+            renderImpuestosTable(impuestos);
+
+            return { success: true, impuestos, configValor };
+        };
+
+        // Ejecutar con timeout
+        await Promise.race([timeoutPromise, dataPromise()]);
+
     } catch (error) {
         console.error('Error cargando impuestos:', error);
-        showToast('Error cargando datos', 'error');
+
+        // Mostrar mensaje de error específico
+        if (error.message.includes('Timeout')) {
+            showToast('⏰ La carga de impuestos está tomando demasiado tiempo', 'error');
+            if (listaElement) {
+                listaElement.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="p-8 text-center">
+                            <i class="bi bi-exclamation-triangle text-3xl text-yellow-500 mb-2 block"></i>
+                            <p class="text-gray-600 font-medium">Tiempo de espera agotado</p>
+                            <p class="text-gray-400 text-sm mt-1">La carga está demorando demasiado. Intenta recargar la página.</p>
+                            <button onclick="loadImpuestosData()" class="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                <i class="bi bi-arrow-clockwise"></i> Reintentar
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }
+        } else {
+            showToast('Error de conexión al cargar impuestos', 'error');
+            if (listaElement) {
+                listaElement.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="p-8 text-center">
+                            <i class="bi bi-wifi-off text-3xl text-red-500 mb-2 block"></i>
+                            <p class="text-gray-600 font-medium">Error de conexión</p>
+                            <p class="text-gray-400 text-sm mt-1">No se pudieron cargar los impuestos</p>
+                            <button onclick="loadImpuestosData()" class="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                <i class="bi bi-arrow-clockwise"></i> Reintentar
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
     }
 }
 
@@ -709,9 +1151,9 @@ async function toggleMasterTax(enabled) {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                'Authorization': `Bearer ${getAuthToken()}`
             },
-            body: JSON.stringify({ valor: enabled ? 'true' : 'false' })
+            body: JSON.stringify({ valor: !!enabled })
         });
 
         if (response.ok) {
@@ -884,7 +1326,7 @@ async function guardarEdicionImpuesto(id) {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                'Authorization': `Bearer ${getAuthToken()}`
             },
             body: JSON.stringify({
                 nombre,
@@ -921,7 +1363,7 @@ async function guardarNuevoImpuesto() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                'Authorization': `Bearer ${getAuthToken()}`
             },
             body: JSON.stringify({
                 nombre,
@@ -986,3 +1428,4 @@ async function eliminarImpuesto(id) {
         showToast('Error de conexión', 'error');
     }
 }
+

@@ -359,7 +359,17 @@
             --dark-mode-text: #FFFFFF;
         }
 
-        * {
+        /* Transiciones solo en elementos que cambian con el tema — NO usar * (bloquea rendering) */
+        body,
+        .stat-card,
+        .card,
+        .dashboard-card,
+        nav,
+        .sidebar,
+        button,
+        input,
+        select,
+        textarea {
             transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
         }
 
@@ -1242,17 +1252,28 @@
             animation: shake 0.5s ease-in-out;
         }
 
-@keyframes shake {
-            0%, 100% {
+        @keyframes shake {
+
+            0%,
+            100% {
                 transform: translateX(0);
             }
+
             25% {
                 transform: translateX(-10px);
             }
+
             75% {
                 transform: translateX(10px);
             }
         }
+
+        @keyframes shakeSubtle {
+
+            0%,
+            100% {
+                transform: translateX(0) rotate(0);
+            }
 
             25% {
                 transform: translateX(-5px) rotate(-5deg);
@@ -1561,6 +1582,24 @@
                     style="padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--text-primary); text-decoration: none; transition: 0.15s ease; background: rgba(59, 130, 246, 0.1);">
                     <i class="bi bi-speedometer2" style="margin-right: 6px;"></i>Inventario
                 </a>
+                <a href="productos.html"
+                    style="padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: 0.15s ease; cursor: pointer;"
+                    onmouseover="this.style.background='rgba(255,255,255,0.05)'"
+                    onmouseout="this.style.background='transparent'">
+                    <i class="bi bi-box-seam" style="margin-right: 6px;"></i>Productos
+                </a>
+                <a href="movimientos.html"
+                    style="padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: 0.15s ease; cursor: pointer;"
+                    onmouseover="this.style.background='rgba(255,255,255,0.05)'"
+                    onmouseout="this.style.background='transparent'">
+                    <i class="bi bi-arrow-left-right" style="margin-right: 6px;"></i>Movimientos
+                </a>
+                <a href="facturacion.html"
+                    style="padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: 0.15s ease; cursor: pointer;"
+                    onmouseover="this.style.background='rgba(255,255,255,0.05)'"
+                    onmouseout="this.style.background='transparent'">
+                    <i class="bi bi-receipt" style="margin-right: 6px;"></i>Facturación
+                </a>
                 <a href="analytics.html"
                     style="padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: 0.15s ease; cursor: pointer;"
                     onmouseover="this.style.background='rgba(255,255,255,0.05)'"
@@ -1571,7 +1610,7 @@
                     style="padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: 0.15s ease; cursor: pointer;"
                     onmouseover="this.style.background='rgba(255,255,255,0.05)'"
                     onmouseout="this.style.background='transparent'">
-                    <i class="bi bi-clock-history" style="margin-right: 6px;"></i>Historial Precios
+                    <i class="bi bi-clock-history" style="margin-right: 6px;"></i>Historial
                 </a>
             </div>
         </div>
@@ -2043,6 +2082,8 @@
 
         function updateThemeIcon() {
             const icon = document.getElementById('themeIcon');
+            // Si no existe el icono (vista sin botón de tema), no hacer nada
+            if (!icon) return;
             const isDarkMode = document.body.classList.contains('dark-mode');
             icon.className = isDarkMode ? 'bi bi-sun' : 'bi bi-moon';
         }
@@ -2059,7 +2100,8 @@
         async function loadVencimientoConfig() {
             try {
                 const token = localStorage.getItem('token') || localStorage.getItem('authToken');
-                const response = await fetch('http://localhost:3000/api/configuracion/inventario.vencimiento.habilitado', {
+                // Usar ruta relativa para que funcione detrás de Nginx / Docker
+                const response = await fetch('/api/configuracion/inventario.vencimiento.habilitado', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const result = await response.json();
@@ -2076,7 +2118,8 @@
         async function loadCompanyIdentity() {
             try {
                 const token = localStorage.getItem('token') || localStorage.getItem('authToken');
-                const response = await fetch('http://localhost:3000/api/configuracion', {
+                // Usar ruta relativa para que funcione detrás de Nginx / Docker
+                const response = await fetch('/api/configuracion', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const result = await response.json();
@@ -2109,60 +2152,60 @@
     <!-- Scripts con manejo de errores -->
     <script>
         console.log('🔍 Cargando scripts del dashboard...');
-        
+
         // Función para cargar scripts con manejo de errores
         function loadScript(src, callback) {
             const script = document.createElement('script');
             script.src = src;
-            script.onload = function() {
+            script.onload = function () {
                 console.log(`✅ Script cargado: ${src}`);
                 if (callback) callback();
             };
-            script.onerror = function() {
+            script.onerror = function () {
                 console.error(`❌ Error cargando script: ${src}`);
                 // Intentar cargar desde directorio raíz
                 const fallbackSrc = src.startsWith('../') ? src.substring(3) : src;
                 console.log(`🔄 Intentando cargar: ${fallbackSrc}`);
                 const fallbackScript = document.createElement('script');
                 fallbackScript.src = fallbackSrc;
-                fallbackScript.onload = function() {
+                fallbackScript.onload = function () {
                     console.log(`✅ Script cargado (fallback): ${fallbackSrc}`);
                     if (callback) callback();
                 };
-                fallbackScript.onerror = function() {
+                fallbackScript.onerror = function () {
                     console.error(`❌ Error crítico: no se puede cargar ${src} ni ${fallbackSrc}`);
                 };
                 document.head.appendChild(fallbackScript);
             };
             document.head.appendChild(script);
         }
-        
+
         // Función para inicializar cuando el DOM esté listo
         function initializeApp() {
             console.log('🚀 Inicializando aplicación dashboard...');
-            
+
             // Verificar que las dependencias globales existan
             const requiredGlobals = ['fetch', 'localStorage', 'document', 'console'];
             const missingGlobals = requiredGlobals.filter(global => typeof window[global] === 'undefined');
-            
+
             if (missingGlobals.length > 0) {
                 console.error('❌ Variables globales faltantes:', missingGlobals);
                 return;
             }
-            
+
             // Cargar app.js primero
-            loadScript('../scripts/app.js', function() {
+            loadScript('../scripts/app.js', function () {
                 console.log('📊 App.js cargado, verificando funciones...');
-                
+
                 // Verificar si las funciones principales están disponibles
                 const requiredFunctions = ['loadProducts', 'renderizarTabla', 'calcularEstadisticas', 'applyFiltros'];
                 const missingFunctions = requiredFunctions.filter(func => typeof window[func] === 'undefined');
-                
+
                 if (missingFunctions.length > 0) {
                     console.error('❌ Funciones faltantes en app.js:', missingFunctions);
                 } else {
                     console.log('✅ Funciones principales disponibles en app.js');
-                    
+
                     // Ejecutar inicialización automática si existe
                     if (typeof window.loadProducts === 'function') {
                         console.log('🔄 Iniciando carga automática de productos...');
@@ -2173,12 +2216,12 @@
                         }
                     }
                 }
-                
+
                 // Cargar theme-manager.js
                 loadScript('../scripts/theme-manager.js');
             });
         }
-        
+
         // Inicializar cuando el DOM esté listo
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initializeApp);

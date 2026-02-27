@@ -43,7 +43,6 @@ class ConfiguracionDAO {
      * @returns {Promise<Object>} Resultado de la operación.
      */
     static async update(clave, nuevoValor) {
-        // 1. Verificar existencia y bloqueo
         const configActual = await this.getByClave(clave);
         if (!configActual) {
             throw new Error(`La configuración con clave "${clave}" no existe.`);
@@ -53,15 +52,12 @@ class ConfiguracionDAO {
             throw new Error(`La configuración "${clave}" está bloqueada para edición de seguridad.`);
         }
 
-        // 2. Validar tipos de datos
         this._validarTipo(nuevoValor, configActual.tipo_dato, clave);
 
-        // 3. Serializar valor para MySQL (si es necesario)
         const valorAStore = (configActual.tipo_dato === 'json')
             ? JSON.stringify(nuevoValor)
             : String(nuevoValor);
 
-        // 4. Ejecutar actualización
         const sql = 'UPDATE configuracion SET valor = ? WHERE clave = ?';
         await query(sql, [valorAStore, clave]);
 
@@ -70,6 +66,48 @@ class ConfiguracionDAO {
             message: `Configuración "${clave}" actualizada correctamente.`,
             nuevoValor: nuevoValor
         };
+    }
+
+    static async obtenerConfiguracionParaPDF() {
+        const config = {
+            nombre_negocio: 'MI NEGOCIO',
+            direccion: '',
+            telefono: '',
+            nit: '',
+            mostrar_logo: false,
+            logo_data: null,
+            pie_pagina: '¡Gracias por su compra!'
+        };
+
+        const claves = [
+            'empresa.nombre',
+            'empresa.direccion',
+            'empresa.telefono',
+            'empresa.nit',
+            'empresa.mostrar_logo',
+            'empresa.logo_data',
+            'facturacion.pie_pagina'
+        ];
+
+        for (const clave of claves) {
+            try {
+                const row = await this.getByClave(clave);
+                if (row) {
+                    const key = clave.split('.').pop();
+                    if (key === 'mostrar_logo') {
+                        config[key] = row.valor === '1' || row.valor === true;
+                    } else if (key === 'logo_data' && row.valor) {
+                        config[key] = row.valor;
+                    } else {
+                        config[key] = row.valor;
+                    }
+                }
+            } catch (e) {
+                // Ignorar errores de claves no existentes
+            }
+        }
+
+        return config;
     }
 
     /**

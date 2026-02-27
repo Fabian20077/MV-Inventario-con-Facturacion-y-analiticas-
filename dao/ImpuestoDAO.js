@@ -19,9 +19,10 @@ class ImpuestoDAO {
                     porcentaje, 
                     valor_fijo, 
                     activo,
+                    seleccionado,
                     fecha_creacion,
                     ultima_actualizacion
-                FROM impuestos 
+                FROM impuesto 
                 ORDER BY nombre ASC
             `);
             return rows;
@@ -36,7 +37,7 @@ class ImpuestoDAO {
     static async obtenerPorId(id) {
         try {
             const [rows] = await pool.query(
-                'SELECT * FROM impuestos WHERE id = ?', 
+                'SELECT * FROM impuesto WHERE id = ?',
                 [id]
             );
             return rows.length > 0 ? rows[0] : null;
@@ -50,13 +51,13 @@ class ImpuestoDAO {
      */
     static async crear(datos) {
         try {
-            const { nombre, tipo, porcentaje = 0, valor_fijo = 0, activo = true } = datos;
-            
+            const { nombre, tipo, porcentaje = 0, valor_fijo = 0, activo = true, seleccionado = false } = datos;
+
             const [result] = await pool.query(`
-                INSERT INTO impuestos 
-                (nombre, tipo, porcentaje, valor_fijo, activo) 
-                VALUES (?, ?, ?, ?, ?)
-            `, [nombre, tipo, porcentaje, valor_fijo, activo]);
+                INSERT INTO impuesto 
+                (nombre, tipo, porcentaje, valor_fijo, activo, seleccionado) 
+                VALUES (?, ?, ?, ?, ?, ?)
+            `, [nombre, tipo, porcentaje, valor_fijo, activo, seleccionado]);
 
             return await this.obtenerPorId(result.insertId);
         } catch (error) {
@@ -69,13 +70,13 @@ class ImpuestoDAO {
      */
     static async actualizar(id, datos) {
         try {
-            const { nombre, tipo, porcentaje, valor_fijo, activo } = datos;
-            
+            const { nombre, tipo, porcentaje, valor_fijo, activo, seleccionado } = datos;
+
             await pool.query(`
-                UPDATE impuestos 
-                SET nombre = ?, tipo = ?, porcentaje = ?, valor_fijo = ?, activo = ?
+                UPDATE impuesto 
+                SET nombre = ?, tipo = ?, porcentaje = ?, valor_fijo = ?, activo = ?, seleccionado = ?
                 WHERE id = ?
-            `, [nombre, tipo, porcentaje, valor_fijo, activo, id]);
+            `, [nombre, tipo, porcentaje, valor_fijo, activo, seleccionado, id]);
 
             return await this.obtenerPorId(id);
         } catch (error) {
@@ -88,7 +89,7 @@ class ImpuestoDAO {
      */
     static async eliminar(id) {
         try {
-            await pool.query('UPDATE impuestos SET activo = 0 WHERE id = ?', [id]);
+            await pool.query('UPDATE impuesto SET activo = 0 WHERE id = ?', [id]);
             return { id, deleted: true };
         } catch (error) {
             throw new Error(`Error al eliminar impuesto: ${error.message}`);
@@ -106,7 +107,7 @@ class ImpuestoDAO {
                 FROM factura 
                 WHERE impuesto_id = ? AND estado != 'anulada'
             `, [id]);
-            
+
             return ventasRows[0].count > 0;
         } catch (error) {
             throw new Error(`Error al verificar uso de impuesto: ${error.message}`);

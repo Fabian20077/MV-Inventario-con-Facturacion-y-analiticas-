@@ -10,7 +10,7 @@ class ProductoDAO {
                 INSERT INTO producto (codigo, nombre, descripcion, precio_compra, precio_venta, cantidad, stock_minimo, ubicacion, id_categoria, fecha_vencimiento)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
-            
+
             const params = [
                 producto.codigo,
                 producto.nombre,
@@ -23,7 +23,7 @@ class ProductoDAO {
                 producto.id_categoria,
                 producto.fecha_vencimiento || null // Nuevo campo (opcional)
             ];
-            
+
             const result = await query(sql, params);
             return {
                 success: true,
@@ -42,25 +42,25 @@ class ProductoDAO {
         }
     }
 
-  /**
- * Buscar producto por ID
- */
-async buscarPorId(id) {
-    try {
-        const sql = `
+    /**
+   * Buscar producto por ID
+   */
+    async buscarPorId(id) {
+        try {
+            const sql = `
             SELECT p.*, c.nombre as categoria_nombre
             FROM producto p
             LEFT JOIN categoria c ON p.id_categoria = c.id
             WHERE p.id = ?
         `;
-        
-        const productos = await query(sql, [id]);
-        return productos.length > 0 ? productos[0] : null;
-    } catch (error) {
-        console.error('Error en ProductoDAO.buscarPorId:', error);
-        throw error;
+
+            const productos = await query(sql, [id]);
+            return productos.length > 0 ? productos[0] : null;
+        } catch (error) {
+            console.error('Error en ProductoDAO.buscarPorId:', error);
+            throw error;
+        }
     }
-}
 
     /**
      * Buscar producto por código
@@ -73,7 +73,7 @@ async buscarPorId(id) {
                 LEFT JOIN categoria c ON p.id_categoria = c.id
                 WHERE p.codigo = ?
             `;
-            
+
             const productos = await query(sql, [codigo]);
             return productos.length > 0 ? productos[0] : null;
         } catch (error) {
@@ -83,24 +83,36 @@ async buscarPorId(id) {
     }
 
     /**
-     * Listar todos los productos
+     * Listar y buscar productos con filtros
      */
-    async listar() {
+    async listar(filtros = {}) {
         try {
-                const sql = `
+            let sql = `
                 SELECT p.*, c.nombre as categoria_nombre
                 FROM producto p
                 LEFT JOIN categoria c ON p.id_categoria = c.id
                 WHERE p.activo = TRUE
-                ORDER BY p.id DESC
             `;
-            
-            console.log('📦 Ejecutando consulta SQL para productos...');
-            console.log('📋 SQL Query:', sql);
-            
-            const productos = await query(sql);
-            console.log('📋 Productos encontrados:', productos?.length || 0);
-            
+
+            const params = [];
+
+            if (filtros.buscar) {
+                sql += ` AND (p.nombre LIKE ? OR p.codigo LIKE ?) `;
+                const t = `%${filtros.buscar}%`;
+                params.push(t, t);
+            }
+
+            if (filtros.categoria) {
+                sql += ` AND p.id_categoria = ? `;
+                params.push(filtros.categoria);
+            }
+
+            sql += ` ORDER BY p.id DESC `;
+
+            // console.log('📦 Ejecutando consulta SQL para productos con filtros:', filtros);
+            const productos = await query(sql, params);
+            // console.log('📋 Productos encontrados:', productos?.length || 0);
+
             return productos;
         } catch (error) {
             console.error('Error en ProductoDAO.listar:', error);
@@ -116,13 +128,13 @@ async buscarPorId(id) {
         try {
             // Primero obtener datos anteriores para comparar precios
             const productoAnterior = await query('SELECT precio_compra, precio_venta FROM producto WHERE id = ?', [id]);
-            
+
             console.log('📊 ProductoDAO.actualizar - Datos anteriores:', productoAnterior);
             console.log('📊 ProductoDAO.actualizar - Datos nuevos:', datos);
-            
+
             const campos = [];
             const valores = [];
-            
+
             if (datos.codigo) {
                 campos.push('codigo = ?');
                 valores.push(datos.codigo);
@@ -167,13 +179,13 @@ async buscarPorId(id) {
                 campos.push('activo = ?');
                 valores.push(datos.activo);
             }
-            
+
             if (campos.length === 0) {
                 return { success: false, message: 'No hay datos para actualizar' };
             }
-            
+
             valores.push(id);
-            
+
             const sql = `UPDATE producto SET ${campos.join(', ')} WHERE id = ?`;
             const result = await query(sql, valores);
 
@@ -182,19 +194,19 @@ async buscarPorId(id) {
             // Registrar cambio de precio en historial si corresponde
             if (result.affectedRows > 0 && productoAnterior && productoAnterior.length > 0) {
                 const anterior = productoAnterior[0];
-                
+
                 console.log('🔎 Verificando cambios de precio:', {
                     precio_compra_enviado: datos.precio_compra,
                     precio_venta_enviado: datos.precio_venta,
                     hay_cambio_compra: datos.precio_compra !== undefined,
                     hay_cambio_venta: datos.precio_venta !== undefined
                 });
-                
+
                 if (datos.precio_compra !== undefined || datos.precio_venta !== undefined) {
                     try {
                         // Importar dinámicamente para evitar ciclos
                         const { default: HistorialPrecioDAO } = await import('./HistorialPrecioDAO.js');
-                        
+
                         await HistorialPrecioDAO.registrarCambio(
                             id,
                             Number(anterior.precio_compra),
@@ -209,7 +221,7 @@ async buscarPorId(id) {
                     }
                 }
             }
-            
+
             return {
                 success: result.affectedRows > 0,
                 message: result.affectedRows > 0 ? 'Producto actualizado' : 'Producto no encontrado'
@@ -231,9 +243,9 @@ async buscarPorId(id) {
                 SET cantidad = cantidad ${operador} ? 
                 WHERE id = ?
             `;
-            
+
             const result = await query(sql, [cantidad, id]);
-            
+
             return {
                 success: result.affectedRows > 0,
                 message: result.affectedRows > 0 ? 'Stock actualizado' : 'Producto no encontrado'
@@ -251,7 +263,7 @@ async buscarPorId(id) {
         try {
             const sql = 'UPDATE producto SET activo = FALSE WHERE id = ?';
             const result = await query(sql, [id]);
-            
+
             return {
                 success: result.affectedRows > 0,
                 message: result.affectedRows > 0 ? 'Producto desactivado' : 'Producto no encontrado'
@@ -275,7 +287,7 @@ async buscarPorId(id) {
                 AND p.activo = TRUE
                 ORDER BY p.cantidad ASC
             `;
-            
+
             const productos = await query(sql);
             return productos;
 

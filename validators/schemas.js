@@ -1,4 +1,4 @@
-﻿﻿import { z } from 'zod';
+﻿import { z } from 'zod';
 
 // ========================
 // SCHEMAS DE AUTENTICACIÓN
@@ -63,7 +63,7 @@ export const createProductSchema = z.object({
         .nullable(),
     id_categoria: z.number()
         .int('Categoría inválida')
-        .positive('Categoría es requerida')
+        .positive('Categoría debe ser un número válido')
         .optional(),
     categoria_nombre: z.string()
         .min(2, 'Nombre de categoría debe tener al menos 2 caracteres')
@@ -77,12 +77,6 @@ export const createProductSchema = z.object({
     {
         message: 'Precio de venta debe ser mayor o igual al precio de compra',
         path: ['precio_venta']
-    }
-).refine(
-    data => data.id_categoria || data.categoria_nombre,
-    {
-        message: 'Debe proporcionar id_categoria o categoria_nombre',
-        path: ['id_categoria']
     }
 );
 

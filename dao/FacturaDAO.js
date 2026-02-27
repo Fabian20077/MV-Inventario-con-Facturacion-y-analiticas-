@@ -30,7 +30,7 @@ class FacturaDAO {
 
             const config = resultado[0];
             let numeroFormato = String(config.proximo_numero).padStart(config.longitud_numero, '0');
-            
+
             let numeroFactura = config.prefijo + '-' + numeroFormato;
             if (config.prefijo_year) {
                 const year = new Date().getFullYear();
@@ -71,17 +71,17 @@ class FacturaDAO {
      */
     static async crearFactura(datosFactura) {
         const conexion = await pool.getConnection();
-        
+
         try {
             await conexion.beginTransaction();
 
-            const { 
-                usuario_id, 
-                detalles, 
-                iva_porcentaje = 0, 
+            const {
+                usuario_id,
+                detalles,
+                iva_porcentaje = 0,
                 impuesto_id = null,
-                observaciones = '', 
-                cliente_nombre = 'Cliente General' 
+                observaciones = '',
+                cliente_nombre = 'Cliente General'
             } = datosFactura;
 
             // 1. Obtener número de factura
@@ -125,17 +125,17 @@ class FacturaDAO {
             if (impuesto_id) {
                 // Si se proporciona un ID de impuesto, obtener sus datos
                 const [impuestoRows] = await conexion.query(
-                    'SELECT nombre, tipo, porcentaje, valor_fijo FROM impuestos WHERE id = ?',
+                    'SELECT nombre, tipo, porcentaje, valor_fijo FROM impuesto WHERE id = ?',
                     [impuesto_id]
                 );
-                
+
                 if (impuestoRows.length > 0) {
                     const impuesto = impuestoRows[0];
                     impuestoNombre = impuesto.nombre;
                     impuestoTipo = impuesto.tipo;
                     impuestoPorcentaje = parseFloat(impuesto.porcentaje);
                     impuestoValorFijo = parseFloat(impuesto.valor_fijo);
-                    
+
                     // Calcular impuesto según el tipo
                     if (impuesto.tipo === 'porcentaje') {
                         impuestoMonto = subtotal * (impuestoPorcentaje / 100);
@@ -163,17 +163,17 @@ class FacturaDAO {
                  (numero_factura, usuario_id, cliente_nombre, subtotal, impuesto_id, impuesto_nombre, impuesto_tipo, impuesto_porcentaje, impuesto_valor_fijo, impuesto_monto, total, observaciones, estado) 
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'emitida')`,
                 [
-                    numeroFactura, 
-                    usuario_id, 
-                    cliente_nombre, 
-                    subtotal, 
-                    impuesto_id, 
-                    impuestoNombre, 
-                    impuestoTipo, 
-                    impuestoPorcentaje, 
-                    impuestoValorFijo, 
-                    impuestoMonto, 
-                    total, 
+                    numeroFactura,
+                    usuario_id,
+                    cliente_nombre,
+                    subtotal,
+                    impuesto_id,
+                    impuestoNombre,
+                    impuestoTipo,
+                    impuestoPorcentaje,
+                    impuestoValorFijo,
+                    impuestoMonto,
+                    total,
                     observaciones
                 ]
             );
@@ -342,7 +342,7 @@ class FacturaDAO {
      */
     static async anularFactura(facturaId, usuarioId, motivo = '') {
         const conexion = await pool.getConnection();
-        
+
         try {
             await conexion.beginTransaction();
 
