@@ -598,7 +598,7 @@ async function loadAlertas() {
                     safeElementUpdate('alertasCount', `${totalAlertas} ${totalAlertas === 1 ? 'alerta' : 'alertas'}`);
 
                     // Agregar animación de shake si el botón existe
-                    const btnAlertas = document.querySelector('.nav-icon-button[title="Notificaciones"]');
+                    const btnAlertas = document.getElementById('mvNotificationsBtn');
                     if (btnAlertas) {
                         btnAlertas.classList.add('tiene-alertas');
                         setTimeout(() => btnAlertas.classList.remove('tiene-alertas'), 500);
@@ -736,11 +736,18 @@ function irAProducto(id) {
 
 // Cerrar dropdown al hacer clic fuera
 document.addEventListener('click', (e) => {
-    const alertasButton = document.querySelector('.nav-icon-button[title="Notificaciones"]');
+    const alertasButton = document.getElementById('mvNotificationsBtn');
     const dropdown = document.getElementById('alertasDropdown');
 
     if (dropdown && alertasButton && !alertasButton.contains(e.target) && !dropdown.contains(e.target)) {
         dropdown.style.display = 'none';
+    }
+    
+    // Also close user dropdown
+    const userBtn = document.getElementById('mvUserBtn');
+    const userDropdown = document.getElementById('mvUserDropdown');
+    if (userDropdown && userBtn && !userBtn.contains(e.target) && !userDropdown.contains(e.target)) {
+        userDropdown.classList.remove('active');
     }
 });
 

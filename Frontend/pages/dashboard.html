@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="../styles/header-professional.css">
     <link rel="stylesheet" href="../styles/components.css">
     <link rel="stylesheet" href="../styles/overrides.css">
+    <link rel="stylesheet" href="../styles/global-polish.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
@@ -1568,105 +1569,7 @@
         <div class="absolute bottom-1/3 left-1/3 w-8 h-8 md:w-12 md:h-12 lg:w-16 lg:h-16 bg-purple-200/20 rounded-full animate-float"
             style="animation-delay: 2.5s;"></div>
     </div>
-    <nav class="navbar-professional">
-        <!-- Left: Logo + Navigation Links -->
-        <div style="display: flex; align-items: center; gap: 24px; min-width: 0; flex: 0 1 auto;">
-            <a href="dashboard.html" class="navbar-brand">
-                <i class="bi bi-boxes"></i>
-                <span>Inventario MV</span>
-            </a>
-
-            <!-- Navigation Links -->
-            <div style="display: flex; gap: 8px; align-items: center;">
-                <a href="dashboard.html"
-                    style="padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--text-primary); text-decoration: none; transition: 0.15s ease; background: rgba(59, 130, 246, 0.1);">
-                    <i class="bi bi-speedometer2" style="margin-right: 6px;"></i>Inventario
-                </a>
-                <a href="productos.html"
-                    style="padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: 0.15s ease; cursor: pointer;"
-                    onmouseover="this.style.background='rgba(255,255,255,0.05)'"
-                    onmouseout="this.style.background='transparent'">
-                    <i class="bi bi-box-seam" style="margin-right: 6px;"></i>Productos
-                </a>
-                <a href="movimientos.html"
-                    style="padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: 0.15s ease; cursor: pointer;"
-                    onmouseover="this.style.background='rgba(255,255,255,0.05)'"
-                    onmouseout="this.style.background='transparent'">
-                    <i class="bi bi-arrow-left-right" style="margin-right: 6px;"></i>Movimientos
-                </a>
-                <a href="facturacion.html"
-                    style="padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: 0.15s ease; cursor: pointer;"
-                    onmouseover="this.style.background='rgba(255,255,255,0.05)'"
-                    onmouseout="this.style.background='transparent'">
-                    <i class="bi bi-receipt" style="margin-right: 6px;"></i>Facturación
-                </a>
-                <a href="analytics.html"
-                    style="padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: 0.15s ease; cursor: pointer;"
-                    onmouseover="this.style.background='rgba(255,255,255,0.05)'"
-                    onmouseout="this.style.background='transparent'">
-                    <i class="bi bi-graph-up" style="margin-right: 6px;"></i>Análisis
-                </a>
-                <a href="historial-precios.html"
-                    style="padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--text-secondary); text-decoration: none; transition: 0.15s ease; cursor: pointer;"
-                    onmouseover="this.style.background='rgba(255,255,255,0.05)'"
-                    onmouseout="this.style.background='transparent'">
-                    <i class="bi bi-clock-history" style="margin-right: 6px;"></i>Historial
-                </a>
-            </div>
-        </div>
-
-        <!-- Center: Breadcrumbs (Hidden on Mobile) -->
-        <div class="breadcrumbs" style="display: none;">
-            <span class="breadcrumb-item active">Dashboard</span>
-            <span class="breadcrumb-separator">/</span>
-            <span class="breadcrumb-item" id="breadcrumbSection">Productos</span>
-        </div>
-
-        <!-- Center: Search Bar (Desktop only) -->
-        <div class="search-bar" style="display: none;">
-            <i class="bi bi-search"></i>
-            <input type="text" placeholder="Buscar productos..." aria-label="Buscar">
-        </div>
-
-        <!-- Right: Actions -->
-        <div class="navbar-actions">
-            <!-- Filter (Desktop) -->
-            <button class="nav-icon-button" title="Filtros" aria-label="Abrir filtros" style="display: none;">
-                <i class="bi bi-sliders"></i>
-            </button>
-
-            <!-- Notifications -->
-            <button class="nav-icon-button" title="Notificaciones" aria-label="Ver notificaciones"
-                onclick="toggleAlertas()">
-                <i class="bi bi-bell"></i>
-                <span id="alertasBadge" class="badge" style="display: none;">0</span>
-            </button>
-
-            <!-- Theme Toggle -->
-            <button class="theme-toggle" aria-label="Cambiar tema">
-                <i class="bi bi-sun-fill"></i>
-            </button>
-
-            <!-- User Profile -->
-            <div style="position: relative;">
-                <button class="user-profile">
-                    <div class="user-profile-avatar" id="userInitial">A</div>
-                    <span class="user-profile-name" id="userNameShort">Admin</span>
-                    <i class="bi bi-chevron-down" style="font-size: 12px;"></i>
-                </button>
-                <div class="user-profile-dropdown">
-                    <a href="settings.html" id="adminSettingsLink" class="dropdown-item" style="display: none;">
-                        <i class="bi bi-gear"></i>
-                        <span>Configuración</span>
-                    </a>
-                    <div class="dropdown-item" onclick="logout()">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Cerrar Sesión</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </nav>
+    <div id="unified-navbar"></div>
 
     <!-- Alertas Dropdown (Mobile Compatible) -->
     <div id="alertasDropdown" class="alertas-dropdown"
@@ -2217,7 +2120,8 @@
                     }
                 }
 
-                // Cargar theme-manager.js
+                // Cargar navbar.js y theme-manager.js
+                loadScript('../scripts/navbar.js');
                 loadScript('../scripts/theme-manager.js');
             });
         }
