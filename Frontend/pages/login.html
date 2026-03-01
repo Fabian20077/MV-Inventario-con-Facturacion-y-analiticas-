@@ -219,7 +219,9 @@
                         <div class="text-center mb-6 md:mb-8">
                             <div
                                 class="w-20 h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 mx-auto mb-4 shadow-lg animate-glow flex items-center justify-center rounded-full overflow-hidden border-2 border-white/20">
-                            <img id="loginLogoMain" src="../uploads/logo/logo_1768077153101.png" alt="Logo" class="w-full h-full object-cover" onerror="this.src='../uploads/logo/logo_1768077153101.png'">
+                                <img id="loginLogoMain" src="../uploads/logo/logo_1768077153101.png" alt="Logo"
+                                    class="w-full h-full object-cover"
+                                    onerror="this.src='../uploads/logo/logo_1768077153101.png'">
                             </div>
 
                             <h2 class="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white mb-2">
@@ -325,15 +327,17 @@
                 const response = await fetch(`${API_BASE_URL}/api/configuracion`);
                 const result = await response.json();
                 if (result.success && result.data) {
+                    const applyUi = result.data['empresa.logo.apply_ui'];
                     const logoPath = result.data['empresa.logo_path'];
-                    if (logoPath) {
-                        // Anti-Caché: Forzar recarga de imagen
-                        const src = `${logoPath}?t=${Date.now()}`;
+                    
+                    if ((applyUi === true || applyUi === 'true' || applyUi === 1 || applyUi === '1') && logoPath) {
+                        const fullPath = logoPath.startsWith('http') ? logoPath : `${API_BASE_URL}${logoPath.startsWith('/') ? '' : '/'}${logoPath}`;
+                        const src = `${fullPath}?t=${Date.now()}`;
                         const logo2 = document.getElementById('loginLogoMain');
                         if (logo2) logo2.src = src;
                     }
                 }
-            } catch (e) { 
+            } catch (e) {
                 console.error('Error cargando config:', e);
                 // Si no hay conexión, mostrar estado claro pero no bloquear el login
                 console.warn('Servidor no disponible - usando modo sin conexión');
@@ -393,10 +397,10 @@
                 }
             } catch (error) {
                 console.error('Error:', error);
-                
+
                 // Manejo específico de errores comunes
                 let mensajeError = '❌ Error de conexión';
-                
+
                 if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
                     mensajeError = '❌ No se puede conectar con el servidor. <br><br>🔧 <strong>Solución:</strong><br>1. Asegúrate que el backend esté corriendo<br>2. Ejecuta: <code>node server.js</code> en la carpeta del proyecto<br>3. O inicia con Docker: <code>docker-compose up</code><br><br>📍 El servidor debería estar en: http://127.0.0.1:3000';
                 } else if (error.message.includes('403') || error.message.includes('401')) {
@@ -406,7 +410,7 @@
                 } else {
                     mensajeError = `❌ Error: ${error.message}`;
                 }
-                
+
                 errorMessage.innerHTML = mensajeError;
                 errorMessage.classList.remove('hidden');
                 e.target.classList.add('error-shake');

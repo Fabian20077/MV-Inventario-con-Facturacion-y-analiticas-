@@ -149,22 +149,27 @@
         const apiBase = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
             ? 'http://127.0.0.1:3001'
             : `http://${window.location.hostname}:3001`;
-        const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-        const headers = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = 'Bearer ' + token;
 
-        fetch(apiBase + '/api/configuracion', { headers })
+        fetch(apiBase + '/api/configuracion')
             .then(r => r.json())
             .then(result => {
-                if (result.success && result.data && result.data['empresa.logo_path']) {
+                if (result.success && result.data) {
+                    const applyUi = result.data['empresa.logo.apply_ui'];
                     const logoPath = result.data['empresa.logo_path'];
-                    const fullPath = logoPath.startsWith('http') ? logoPath : `${apiBase}${logoPath.startsWith('/') ? '' : '/'}${logoPath}`;
-                    const logoImg = document.getElementById('mvNavLogo');
-                    const brandIcon = document.getElementById('mvBrandIcon');
-                    if (logoImg) {
-                        logoImg.src = `${fullPath}?t=${Date.now()}`;
-                        logoImg.style.display = 'block';
-                        if (brandIcon) brandIcon.style.display = 'none';
+                    
+                    if (applyUi !== true && applyUi !== 'true' && applyUi !== 1 && applyUi !== '1') {
+                        return;
+                    }
+                    
+                    if (logoPath) {
+                        const fullPath = logoPath.startsWith('http') ? logoPath : `${apiBase}${logoPath.startsWith('/') ? '' : '/'}${logoPath}`;
+                        const logoImg = document.getElementById('mvNavLogo');
+                        const brandIcon = document.getElementById('mvBrandIcon');
+                        if (logoImg) {
+                            logoImg.src = `${fullPath}?t=${Date.now()}`;
+                            logoImg.style.display = 'block';
+                            if (brandIcon) brandIcon.style.display = 'none';
+                        }
                     }
                 }
             })
