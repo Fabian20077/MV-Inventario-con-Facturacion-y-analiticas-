@@ -219,9 +219,8 @@
                         <div class="text-center mb-6 md:mb-8">
                             <div
                                 class="w-20 h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 mx-auto mb-4 shadow-lg animate-glow flex items-center justify-center rounded-full overflow-hidden border-2 border-white/20">
-                                <img id="loginLogoMain" src="../uploads/logo/logo_1768077153101.png" alt="Logo"
-                                    class="w-full h-full object-cover"
-                                    onerror="this.src='../uploads/logo/logo_1768077153101.png'">
+                                <img id="loginLogoMain" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 24 24' fill='%233b82f6'%3E%3Cpath d='M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V8h16v10z'/%3E%3C/svg%3E" alt="Logo"
+                                    class="w-full h-full object-cover">
                             </div>
 
                             <h2 class="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white mb-2">
@@ -318,8 +317,8 @@
     </div>
 
     <script>
-        const API_BASE_URL = 'http://127.0.0.1:3001';
-        const LOGIN_ENDPOINT = `${API_BASE_URL}/api/auth/login`;
+        const API_BASE_URL = window.location.origin;
+        const LOGIN_ENDPOINT = `${window.location.origin}/api/auth/login`;
 
         // Cargar configuración pública (Logo y Nombre)
         document.addEventListener('DOMContentLoaded', async () => {

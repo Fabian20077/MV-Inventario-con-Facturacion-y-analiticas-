@@ -146,22 +146,18 @@
 
     // Load company logo into navbar brand
     function loadNavbarLogo() {
-        const apiBase = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-            ? 'http://127.0.0.1:3001'
-            : `http://${window.location.hostname}:3001`;
+        const apiBase = window.location.origin;
 
         fetch(apiBase + '/api/configuracion')
             .then(r => r.json())
             .then(result => {
+                console.log('Logo config response:', result);
                 if (result.success && result.data) {
                     const applyUi = result.data['empresa.logo.apply_ui'];
                     const logoPath = result.data['empresa.logo_path'];
+                    console.log('applyUi:', applyUi, 'logoPath:', logoPath);
                     
-                    if (applyUi !== true && applyUi !== 'true' && applyUi !== 1 && applyUi !== '1') {
-                        return;
-                    }
-                    
-                    if (logoPath) {
+                    if ((applyUi === true || applyUi === 'true' || applyUi === 1 || applyUi === '1') && logoPath) {
                         const fullPath = logoPath.startsWith('http') ? logoPath : `${apiBase}${logoPath.startsWith('/') ? '' : '/'}${logoPath}`;
                         const logoImg = document.getElementById('mvNavLogo');
                         const brandIcon = document.getElementById('mvBrandIcon');
@@ -173,7 +169,7 @@
                     }
                 }
             })
-            .catch(() => { /* silent fail — show default icon */ });
+            .catch((err) => { console.error('Error loading logo:', err); });
     }
 
     // Inject styles

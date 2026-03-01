@@ -367,11 +367,16 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Servir uploads (logos, etc.)
-    if (req.method === 'GET' && req.url.startsWith('/uploads/')) {
+    const uploadsPath = req.url.split('?')[0];
+    if ((req.method === 'GET' || req.method === 'HEAD') && uploadsPath.startsWith('/uploads/')) {
         try {
-            const filePath = path.join(process.cwd(), req.url.substring(1));
+            const filePath = path.join(process.cwd(), uploadsPath.substring(1));
             const normalizedPath = path.normalize(filePath);
             const uploadsDir = path.normalize(path.join(process.cwd(), 'uploads'));
+            
+            console.log(`📁 Petition uploads: ${uploadsPath}`);
+            console.log(`📁 Full path: ${normalizedPath}`);
+            console.log(`📁 Exists: ${existsSync(normalizedPath)}`);
 
             if (normalizedPath.startsWith(uploadsDir) && existsSync(normalizedPath) && !statSync(normalizedPath).isDirectory()) {
                 const ext = path.extname(normalizedPath).toLowerCase();
@@ -390,6 +395,8 @@ const server = http.createServer(async (req, res) => {
                     res.end(fileContent);
                 }
                 return;
+            } else {
+                console.log(`❌ File not found or not allowed: ${normalizedPath}`);
             }
         } catch (error) {
             console.error(`Error sirviendo upload ${req.url}:`, error.message);
@@ -1032,7 +1039,7 @@ const server = http.createServer(async (req, res) => {
     // ==================== PRODUCTOS ====================
 
     // Listar productos (soporta búsqueda y filtrado)
-    if (req.url.startsWith('/api/productos') && req.method === 'GET' && !req.url.match(/^\/api\/productos\/\d+$/)) {
+    if (req.url.startsWith('/api/productos') && req.method === 'GET' && !req.url.match(/^\/api\/productos\/\d+(\/.*)?$/)) {
         try {
             // Parsear parámetros de búsqueda
             const urlParsed = new URL('http://localhost' + req.url);
@@ -3418,7 +3425,7 @@ const server = http.createServer(async (req, res) => {
         }
 
         // GET /api/admin/configuracion/:clave - Obtener una configuración específica
-        if (req.method === 'GET' && req.url !== '/api/admin/configuracion') {
+        if (req.method === 'GET' && req.url !== '/api/admin/configuracion' && !req.url.startsWith('/uploads/')) {
             const clave = req.url.split('/').pop();
             try {
                 const config = await ConfiguracionDAO.getByClave(clave);
@@ -3637,7 +3644,7 @@ const server = http.createServer(async (req, res) => {
 async function upsertConfig(clave, valor, tipo, categoria, descripcion) {
     const existe = await ConfiguracionDAO.getByClave(clave);
     if (existe) {
-        await ConfiguracionDAO.update(clave, valor);
+        await query("UPDATE configuracion SET valor = ?, publico = 1 WHERE clave = ?", [valor, clave]);
     } else {
         await query("INSERT INTO configuracion (clave, valor, tipo_dato, categoria, descripcion, publico) VALUES (?, ?, ?, ?, ?, 1)", [clave, valor, tipo, categoria, descripcion]);
     }
