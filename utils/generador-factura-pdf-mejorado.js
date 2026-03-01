@@ -23,7 +23,7 @@ class GeneradorFacturaPDF {
 
     _formatearFecha(fecha) {
         try {
-            if (!fecha) return new Date().toLocaleDateString('es-CO');
+            if (!fecha) return new Date().toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
 
             // Si ya viene formateada (tiene coma), devolverla tal cual
             if (typeof fecha === 'string' && fecha.includes(',')) {
@@ -32,10 +32,15 @@ class GeneradorFacturaPDF {
 
             const date = new Date(fecha);
             // Validar si es fecha válida
-            if (isNaN(date.getTime())) return new Date().toLocaleDateString('es-CO');
-            return date.toLocaleDateString('es-CO') + ', ' + date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+            if (isNaN(date.getTime())) return new Date().toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
+            return date.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' }) + ', ' + date.toLocaleTimeString('es-CO', {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true,
+                timeZone: 'America/Bogota'
+            });
         } catch (e) {
-            return new Date().toLocaleDateString('es-CO');
+            return new Date().toLocaleDateString('es-CO', { timeZone: 'America/Bogota' });
         }
     }
 

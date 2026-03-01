@@ -304,31 +304,31 @@ const server = http.createServer(async (req, res) => {
     // Servir archivos HTML, CSS, JS desde Frontend/
     if (req.method === 'GET' && !req.url.startsWith('/api') && !req.url.startsWith('/uploads')) {
         let filePath = req.url;
-        
+
         // Si es raíz, servir login.html
         if (filePath === '/' || filePath === '') {
             filePath = '/pages/login.html';
         }
-        
+
         // Normalizar rutas que empiezan con /
         if (filePath.startsWith('/')) {
             filePath = filePath.substring(1);
         }
-        
+
         // Construir ruta completa
         const frontendDir = path.normalize(path.join(process.cwd(), 'Frontend'));
         let fullPath = path.join(frontendDir, filePath);
-        
+
         // Si es un HTML sin /pages/, buscar en pages/
-        if (filePath.endsWith('.html') && !filePath.includes('/pages/') && 
-            !filePath.includes('/assets/') && !filePath.includes('/scripts/') && 
+        if (filePath.endsWith('.html') && !filePath.includes('/pages/') &&
+            !filePath.includes('/assets/') && !filePath.includes('/scripts/') &&
             !filePath.includes('/styles/')) {
             const pagesPath = path.join(frontendDir, 'pages', path.basename(filePath));
             if (existsSync(pagesPath)) {
                 fullPath = pagesPath;
             }
         }
-        
+
         // Normalizar la ruta
         fullPath = path.normalize(fullPath);
 
@@ -365,14 +365,14 @@ const server = http.createServer(async (req, res) => {
             }
         }
     }
-    
+
     // Servir uploads (logos, etc.)
     if (req.method === 'GET' && req.url.startsWith('/uploads/')) {
         try {
             const filePath = path.join(process.cwd(), req.url.substring(1));
             const normalizedPath = path.normalize(filePath);
             const uploadsDir = path.normalize(path.join(process.cwd(), 'uploads'));
-            
+
             if (normalizedPath.startsWith(uploadsDir) && existsSync(normalizedPath) && !statSync(normalizedPath).isDirectory()) {
                 const ext = path.extname(normalizedPath).toLowerCase();
                 const mimeTypes = {
@@ -384,7 +384,7 @@ const server = http.createServer(async (req, res) => {
                 };
                 const contentType = mimeTypes[ext] || 'application/octet-stream';
                 const fileContent = await fs.readFile(normalizedPath);
-                
+
                 if (!res.headersSent) {
                     res.writeHead(200, { 'Content-Type': contentType });
                     res.end(fileContent);
@@ -2078,9 +2078,9 @@ const server = http.createServer(async (req, res) => {
             let ivaTipo = 'porcentaje';
 
             if (impuesto_id) {
-                const [impuestoData] = await query('SELECT * FROM impuesto WHERE id = ?', [impuesto_id]);
-                if (impuestoData && impuestoData.length > 0) {
-                    const imp = impuestoData[0];
+                const impuestoRows = await query('SELECT * FROM impuesto WHERE id = ?', [impuesto_id]);
+                if (impuestoRows && impuestoRows.length > 0) {
+                    const imp = impuestoRows[0];
                     ivaNombre = imp.nombre;
                     ivaTipo = imp.tipo;
                     ivaAplicado = parseFloat(imp.porcentaje);
@@ -2094,9 +2094,24 @@ const server = http.createServer(async (req, res) => {
                         ivaMonto = Math.round(subtotal * (ivaAplicado / 100)) + ivaValorFijo;
                     }
                 }
-            } else if (habilitado) {
-                ivaMonto = Math.round(subtotal * (ivaPorcentajeConfig / 100)) + parseFloat(configuracionLoader.getConfigOrDefault('finanzas.impuestos.iva_valor_fijo', 0));
-                ivaAplicado = ivaPorcentajeConfig;
+            } else {
+                // Fallback: buscar impuesto seleccionado en la tabla
+                const impSelRows = await query('SELECT * FROM impuesto WHERE seleccionado = TRUE LIMIT 1');
+                if (impSelRows && impSelRows.length > 0) {
+                    const imp = impSelRows[0];
+                    ivaNombre = imp.nombre;
+                    ivaTipo = imp.tipo;
+                    ivaAplicado = parseFloat(imp.porcentaje);
+                    ivaValorFijo = parseFloat(imp.valor_fijo);
+
+                    if (ivaTipo === 'porcentaje') {
+                        ivaMonto = Math.round(subtotal * (ivaAplicado / 100));
+                    } else if (ivaTipo === 'fijo') {
+                        ivaMonto = ivaValorFijo;
+                    } else if (ivaTipo === 'mixto') {
+                        ivaMonto = Math.round(subtotal * (ivaAplicado / 100)) + ivaValorFijo;
+                    }
+                }
             }
 
             const total = subtotal + ivaMonto;

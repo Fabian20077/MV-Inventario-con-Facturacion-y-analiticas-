@@ -1,66 +1,242 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Facturación - MV Inventario</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../styles/unified-theme.css">
     <link rel="stylesheet" href="../styles/components.css">
     <link rel="stylesheet" href="../styles/overrides.css">
     <style>
         :root {
             --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --primary-light: #dbeafe;
             --success: #10b981;
+            --success-hover: #059669;
             --danger: #ef4444;
             --warning: #f59e0b;
+            --info: #06b6d4;
             --dark: #1f2937;
             --light: #f9fafb;
+            --border: #e5e7eb;
+            --text-secondary: #6b7280;
         }
 
+        /* ========== BASE ========== */
         body {
             background: var(--light);
             color: var(--dark);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
+        /* ========== DARK MODE ========== */
         body.dark-mode {
+            --light: #0f172a;
+            --dark: #f1f5f9;
+            --border: #334155;
+            --text-secondary: #94a3b8;
+            --primary-light: #1e3a5f;
             background: #0f172a;
             color: #f1f5f9;
         }
 
+        /* Navbar */
         .navbar {
             background: var(--primary) !important;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
         }
 
+        body.dark-mode .navbar {
+            background: #1e293b !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+            border-bottom: 1px solid #334155;
+        }
+
+        /* Cards */
         .card {
-            border: none;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            overflow: hidden;
         }
 
         body.dark-mode .card {
             background: #1e293b;
-            border: 1px solid #334155;
+            border-color: #334155;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
 
+        /* Card Headers */
+        .card-header {
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        body.dark-mode .card-header.bg-primary {
+            background: #1e40af !important;
+            border-bottom-color: #2563eb;
+        }
+
+        body.dark-mode .card-header.bg-success {
+            background: #065f46 !important;
+            border-bottom-color: #10b981;
+        }
+
+        body.dark-mode .card-header.bg-info {
+            background: #164e63 !important;
+            border-bottom-color: #06b6d4;
+        }
+
+        /* Form Controls */
+        .form-control,
+        .form-select {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        body.dark-mode .form-control,
+        body.dark-mode .form-select {
+            background: #0f172a;
+            color: #f1f5f9;
+            border-color: #475569;
+        }
+
+        body.dark-mode .form-control:focus,
+        body.dark-mode .form-select:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+        }
+
+        body.dark-mode .form-control::placeholder {
+            color: #64748b;
+        }
+
+        /* Labels */
+        .form-label {
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 6px;
+            transition: color 0.3s ease;
+        }
+
+        body.dark-mode .form-label {
+            color: #cbd5e1;
+        }
+
+        /* Text muted */
+        body.dark-mode .text-muted {
+            color: #94a3b8 !important;
+        }
+
+        /* HR */
+        hr {
+            border-color: var(--border);
+            opacity: 0.5;
+            transition: border-color 0.3s ease;
+        }
+
+        body.dark-mode hr {
+            border-color: #475569;
+        }
+
+        /* Badge */
         .badge {
             padding: 6px 12px;
             font-weight: 500;
-            border-radius: 4px;
+            border-radius: 6px;
         }
 
+        /* Buttons */
         .btn-primary {
             background: var(--primary);
             border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s ease;
         }
 
         .btn-primary:hover {
-            background: #1d4ed8;
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
         }
 
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        body.dark-mode .btn-primary {
+            background: #3b82f6;
+        }
+
+        body.dark-mode .btn-primary:hover {
+            background: #2563eb;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-success {
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        body.dark-mode .btn-success {
+            background: #059669;
+            border-color: #059669;
+        }
+
+        .btn-outline-secondary {
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        body.dark-mode .btn-outline-secondary {
+            color: #94a3b8;
+            border-color: #475569;
+        }
+
+        body.dark-mode .btn-outline-secondary:hover {
+            background: #334155;
+            color: #f1f5f9;
+            border-color: #64748b;
+        }
+
+        .btn-outline-light {
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-outline-light:hover {
+            transform: translateY(-1px);
+        }
+
+        /* Tabla de productos */
         .tabla-productos {
             border-collapse: collapse;
             width: 100%;
@@ -69,9 +245,12 @@
         .tabla-productos th {
             background: var(--primary);
             color: white;
-            padding: 12px;
+            padding: 12px 16px;
             text-align: left;
             font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         body.dark-mode .tabla-productos th {
@@ -79,33 +258,41 @@
         }
 
         .tabla-productos td {
-            padding: 12px;
-            border-bottom: 1px solid #e5e7eb;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
         }
 
         body.dark-mode .tabla-productos td {
-            border-bottom: 1px solid #334155;
+            border-bottom-color: #334155;
+            color: #e2e8f0;
         }
 
         .tabla-productos tr:hover {
-            background: #f3f4f6;
+            background: #f0f9ff;
         }
 
         body.dark-mode .tabla-productos tr:hover {
-            background: #1e293b;
+            background: rgba(59, 130, 246, 0.08);
         }
 
+        /* Resumen totales */
         .resumen-totales {
-            background: #f0f9ff;
+            background: var(--primary-light);
             border-left: 4px solid var(--primary);
-            padding: 16px;
-            border-radius: 4px;
+            padding: 20px;
+            border-radius: 8px;
             margin-top: 20px;
+            transition: all 0.3s ease;
         }
 
         body.dark-mode .resumen-totales {
-            background: #0f172a;
-            border-left: 4px solid #3b82f6;
+            background: rgba(30, 64, 175, 0.15);
+            border-left-color: #3b82f6;
+        }
+
+        body.dark-mode .resumen-totales div {
+            color: #e2e8f0;
         }
 
         .total-grande {
@@ -114,14 +301,22 @@
             color: var(--success);
         }
 
+        body.dark-mode .total-grande {
+            color: #34d399;
+        }
+
+        /* Spinner */
         .spinner-border {
             color: var(--primary);
         }
 
+        /* Alertas */
         .alerta {
-            border-radius: 4px;
-            padding: 12px;
+            border-radius: 8px;
+            padding: 14px 18px;
             margin-bottom: 16px;
+            font-size: 14px;
+            animation: slideDown 0.3s ease;
         }
 
         .alerta-exito {
@@ -131,8 +326,9 @@
         }
 
         body.dark-mode .alerta-exito {
-            background: #064e3b;
-            color: #a7f3d0;
+            background: rgba(16, 185, 129, 0.15);
+            color: #6ee7b7;
+            border-left-color: #10b981;
         }
 
         .alerta-error {
@@ -142,13 +338,16 @@
         }
 
         body.dark-mode .alerta-error {
-            background: #7f1d1d;
-            color: #fecaca;
+            background: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            border-left-color: #ef4444;
         }
 
+        /* Modal */
         .modal-header {
             background: var(--primary);
             color: white;
+            border-radius: 12px 12px 0 0;
         }
 
         body.dark-mode .modal-header {
@@ -160,9 +359,64 @@
             background: #1e293b;
             border: 1px solid #334155;
             color: #f1f5f9;
+            border-radius: 12px;
+        }
+
+        body.dark-mode .modal-footer {
+            border-top-color: #334155;
+        }
+
+        body.dark-mode .btn-close {
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
+
+        /* List groups (search results) */
+        .list-group-item {
+            transition: all 0.2s ease;
+            border-color: var(--border);
+        }
+
+        body.dark-mode .list-group-item {
+            background: #1e293b;
+            color: #f1f5f9;
+            border-color: #334155;
+        }
+
+        body.dark-mode .list-group-item:hover {
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        /* Alert info in modal */
+        body.dark-mode .alert-info {
+            background: rgba(6, 182, 212, 0.15);
+            color: #67e8f9;
+            border-color: #164e63;
+        }
+
+        /* Card body text */
+        body.dark-mode .card-body {
+            color: #e2e8f0;
+        }
+
+        body.dark-mode .card-body p {
+            color: #cbd5e1;
+        }
+
+        /* Animations */
+        @keyframes slideDown {
+            from {
+                transform: translateY(-10px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
     </style>
 </head>
+
 <body>
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark">
@@ -188,7 +442,8 @@
                         <a class="nav-link" href="movimientos.html">Movimientos</a>
                     </li>
                     <li class="nav-item">
-                        <button class="btn btn-outline-light btn-sm" onclick="toggleDarkMode()">
+                        <button class="btn btn-outline-light btn-sm ms-2" onclick="toggleDarkMode()"
+                            title="Modo oscuro">
                             <i class="fas fa-moon"></i>
                         </button>
                     </li>
@@ -198,30 +453,25 @@
     </nav>
 
     <!-- Contenido principal -->
-    <div class="container-fluid mt-4">
+    <div class="container-fluid mt-4 px-3 px-lg-4">
         <!-- Alertas -->
         <div id="alertas-container"></div>
 
-        <div class="row">
+        <div class="row g-4">
             <!-- Panel Izquierdo: Seleccionar Productos -->
             <div class="col-lg-8">
                 <div class="card mb-4">
                     <div class="card-header bg-primary text-white">
                         <h5 class="mb-0">
-                            <i class="fas fa-shopping-cart"></i> Crear Factura
+                            <i class="fas fa-shopping-cart me-2"></i>Crear Factura
                         </h5>
                     </div>
                     <div class="card-body">
                         <!-- Búsqueda de productos -->
-                        <div class="row mb-3">
+                        <div class="row mb-3 g-3">
                             <div class="col-md-8">
-                                <input 
-                                    type="text" 
-                                    id="buscar-producto" 
-                                    class="form-control" 
-                                    placeholder="🔍 Buscar producto por nombre o código..."
-                                    autocomplete="off"
-                                >
+                                <input type="text" id="buscar-producto" class="form-control"
+                                    placeholder="🔍 Buscar producto por nombre o código..." autocomplete="off">
                             </div>
                             <div class="col-md-4">
                                 <select id="filtro-categoria" class="form-select">
@@ -231,7 +481,8 @@
                         </div>
 
                         <!-- Resultados de búsqueda -->
-                        <div id="resultados-productos" class="list-group" style="max-height: 400px; overflow-y: auto; display: none;">
+                        <div id="resultados-productos" class="list-group"
+                            style="max-height: 400px; overflow-y: auto; display: none;">
                         </div>
 
                         <div id="sin-resultados" class="alert alert-info text-center" style="display: none;">
@@ -244,7 +495,7 @@
                 <div class="card">
                     <div class="card-header bg-primary text-white">
                         <h5 class="mb-0">
-                            <i class="fas fa-list"></i> Productos en Factura
+                            <i class="fas fa-list me-2"></i>Productos en Factura
                         </h5>
                     </div>
                     <div class="card-body">
@@ -278,7 +529,7 @@
                 <div class="card mb-4">
                     <div class="card-header bg-success text-white">
                         <h5 class="mb-0">
-                            <i class="fas fa-calculator"></i> Resumen de Factura
+                            <i class="fas fa-calculator me-2"></i>Resumen de Factura
                         </h5>
                     </div>
                     <div class="card-body">
@@ -309,21 +560,17 @@
                         <!-- Observaciones -->
                         <div class="mt-4">
                             <label class="form-label">Observaciones (opcional):</label>
-                            <textarea 
-                                id="observaciones" 
-                                class="form-control" 
-                                rows="3" 
-                                placeholder="Notas o comentarios sobre la factura..."
-                            ></textarea>
+                            <textarea id="observaciones" class="form-control" rows="3"
+                                placeholder="Notas o comentarios sobre la factura..."></textarea>
                         </div>
 
                         <!-- Botones de acción -->
-                        <div class="mt-4">
-                            <button class="btn btn-success w-100 btn-lg mb-2" onclick="emitirFactura()">
-                                <i class="fas fa-check"></i> Emitir Factura
+                        <div class="mt-4 d-grid gap-2">
+                            <button class="btn btn-success btn-lg" onclick="emitirFactura()">
+                                <i class="fas fa-check me-2"></i>Emitir Factura
                             </button>
-                            <button class="btn btn-outline-secondary w-100" onclick="limpiarFactura()">
-                                <i class="fas fa-trash"></i> Limpiar
+                            <button class="btn btn-outline-secondary" onclick="limpiarFactura()">
+                                <i class="fas fa-trash me-2"></i>Limpiar
                             </button>
                         </div>
                     </div>
@@ -333,7 +580,7 @@
                 <div class="card">
                     <div class="card-header bg-info text-white">
                         <h5 class="mb-0">
-                            <i class="fas fa-history"></i> Últimas Facturas
+                            <i class="fas fa-history me-2"></i>Últimas Facturas
                         </h5>
                     </div>
                     <div class="card-body" id="historial-facturas">
@@ -344,32 +591,32 @@
         </div>
     </div>
 
-    <!-- Modal: Ver factura emitida -->
+    <!-- Modal: Factura Emitida -->
     <div class="modal fade" id="modalFacturaEmitida" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">✅ Factura Emitida Correctamente</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title"><i class="fas fa-check-circle me-2"></i>Factura Emitida</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
-                    <p class="mb-3">
-                        <strong>Número de Factura:</strong> <span id="modal-numero-factura"></span>
-                    </p>
-                    <p class="mb-3">
-                        <strong>Total:</strong> <span class="total-grande" id="modal-total-factura"></span>
-                    </p>
-                    <div class="alert alert-info">
-                        <i class="fas fa-print"></i> ¿Deseas imprimir la factura?
+                <div class="modal-body text-center py-4">
+                    <div class="mb-3">
+                        <i class="fas fa-file-invoice-dollar text-success" style="font-size: 48px;"></i>
                     </div>
+                    <p class="mb-2 text-muted">Número de Factura</p>
+                    <h4 class="mb-3 fw-bold" id="modal-numero-factura"></h4>
+                    <p class="mb-1 text-muted">Total</p>
+                    <p class="total-grande mb-0" id="modal-total-factura"></p>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-                    <button type="button" class="btn btn-primary" onclick="imprimirFactura()">
-                        <i class="fas fa-print"></i> Imprimir
-                    </button>
+                <div class="modal-footer justify-content-center flex-wrap gap-2">
                     <button type="button" class="btn btn-success" onclick="descargarFacturaPDF()">
-                        <i class="fas fa-download"></i> Descargar PDF
+                        <i class="fas fa-download me-1"></i> Descargar PDF
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="imprimirFactura()">
+                        <i class="fas fa-print me-1"></i> Imprimir
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-plus me-1"></i> Nueva Factura
                     </button>
                 </div>
             </div>
@@ -379,4 +626,5 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../scripts/facturacion.js"></script>
 </body>
+
 </html>

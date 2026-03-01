@@ -11,7 +11,12 @@
  */
 
 import express from 'express';
+import fs from 'fs/promises';
+import { existsSync } from 'fs';
+import { createReadStream } from 'fs';
+import path from 'path';
 import FacturaDAO from '../dao/FacturaDAO.js';
+import ConfiguracionDAO from '../dao/ConfiguracionDAO.js';
 import { verificarToken, verificarAdmin } from '../middleware/auth.js';
 import { validarDatos } from '../middleware/validate.js';
 import { z } from 'zod';
@@ -27,7 +32,7 @@ const schemaCrearFactura = z.object({
             cantidad: z.number().int().positive('Cantidad debe ser mayor a 0')
         })
     ).min(1, 'Debe incluir al menos un producto'),
-    
+
     iva_porcentaje: z.number().positive().default(19),
     observaciones: z.string().optional().default('')
 });
@@ -283,13 +288,27 @@ router.get('/:id/pdf', verificarToken, async (req, res) => {
 
         const config = await ConfiguracionDAO.obtenerConfiguracionParaPDF();
 
-        const doc = GeneradorFacturaPDF.generarFacturaCoucher(factura, config);
+        // Generar PDF usando el generador con Puppeteer+Handlebars
+        const generador = new GeneradorFacturaPDF();
+        const tempDir = path.join(process.cwd(), 'logs');
+        if (!existsSync(tempDir)) {
+            await fs.mkdir(tempDir, { recursive: true });
+        }
+        const tempPath = path.join(tempDir, `factura_temp_${id}_${Date.now()}.pdf`);
 
+        await generador.generarFactura(factura, config, tempPath);
+
+        // Enviar el PDF como response
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `inline; filename="Factura-${factura.numero_factura}.pdf"`);
 
-        doc.pipe(res);
-        doc.end();
+        const stream = createReadStream(tempPath);
+        stream.pipe(res);
+
+        // Limpiar archivo temporal después de enviar
+        stream.on('end', () => {
+            fs.unlink(tempPath).catch(() => { });
+        });
 
     } catch (error) {
         console.error('Error al generar PDF:', error);

@@ -1,0 +1,409 @@
+# Guía Completa: Tablas de Facturación para MV Inventario Pro
+
+## Contexto del Problema
+
+El sistema **MV Inventario Pro** cuenta actualmente con 7 tablas en la base de datos `inventario_ropa`:
+
+| # | Tabla | Propósito |
+|---|-------|-----------|
+| 1 | `rol` | Roles de usuario (Administrador, Gerente, Cliente) |
+| 2 | `usuario` | Usuarios del sistema con autenticación BCrypt |
+| 3 | `categoria` | Categorías de productos (Camisetas, Pantalones, etc.) |
+| 4 | `producto` | Catálogo de productos con precios y stock |
+| 5 | `movimientos_inventario` | Historial de entradas y salidas de inventario |
+| 6 | `historial_precio` | Registro de cambios en precios de productos |
+| 7 | `configuracion` | Ajustes del sistema (nombre empresa, IVA, etc.) |
+
+Al implementarse el módulo de facturación, el código del backend ([server.js](file:///c:/Users/USUARIO/OneDrive%20-%20SENA/Documentos/mv-inventario/server.js), [FacturaDAO.js](file:///c:/Users/USUARIO/OneDrive%20-%20SENA/Documentos/mv-inventario/dao/FacturaDAO.js), [ImpuestoDAO.js](file:///c:/Users/USUARIO/OneDrive%20-%20SENA/Documentos/mv-inventario/dao/ImpuestoDAO.js)) ya está listo y hace referencia a **4 tablas que aún no existen**. Esto genera los errores:
+
+- ❌ `Table 'inventario_ropa.impuesto' doesn't exist`
+- ❌ `Table 'inventario_ropa.factura' doesn't exist`
+- ❌ `Table 'inventario_ropa.secuencia_documento' doesn't exist`
+
+> [!IMPORTANT]
+> Las 4 tablas deben crearse **en un orden específico** porque algunas dependen de otras. El orden correcto es: `impuesto` → `secuencia_documento` → `factura` → `detalle_factura`.
+
+---
+
+## Tabla 1: `impuesto` — Catálogo de Impuestos
+
+### Para qué sirve
+Almacena los diferentes tipos de impuestos que el negocio puede aplicar a las facturas. Permite tener múltiples impuestos configurados (IVA, Impoconsumo, Exento) y **elegir cuál está activo** en cada momento.
+
+### Campos de la tabla
+
+| Campo | Tipo de dato | ¿Obligatorio? | Valor por defecto | Descripción |
+|-------|-------------|---------------|-------------------|-------------|
+| **id** | Entero autoincremental | Sí (automático) | Auto | Identificador único de cada impuesto |
+| **nombre** | Texto (máx. 50 caracteres) | Sí, único | — | Nombre descriptivo del impuesto. Ejemplo: "IVA General (19%)" |
+| **tipo** | Lista cerrada: `porcentaje`, `fijo`, `mixto` | Sí | `porcentaje` | Cómo se calcula: por porcentaje del subtotal, como valor fijo en pesos, o combinación de ambos |
+| **porcentaje** | Decimal (10 dígitos, 2 decimales) | No | `0` | Porcentaje a aplicar. Ejemplo: `19.00` para el 19% |
+| **valor_fijo** | Decimal (10 dígitos, 2 decimales) | No | `0` | Monto fijo en pesos que se suma. Ejemplo: `500.00` |
+| **activo** | Verdadero/Falso | No | `TRUE` | Si el impuesto está disponible para ser usado |
+| **seleccionado** | Verdadero/Falso | No | `FALSE` | Si este impuesto es **el actualmente activo** para nuevas facturas. Solo uno debe estar en `TRUE` a la vez |
+| **fecha_creacion** | Fecha y hora | No (automático) | Fecha/hora actual | Cuándo se registró este impuesto |
+| **ultima_actualizacion** | Fecha y hora | No (automático) | Se actualiza solo | Cuándo fue la última modificación |
+
+### Cómo se usa en el sistema
+- El backend ([server.js](file:///c:/Users/USUARIO/OneDrive%20-%20SENA/Documentos/mv-inventario/server.js) endpoint `/api/impuestos`) lee esta tabla para mostrar la lista de impuestos disponibles
+- El [ImpuestoDAO.js](file:///c:/Users/USUARIO/OneDrive%20-%20SENA/Documentos/mv-inventario/dao/ImpuestoDAO.js) usa los campos `tipo`, `porcentaje`, `valor_fijo` y `seleccionado` para calcular impuestos en las facturas
+- El campo `seleccionado` funciona como un "radio button": cuando se activa uno, todos los demás se desactivan
+
+### Datos iniciales necesarios
+Se deben insertar **3 impuestos por defecto**:
+
+| Nombre | Tipo | Porcentaje | ¿Seleccionado? |
+|--------|------|-----------|----------------|
+| IVA General (19%) | porcentaje | 19.00 | ✅ Sí (activo principal) |
+| Exento de IVA | porcentaje | 0.00 | No |
+| Impoconsumo (8%) | porcentaje | 8.00 | No |
+
+---
+
+## Tabla 2: `secuencia_documento` — Numeración de Documentos
+
+### Para qué sirve
+Controla la **numeración automática y secuencial** de documentos como facturas. Cuando se crea una nueva factura, el sistema consulta esta tabla para saber cuál es el próximo número a usar, lo formatea (por ejemplo: `FAC2026000001`), y luego incrementa el contador.
+
+### Campos de la tabla
+
+| Campo | Tipo de dato | ¿Obligatorio? | Valor por defecto | Descripción |
+|-------|-------------|---------------|-------------------|-------------|
+| **id** | Entero autoincremental | Sí (automático) | Auto | Identificador único |
+| **tipo_documento** | Texto (máx. 50 caracteres) | Sí, único | — | Tipo de documento: `FACTURA`, `NOTA_CREDITO`, `REMISION`, etc. |
+| **proximo_numero** | Entero | Sí | `1` | El siguiente número disponible para asignar. Se incrementa cada vez que se crea un documento |
+| **prefijo** | Texto (máx. 20 caracteres) | Sí | `FAC` | Letras que preceden al número. "FAC" para facturas, "NC" para notas crédito |
+| **prefijo_year** | Verdadero/Falso | No | `TRUE` | Si se incluye el año en el número. Ejemplo: `TRUE` → FAC**2026**000001, `FALSE` → FAC000001 |
+| **longitud_numero** | Entero | No | `6` | Cantidad de dígitos del número secuencial. Con 6 dígitos: `000001`, `000002`... hasta `999999` |
+| **fecha_creacion** | Fecha y hora | No (automático) | Fecha/hora actual | Cuándo se creó esta secuencia |
+| **fecha_actualizacion** | Fecha y hora | No (automático) | Se actualiza solo | Última vez que se incrementó el número |
+
+### Cómo se usa en el sistema
+- [FacturaDAO.js](file:///c:/Users/USUARIO/OneDrive%20-%20SENA/Documentos/mv-inventario/dao/FacturaDAO.js) método [obtenerProximoNumeroFactura()](file:///c:/Users/USUARIO/OneDrive%20-%20SENA/Documentos/mv-inventario/dao/FacturaDAO.js#16-45) lee `prefijo`, `prefijo_year`, `longitud_numero` y `proximo_numero` para armar el número de factura formateado
+- [FacturaDAO.js](file:///c:/Users/USUARIO/OneDrive%20-%20SENA/Documentos/mv-inventario/dao/FacturaDAO.js) método [incrementarSecuenciaFactura()](file:///c:/Users/USUARIO/OneDrive%20-%20SENA/Documentos/mv-inventario/dao/FacturaDAO.js#46-60) incrementa `proximo_numero` en 1 después de crear una factura
+- [server.js](file:///c:/Users/USUARIO/OneDrive%20-%20SENA/Documentos/mv-inventario/server.js) también consulta directamente esta tabla en el endpoint de creación de facturas
+
+### Datos iniciales necesarios
+Se debe insertar **1 registro** para facturas:
+
+| Tipo de documento | Próximo número | Prefijo | ¿Incluir año? | Longitud |
+|-------------------|---------------|---------|---------------|----------|
+| FACTURA | 1 | FAC | Sí | 6 |
+
+Esto generará facturas con formato: **FAC2026000001**, **FAC2026000002**, etc.
+
+### Índice de búsqueda
+- `idx_tipo` en el campo `tipo_documento` — para buscar rápidamente la configuración de secuencia por tipo de documento
+
+---
+
+## Tabla 3: `factura` — Registro de Facturas
+
+### Para qué sirve
+Es la tabla principal del módulo de facturación. Almacena **cada factura emitida** con toda su información: quién la emitió, a quién se le facturó, los montos, el impuesto aplicado, el estado y las fechas relevantes.
+
+### Campos de la tabla
+
+| Campo | Tipo de dato | ¿Obligatorio? | Valor por defecto | Descripción |
+|-------|-------------|---------------|-------------------|-------------|
+| **id** | Entero autoincremental | Sí (automático) | Auto | Identificador interno único |
+| **numero_factura** | Texto (máx. 50 chars), único | Sí | — | Número visible de la factura. Ej: `FAC2026000001`. No se puede repetir |
+| **usuario_id** | Entero | Sí | — | ID del usuario que emitió la factura. Referencia a la tabla `usuario` |
+| **cliente_nombre** | Texto (máx. 150 chars) | No | `Consumidor Final` | Nombre del cliente. Si no se especifica, se usa "Consumidor Final" |
+
+#### Campos de montos
+
+| Campo | Tipo de dato | ¿Obligatorio? | Valor por defecto | Descripción |
+|-------|-------------|---------------|-------------------|-------------|
+| **subtotal** | Decimal (18 dígitos, 2 decimales) | Sí | `0` | Suma de todos los productos antes de impuestos |
+| **total** | Decimal (18 dígitos, 2 decimales) | Sí | `0` | Monto final a pagar (subtotal + impuesto) |
+
+#### Campos de impuesto (snapshot)
+
+> [!NOTE]
+> Estos campos guardan una **"foto instantánea"** del impuesto al momento de crear la factura. Si el impuesto cambia después (por ejemplo, el IVA pasa de 19% a 21%), las facturas antiguas mantienen su valor original. Esto es fundamental para la integridad contable.
+
+| Campo | Tipo de dato | ¿Obligatorio? | Valor por defecto | Descripción |
+|-------|-------------|---------------|-------------------|-------------|
+| **impuesto_id** | Entero (puede ser nulo) | No | `NULL` | ID del impuesto que se aplicó. Referencia a la tabla `impuesto` |
+| **impuesto_nombre** | Texto (máx. 50 chars) | No | `IVA` | Nombre del impuesto al momento de facturar |
+| **impuesto_tipo** | Texto (máx. 20 chars) | No | `porcentaje` | Tipo de cálculo usado |
+| **impuesto_porcentaje** | Decimal (10, 2) | No | `0` | Porcentaje aplicado |
+| **impuesto_valor_fijo** | Decimal (10, 2) | No | `0` | Valor fijo aplicado |
+| **impuesto_monto** | Decimal (18, 2) | Sí | `0` | Resultado del cálculo del impuesto en pesos |
+
+#### Campos de compatibilidad (calculados automáticamente)
+
+| Campo | Tipo de dato | Descripción |
+|-------|-------------|-------------|
+| **iva_porcentaje** | Decimal (10, 2) | Campo calculado automáticamente. Toma el valor de `impuesto_porcentaje`. Existe para compatibilidad con scripts anteriores |
+| **iva_monto** | Decimal (18, 2) | Campo calculado automáticamente. Toma el valor de `impuesto_monto`. Existe para compatibilidad con scripts anteriores |
+
+> [!TIP]
+> Los campos `iva_porcentaje` e `iva_monto` son **columnas calculadas** (STORED). No se escriben manualmente — MySQL los llena automáticamente copiando los valores de `impuesto_porcentaje` e `impuesto_monto`. Esto permite que código antiguo que use `iva_porcentaje` siga funcionando sin errores.
+
+#### Campos de control y auditoría
+
+| Campo | Tipo de dato | ¿Obligatorio? | Valor por defecto | Descripción |
+|-------|-------------|---------------|-------------------|-------------|
+| **observaciones** | Texto largo | No | — | Notas o comentarios adicionales del vendedor |
+| **estado** | Lista cerrada: `emitida`, `anulada`, `pagada`, `borrador` | No | `emitida` | Estado actual de la factura |
+| **motivo_anulacion** | Texto largo | No | — | Si la factura fue anulada, aquí se registra la razón |
+| **fecha_emision** | Fecha y hora | No (automático) | Fecha/hora actual | Cuándo se emitió la factura |
+| **fecha_pago** | Fecha y hora (puede ser nulo) | No | `NULL` | Cuándo fue pagada (si aplica) |
+| **created_at** | Fecha y hora | No (automático) | Fecha/hora actual | Cuándo se creó el registro |
+| **updated_at** | Fecha y hora | No (automático) | Se actualiza solo | Última modificación del registro |
+
+### Índices de búsqueda rápida
+
+Se crean **4 índices** para agilizar las consultas más frecuentes:
+
+| Índice | Campo | Para qué se usa |
+|--------|-------|----------------|
+| `idx_numero` | `numero_factura` | Buscar una factura por su número (ej: "buscar FAC2026000015") |
+| `idx_usuario` | `usuario_id` | Filtrar facturas por el empleado que las emitió |
+| `idx_estado` | `estado` | Filtrar por estado (ver solo las emitidas, o las anuladas) |
+| `idx_fecha` | `fecha_emision` | Reportes por rango de fechas (ventas del mes, del día, etc.) |
+
+### Relación con otras tablas
+- **`usuario`** → El campo `usuario_id` apunta al `id` de la tabla `usuario`. Si se intenta eliminar un usuario que tiene facturas, MySQL lo **impide** (`ON DELETE RESTRICT`), porque no se puede borrar un usuario que ya emitió facturas
+
+### Datos iniciales necesarios
+Ninguno. Las facturas se crean desde la interfaz de facturación.
+
+---
+
+## Tabla 4: `detalle_factura` — Líneas de Productos en Cada Factura
+
+### Para qué sirve
+Almacena los **productos individuales** que conforman cada factura. Una factura puede tener múltiples líneas de detalle (varios productos vendidos en la misma transacción). Es una relación de **uno a muchos**: una factura tiene muchos detalles.
+
+### Campos de la tabla
+
+| Campo | Tipo de dato | ¿Obligatorio? | Valor por defecto | Descripción |
+|-------|-------------|---------------|-------------------|-------------|
+| **id** | Entero autoincremental | Sí (automático) | Auto | Identificador único de cada línea de detalle |
+| **factura_id** | Entero | Sí | — | ID de la factura a la que pertenece. Referencia a la tabla `factura` |
+| **producto_id** | Entero | Sí | — | ID del producto vendido. Referencia a la tabla `producto` |
+| **nombre_producto** | Texto (máx. 200 chars) | Sí | — | Nombre del producto **al momento de la venta** (snapshot). Si el producto cambia de nombre después, la factura mantiene el nombre original |
+| **codigo_producto** | Texto (máx. 50 chars) | No | — | Código del producto al momento de la venta (snapshot) |
+| **cantidad** | Entero | Sí | — | Cantidad de unidades vendidas |
+| **precio_unitario** | Decimal (18, 2) | Sí | — | Precio de venta por unidad al momento de la venta |
+| **subtotal_linea** | Decimal (18, 2) | Sí | — | Resultado de `cantidad × precio_unitario` |
+| **created_at** | Fecha y hora | No (automático) | Fecha/hora actual | Cuándo se creó este registro |
+
+### Índices de búsqueda rápida
+
+| Índice | Campo | Para qué se usa |
+|--------|-------|----------------|
+| `idx_factura` | `factura_id` | Obtener todos los productos de una factura específica |
+| `idx_producto` | `producto_id` | Ver en cuántas facturas aparece un producto (reportes) |
+
+### Relaciones con otras tablas
+
+| Referencia | Comportamiento al eliminar | Razón |
+|------------|---------------------------|-------|
+| `factura_id` → `factura.id` | **CASCADE** (se eliminan los detalles) | Si se borra una factura, sus detalles ya no tienen sentido |
+| `producto_id` → `producto.id` | **RESTRICT** (se impide la eliminación) | No se puede borrar un producto que ya fue facturado |
+
+### Datos iniciales necesarios
+Ninguno. Los detalles se crean automáticamente cuando se genera una factura.
+
+---
+
+## Diagrama de Relaciones
+
+```mermaid
+erDiagram
+    usuario ||--o{ factura : "emite"
+    factura ||--|{ detalle_factura : "contiene"
+    producto ||--o{ detalle_factura : "aparece en"
+    impuesto ||--o{ factura : "se aplica a"
+    secuencia_documento ||--|| factura : "genera números para"
+
+    impuesto {
+        INT id PK
+        VARCHAR nombre UK
+        ENUM tipo
+        DECIMAL porcentaje
+        DECIMAL valor_fijo
+        BOOLEAN activo
+        BOOLEAN seleccionado
+    }
+
+    secuencia_documento {
+        INT id PK
+        VARCHAR tipo_documento UK
+        INT proximo_numero
+        VARCHAR prefijo
+        BOOLEAN prefijo_year
+        INT longitud_numero
+    }
+
+    factura {
+        INT id PK
+        VARCHAR numero_factura UK
+        INT usuario_id FK
+        VARCHAR cliente_nombre
+        DECIMAL subtotal
+        INT impuesto_id FK
+        DECIMAL impuesto_monto
+        DECIMAL total
+        ENUM estado
+    }
+
+    detalle_factura {
+        INT id PK
+        INT factura_id FK
+        INT producto_id FK
+        VARCHAR nombre_producto
+        INT cantidad
+        DECIMAL precio_unitario
+        DECIMAL subtotal_linea
+    }
+```
+
+---
+
+## Pasos para Implementar la Solución
+
+Tienes dos opciones. **Opción A es la más rápida** si los contenedores ya están corriendo.
+
+### Opción A: Ejecutar directamente en MySQL (recomendada)
+
+1. **Abrir una terminal** (PowerShell o CMD)
+
+2. **Entrar al contenedor de la base de datos** ejecutando:
+   ```
+   docker exec -it inventario-db mysql -u root -poutside1234
+   ```
+
+3. **Seleccionar la base de datos**:
+   ```
+   USE inventario_ropa;
+   ```
+
+4. **Copiar y ejecutar las instrucciones** de creación de tablas (que deben tomarse del archivo [repair_db.sql](file:///c:/Users/USUARIO/OneDrive%20-%20SENA/Documentos/mv-inventario/repair_db.sql) que ya existe en la raíz del proyecto — este archivo ya contiene la estructura exacta que el código espera)
+
+5. **Verificar que todo se creó correctamente** (ver sección de Validación)
+
+6. **Salir de MySQL**:
+   ```
+   exit;
+   ```
+
+7. **Recargar la página** `http://localhost:8080/pages/facturacion.html` en el navegador
+
+---
+
+### Opción B: Actualizar el script de inicialización y reconstruir Docker
+
+1. **Agregar las definiciones de las 4 tablas** al final del archivo [init-db-complete.sql](file:///c:/Users/USUARIO/OneDrive%20-%20SENA/Documentos/mv-inventario/init-db-complete.sql), justo **antes** de la línea `SELECT 'Base de datos creada exitosamente'`
+
+2. **Detener los contenedores** y **eliminar el volumen** de datos de MySQL (⚠️ esto borra todos los datos actuales):
+   ```
+   docker compose down -v
+   ```
+
+3. **Reconstruir y levantar los contenedores**:
+   ```
+   docker compose up -d --build
+   ```
+
+4. El script [init-db-complete.sql](file:///c:/Users/USUARIO/OneDrive%20-%20SENA/Documentos/mv-inventario/init-db-complete.sql) se ejecutará automáticamente al crear el contenedor de MySQL por primera vez
+
+5. **Verificar** que las tablas se crearon (ver sección de Validación)
+
+> [!CAUTION]
+> La **Opción B** requiere eliminar el volumen `mysql_data`, lo que borra **todos los datos existentes** (productos, usuarios, etc.). El script [init-db-complete.sql](file:///c:/Users/USUARIO/OneDrive%20-%20SENA/Documentos/mv-inventario/init-db-complete.sql) los recreará con los datos de ejemplo, pero cualquier dato que hayas agregado manualmente se perderá. Si tienes datos importantes, usa la **Opción A**.
+
+---
+
+## Validación Después de la Implementación
+
+### 1. Verificar que las 4 tablas existen
+
+Ejecutar dentro de MySQL:
+```
+SHOW TABLES LIKE 'impuesto';
+SHOW TABLES LIKE 'secuencia_documento';
+SHOW TABLES LIKE 'factura';
+SHOW TABLES LIKE 'detalle_factura';
+```
+
+**Resultado esperado**: Cada comando debe mostrar 1 resultado (el nombre de la tabla).
+
+### 2. Verificar la estructura de cada tabla
+
+```
+DESCRIBE impuesto;
+DESCRIBE secuencia_documento;
+DESCRIBE factura;
+DESCRIBE detalle_factura;
+```
+
+**Resultado esperado**: Se listan todos los campos con sus tipos de dato, tal como se describieron arriba.
+
+### 3. Verificar los datos iniciales
+
+```
+SELECT * FROM impuesto;
+```
+
+**Resultado esperado**: 3 filas (IVA General 19%, Exento de IVA, Impoconsumo 8%). El IVA General debe tener `seleccionado = 1`.
+
+```
+SELECT * FROM secuencia_documento;
+```
+
+**Resultado esperado**: 1 fila con `tipo_documento = 'FACTURA'`, `proximo_numero = 1`, `prefijo = 'FAC'`.
+
+### 4. Verificar las relaciones (Foreign Keys)
+
+```
+SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+WHERE REFERENCED_TABLE_SCHEMA = 'inventario_ropa'
+AND TABLE_NAME IN ('factura', 'detalle_factura');
+```
+
+**Resultado esperado**: Se deben ver las relaciones:
+- `factura.usuario_id` → `usuario.id`
+- `detalle_factura.factura_id` → `factura.id`
+- `detalle_factura.producto_id` → `producto.id`
+
+### 5. Verificar los índices
+
+```
+SHOW INDEX FROM factura;
+SHOW INDEX FROM detalle_factura;
+```
+
+**Resultado esperado**: Se listan los índices `idx_numero`, `idx_usuario`, `idx_estado`, `idx_fecha` para facturas, e `idx_factura`, `idx_producto` para detalles.
+
+### 6. Prueba funcional en el navegador
+
+Recargar `http://localhost:8080/pages/facturacion.html` y verificar que:
+- ❌ **Ya no aparecen** los errores de tablas inexistentes
+- ✅ La página carga correctamente
+- ✅ Se puede crear una factura de prueba
+
+---
+
+## Archivo Existente de Referencia
+
+> [!TIP]
+> El proyecto **ya incluye** el archivo [repair_db.sql](file:///c:/Users/USUARIO/OneDrive%20-%20SENA/Documentos/mv-inventario/repair_db.sql) en la raíz. Este archivo contiene exactamente la estructura de tablas que el código espera, incluyendo las 4 tablas de facturación más una tabla adicional (`factura_anulacion`). Puede usarse directamente para la **Opción A** ejecutándolo completo dentro de MySQL.
+
+---
+
+## Resumen de la Solución
+
+| Acción | Resultado |
+|--------|-----------|
+| Crear tabla `impuesto` | Se elimina el error `Table 'inventario_ropa.impuesto' doesn't exist` |
+| Crear tabla `secuencia_documento` | Se elimina el error `Table 'inventario_ropa.secuencia_documento' doesn't exist` |
+| Crear tabla `factura` | Se elimina el error `Table 'inventario_ropa.factura' doesn't exist` |
+| Crear tabla `detalle_factura` | Se completa la estructura para almacenar productos por factura |
+| Insertar datos en `impuesto` | IVA 19% disponible por defecto para facturar |
+| Insertar datos en `secuencia_documento` | Numeración automática lista: FAC2026000001 en adelante |

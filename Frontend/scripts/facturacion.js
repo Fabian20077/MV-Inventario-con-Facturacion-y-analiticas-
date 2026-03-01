@@ -348,29 +348,11 @@ async function emitirFactura() {
         // Guardar ID para descargar
         window.facturaActual = factura;
 
-        // 🔥 DESCARGA AUTOMÁTICA DEL PDF
-        // Esperar un momento para que el backend genere el PDF, luego descargar
-        setTimeout(() => {
-            try {
-                const pdfUrl = `/api/facturas/${factura.id}/pdf?token=${tokenActual}`;
-                const link = document.createElement('a');
-                link.href = pdfUrl;
-                link.download = `Factura_${factura.numero_factura}.pdf`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                console.log('📄 Descarga automática de PDF iniciada');
-            } catch (pdfError) {
-                console.error('Error al descargar PDF automáticamente:', pdfError);
-                mostrarAlerta('La factura se creó pero hubo un error al descargar el PDF. Usa el botón "Descargar PDF" en el modal.', 'error');
-            }
-        }, 500);
-
         // Limpiar y recargar
         limpiarFactura();
         await cargarHistorialFacturas();
 
-        mostrarAlerta('✅ Factura emitida correctamente - PDF descargándose...', 'exito');
+        mostrarAlerta('✅ Factura emitida correctamente', 'exito');
 
     } catch (error) {
         mostrarAlerta(error.message, 'error');
