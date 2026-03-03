@@ -2361,6 +2361,15 @@ const server = http.createServer(async (req, res) => {
                 detalles: detalles || []
             };
 
+            console.log('📋 Datos de factura para PDF:', {
+                id: datos_factura.id,
+                numero_factura: datos_factura.numero_factura,
+                cliente: datos_factura.cliente_nombre,
+                detalles_count: detalles ? detalles.length : 0,
+                subtotal: datos_factura.subtotal,
+                total: datos_factura.total
+            });
+
             // Generar PDF usando la nueva clase
             const GeneradorFacturaPDF = (await import('./utils/generador-factura-pdf-mejorado.js')).default;
             const generador = new GeneradorFacturaPDF();
@@ -2368,7 +2377,9 @@ const server = http.createServer(async (req, res) => {
             const tempFileName = `temp_factura_${Date.now()}.pdf`;
             const tempPath = path.join('./logs', tempFileName);
 
+            console.log('🔄 Iniciando generación de PDF en:', tempPath);
             await generador.generarFactura(datos_factura, config, tempPath);
+            console.log('✅ PDF generado exitosamente');
 
             // Leer y enviar el PDF generado
             const fileStream = createReadStream(tempPath);
@@ -2389,11 +2400,13 @@ const server = http.createServer(async (req, res) => {
             });
 
         } catch (error) {
-            console.error('Error al generar PDF:', error);
+            console.error('❌ Error al generar PDF:', error.message);
+            console.error('   Stack:', error.stack);
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 success: false,
-                error: 'Error al generar PDF: ' + error.message
+                error: 'Error al generar PDF: ' + error.message,
+                details: error.stack
             }));
         }
         return;

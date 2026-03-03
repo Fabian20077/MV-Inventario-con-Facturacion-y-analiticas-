@@ -19,19 +19,14 @@
         return file;
     }
 
-    function isDarkMode() {
-        return localStorage.getItem('darkMode') === 'true' || localStorage.getItem('theme-preference') === 'dark';
-    }
-
     function renderNavbar() {
         const container = document.getElementById('unified-navbar');
         if (!container) return;
 
         const currentPage = getCurrentPage();
-        const dark = isDarkMode();
 
-        // Apply dark mode on load
-        if (dark) document.body.classList.add('dark-mode');
+        // Aplicar modo oscuro permanente
+        document.body.classList.add('dark-mode');
 
         const linksHTML = NAV_LINKS.map(link => {
             const isActive = currentPage === link.href ||
@@ -80,9 +75,6 @@
                             </div>
                         </div>
                     </div>
-                    <button class="mv-dark-toggle" id="mvDarkToggle" title="Modo oscuro">
-                        <i class="bi ${dark ? 'bi-sun-fill' : 'bi-moon-fill'}"></i>
-                    </button>
                 </div>
             </div>
         </nav>`;
@@ -98,18 +90,6 @@
                 navLinks.classList.toggle('mv-nav-open');
                 hamburger.querySelector('i').className =
                     navLinks.classList.contains('mv-nav-open') ? 'bi bi-x-lg' : 'bi bi-list';
-            });
-        }
-
-        // Dark mode toggle
-        const darkBtn = document.getElementById('mvDarkToggle');
-        if (darkBtn) {
-            darkBtn.addEventListener('click', () => {
-                document.body.classList.toggle('dark-mode');
-                const nowDark = document.body.classList.contains('dark-mode');
-                localStorage.setItem('darkMode', nowDark);
-                localStorage.setItem('theme-preference', nowDark ? 'dark' : 'light');
-                darkBtn.querySelector('i').className = nowDark ? 'bi bi-sun-fill' : 'bi bi-moon-fill';
             });
         }
 
@@ -277,29 +257,6 @@
             display: flex;
             align-items: center;
             gap: 12px;
-        }
-        .mv-dark-toggle {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            color: #fbbf24;
-            font-size: 1rem;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-        .mv-dark-toggle:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: scale(1.1);
-        }
-        body.dark-mode .mv-dark-toggle {
-            color: #fbbf24;
-            background: rgba(251, 191, 36, 0.15);
-            border-color: rgba(251, 191, 36, 0.3);
         }
         .mv-nav-user {
             display: flex;
@@ -488,10 +445,4 @@
         injectStyles();
         renderNavbar();
     }
-
-    // Expose toggleDarkMode globally for pages that call it
-    window.toggleDarkMode = function () {
-        const btn = document.getElementById('mvDarkToggle');
-        if (btn) btn.click();
-    };
 })();

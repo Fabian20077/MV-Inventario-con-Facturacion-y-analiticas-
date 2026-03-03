@@ -12,7 +12,7 @@ services:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./init-db-complete.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./sql/init-db-complete.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - inventario-network
     healthcheck:
@@ -60,8 +60,8 @@ services:
       - "8080:80"
     volumes:
       - ./Frontend:/usr/share/nginx/html:ro
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./default.conf:/etc/nginx/conf.d/default.conf
+      - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./config/default.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       app:
         condition: service_started

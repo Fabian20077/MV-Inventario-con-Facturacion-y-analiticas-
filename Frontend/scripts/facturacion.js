@@ -435,24 +435,13 @@ async function imprimirFactura(id) {
 
 async function cargarConfiguracionIVA() {
     try {
-        // 1. Cargar Configuración Global (Habilitado/Deshabilitado)
-        const configResponse = await fetch(`${API_BASE}/admin/configuracion/finanzas.impuestos.habilitado`, {
-            headers: { 'Authorization': `Bearer ${tokenActual}` }
-        });
-
-        let impuestosHabilitados = true;
-        if (configResponse.ok) {
-            const configData = await configResponse.json();
-            // El backend devuelve 'true'/'false' string o boolean
-            impuestosHabilitados = String(configData.valor) === 'true';
-        }
-
-        // 2. Cargar Lista de Impuestos para buscar el activo
+        // Cargar Lista de Impuestos para buscar el activo
         const taxResponse = await fetch(`${API_BASE}/impuestos`, {
             headers: { 'Authorization': `Bearer ${tokenActual}` }
         });
 
-        let activeTax = { porcentaje: 19, nombre: 'IVA', valor_fijo: 0 }; // Default
+        let activeTax = { porcentaje: 19, nombre: 'IVA', valor_fijo: 0, impuesto_id: 1 }; // Default
+        let impuestosHabilitados = true;
 
         if (taxResponse.ok) {
             const taxData = await taxResponse.json();
@@ -466,10 +455,11 @@ async function cargarConfiguracionIVA() {
                     valor_fijo: parseFloat(seleccionado.valor_fijo || 0),
                     impuesto_id: seleccionado.id
                 };
+                impuestosHabilitados = true;
             }
         }
 
-        // 3. Configurar estado global para cálculos
+        // Configurar estado global para cálculos
         window.impuestosConfig = {
             activo: impuestosHabilitados,
             porcentaje: activeTax.porcentaje,
@@ -478,7 +468,7 @@ async function cargarConfiguracionIVA() {
             impuesto_id: activeTax.impuesto_id
         };
 
-        // 4. Actualizar variables legacy y UI
+        // Actualizar variables legacy y UI
         ivaConfigurable = impuestosHabilitados ? activeTax.porcentaje : 0;
 
         const labelIva = document.getElementById('iva-porcentaje');
@@ -585,12 +575,5 @@ function mostrarAlerta(mensaje, tipo = 'info') {
     setTimeout(() => alerta.remove(), 5000);
 }
 
-function toggleDarkMode() {
-    document.body.classList.toggle('dark-mode');
-    localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
-}
-
-// Cargar tema guardado
-if (localStorage.getItem('darkMode') === 'true') {
-    document.body.classList.add('dark-mode');
-}
+// Cargar tema guardado - siempre modo oscuro
+document.body.classList.add('dark-mode');

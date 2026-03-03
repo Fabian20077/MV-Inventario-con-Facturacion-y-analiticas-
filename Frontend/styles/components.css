@@ -446,48 +446,8 @@
 }
 
 /* ============================================
-   TABLAS SLIM & COMPACT (Mayor densidad)
+   BADGES / PILLS
    ============================================ */
-
-.table-slim tbody tr {
-    height: 40px;
-}
-
-.table-slim td {
-    padding: 8px 12px !important;
-    font-size: 0.875rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.table-slim th {
-    padding: 10px 12px !important;
-    font-size: 0.8rem;
-    font-weight: 600;
-    border-bottom: 2px solid rgba(255, 255, 255, 0.12);
-}
-
-/* ============================================
-   BOTONES COMPACTOS (Standard Height)
-   ============================================ */
-
-.btn-compact {
-    height: 40px;
-    padding: 0 16px;
-    font-size: 0.875rem;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
-
-/* ============================================
-   PILLS / BADGES SLIM
-   ============================================ */
-
-.badge-pill-sm {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 10px;
     border-radius: 12px;
     font-size: 0.75rem;
     font-weight: 600;

@@ -340,7 +340,7 @@
     border-width: 0.25em !important;
 }
 
-/* Text Utilities */
+/* Text Utilities - Keep only if used */
 .text-muted {
     color: var(--text-muted) !important;
 }
@@ -348,108 +348,6 @@
 .text-dark {
     color: var(--text-dark) !important;
 }
-
-.text-secondary {
-    color: var(--text-secondary) !important;
-}
-
-.text-danger {
-    color: var(--status-danger) !important;
-}
-
-.text-success {
-    color: var(--status-success) !important;
-}
-
-.text-warning {
-    color: var(--status-warning) !important;
-}
-
-.text-info {
-    color: var(--status-info) !important;
-}
-
-/* Backgrounds */
-.bg-light {
-    background-color: var(--bg-light) !important;
-}
-
-.bg-secondary {
-    background-color: var(--bg-light-secondary) !important;
-}
-
-/* Borders */
-.border {
-    border-color: var(--border-color) !important;
-}
-
-.border-top {
-    border-top-color: var(--border-color) !important;
-}
-
-.border-bottom {
-    border-bottom-color: var(--border-color) !important;
-}
-
-/* Rounded */
-.rounded {
-    border-radius: var(--radius-md) !important;
-}
-
-.rounded-sm {
-    border-radius: var(--radius-sm) !important;
-}
-
-.rounded-lg {
-    border-radius: var(--radius-lg) !important;
-}
-
-.rounded-xl {
-    border-radius: var(--radius-xl) !important;
-}
-
-/* Shadows */
-.shadow {
-    box-shadow: var(--shadow-sm) !important;
-}
-
-.shadow-sm {
-    box-shadow: var(--shadow-sm) !important;
-}
-
-.shadow-md {
-    box-shadow: var(--shadow-md) !important;
-}
-
-.shadow-lg {
-    box-shadow: var(--shadow-lg) !important;
-}
-
-/* Spacing Utilities */
-.mt-0 { margin-top: 0 !important; }
-.mb-0 { margin-bottom: 0 !important; }
-.mt-1 { margin-top: var(--spacing-xs) !important; }
-.mb-1 { margin-bottom: var(--spacing-xs) !important; }
-.mt-2 { margin-top: var(--spacing-sm) !important; }
-.mb-2 { margin-bottom: var(--spacing-sm) !important; }
-.mt-3 { margin-top: var(--spacing-md) !important; }
-.mb-3 { margin-bottom: var(--spacing-md) !important; }
-.mt-4 { margin-top: var(--spacing-lg) !important; }
-.mb-4 { margin-bottom: var(--spacing-lg) !important; }
-
-.p-0 { padding: 0 !important; }
-.p-1 { padding: var(--spacing-xs) !important; }
-.p-2 { padding: var(--spacing-sm) !important; }
-.p-3 { padding: var(--spacing-md) !important; }
-.p-4 { padding: var(--spacing-lg) !important; }
-.p-5 { padding: var(--spacing-xl) !important; }
-
-/* Gap (Flexbox) */
-.gap-1 { gap: var(--spacing-xs) !important; }
-.gap-2 { gap: var(--spacing-sm) !important; }
-.gap-3 { gap: var(--spacing-md) !important; }
-.gap-4 { gap: var(--spacing-lg) !important; }
-.gap-5 { gap: var(--spacing-xl) !important; }
 
 /* Responsive Utilities para 100% Zoom Optimization */
 

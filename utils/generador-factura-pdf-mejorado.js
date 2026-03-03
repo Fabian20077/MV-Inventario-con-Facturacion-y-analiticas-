@@ -7,6 +7,7 @@ class GeneradorFacturaPDF {
     constructor(config = {}) {
         this.config = config;
         this.templatePath = path.join(process.cwd(), 'utils', 'templates', 'factura.hbs');
+        this.logsDir = path.join(process.cwd(), 'logs');
     }
 
     _formatearMoneda(valor) {
@@ -47,6 +48,15 @@ class GeneradorFacturaPDF {
     async generarFactura(factura, configuracion, outputPath) {
         let browser = null;
         try {
+            // 0. Asegurar que el directorio de logs existe
+            if (!fs.existsSync(this.logsDir)) {
+                console.log(`📁 Creando directorio de logs: ${this.logsDir}`);
+                fs.mkdirSync(this.logsDir, { recursive: true, mode: 0o777 });
+            }
+
+            console.log(`📝 Usando directorio de logs: ${this.logsDir}`);
+            console.log(`📄 Archivo PDF será guardado en: ${outputPath}`);
+
             // 1. Preparar datos para el template
             let templateHtml;
             try {
@@ -73,7 +83,6 @@ class GeneradorFacturaPDF {
             });
 
             // Usar fecha_emision si existe, sino fallback a fecha, sino fallback a ahora.
-            // Asegurar que _formatearFecha maneje cualquier input.
             const fechaRaw = factura.fecha_emision || factura.fecha || new Date();
             const fechaFormateada = this._formatearFecha(fechaRaw);
 
@@ -117,9 +126,18 @@ class GeneradorFacturaPDF {
                 ]
             };
 
-            if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+            // En Docker, Google Chrome está instalado en /usr/bin/google-chrome
+            if (process.env.NODE_ENV === 'production' || !process.env.PUPPETEER_EXECUTABLE_PATH) {
+                launchConfig.executablePath = '/usr/bin/google-chrome-stable';
+            } else if (process.env.PUPPETEER_EXECUTABLE_PATH) {
                 launchConfig.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
             }
+
+            console.log('🔧 Puppeteer config:', {
+                headless: launchConfig.headless,
+                executablePath: launchConfig.executablePath,
+                nodeEnv: process.env.NODE_ENV
+            });
 
             browser = await puppeteer.launch(launchConfig);
 

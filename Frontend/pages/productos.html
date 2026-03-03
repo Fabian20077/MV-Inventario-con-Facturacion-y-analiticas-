@@ -13,7 +13,6 @@
     <link rel="stylesheet" href="../styles/unified-theme.css">
     <link rel="stylesheet" href="../styles/components.css">
     <link rel="stylesheet" href="../styles/overrides.css">
-    <link rel="stylesheet" href="../styles/global-polish.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
@@ -75,32 +74,6 @@
         body.dark-mode h2,
         body.dark-mode h3 {
             color: #f1f5f9 !important;
-        }
-
-        .toggle-dark {
-            background: linear-gradient(135deg, var(--mv-primary) 0%, var(--mv-secondary) 100%);
-            border: none;
-            padding: 8px;
-            border-radius: 9999px;
-            cursor: pointer;
-            color: white;
-            font-size: 18px;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.5);
-        }
-
-        .toggle-dark:hover {
-            transform: scale(1.1);
-            background: linear-gradient(135deg, var(--mv-secondary) 0%, var(--mv-primary) 100%);
-        }
-
-        body.dark-mode .toggle-dark {
-            background: #FFD700;
-            color: #1e293b !important;
         }
 
         table {
@@ -440,11 +413,6 @@
             .navbar {
                 padding: 1rem 0.5rem !important;
             }
-
-            .toggle-dark {
-                width: 2.5rem !important;
-                height: 2.5rem !important;
-            }
         }
     </style>
 </head>
@@ -619,14 +587,8 @@
         function getToken() { return localStorage.getItem('authToken') || localStorage.getItem('token'); }
         function getAuthHeaders() { const token = getToken(); return { 'Authorization': token ? 'Bearer ' + token : '', 'Content-Type': 'application/json' }; }
 
-        // Dark mode is now handled by navbar.js
-        function toggleDarkMode() {
-            document.body.classList.toggle('dark-mode');
-            const isDark = document.body.classList.contains('dark-mode');
-            localStorage.setItem('darkMode', isDark);
-            const btn = document.getElementById('darkModeBtn');
-            if (btn) btn.innerHTML = '<i class="bi ' + (isDark ? 'bi-sun' : 'bi-moon') + '"></i>';
-        }
+        // Forzar modo oscuro permanente
+        document.body.classList.add('dark-mode');
 
         async function loadCompanyInfo() {
             try {
@@ -972,11 +934,8 @@
             const u = localStorage.getItem('user');
             const userNameEl = document.getElementById('userName');
             if (u && userNameEl) userNameEl.textContent = JSON.parse(u).nombre.toUpperCase();
-            if (localStorage.getItem('darkMode') === 'true') {
-                document.body.classList.add('dark-mode');
-                const dBtn = document.getElementById('darkModeBtn');
-                if (dBtn) dBtn.innerHTML = '<i class="bi bi-sun"></i>';
-            }
+            // Modo oscuro fijo
+            document.body.classList.add('dark-mode');
             loadCompanyInfo(); loadCategorias(); cargarProductos();
             document.getElementById('btnNuevoProducto').onclick = openDrawer;
             document.getElementById('drawerClose').onclick = closeDrawer;
@@ -985,8 +944,6 @@
             document.getElementById('drawerOverlay').onclick = closeDrawer;
             document.getElementById('precioCompra').oninput = calcularMargen;
             document.getElementById('precioVenta').oninput = calcularMargen;
-            const darkModeBtn = document.getElementById('darkModeBtn');
-            if (darkModeBtn) darkModeBtn.onclick = toggleDarkMode;
             document.getElementById('btnCrearCategoria').onclick = crearCategoria;
             document.getElementById('filtroNombre').oninput = function () { filtrar(); };
             document.getElementById('filtroCategoria').onchange = function () { filtrar(); };
