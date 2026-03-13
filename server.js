@@ -17,56 +17,9 @@ import {
     createCategorySchema
 } from './validators/schemas.js';
 import { forgotPasswordSchema, resetPasswordSchema } from './validators/passwordSchemas.js';
+import { parseBody, runMiddleware, parseQueryParams, verifyToken } from './utils/requestHelpers.js';
 
 const PORT = 3000;
-
-// Helper para parsear body
-const parseBody = (req) => {
-    return new Promise((resolve, reject) => {
-        let body = '';
-        req.on('data', chunk => body += chunk.toString());
-        req.on('end', () => {
-            try {
-                resolve(JSON.parse(body));
-            } catch (error) {
-                reject(error);
-            }
-        });
-    });
-};
-
-// Helper para ejecutar middleware
-const runMiddleware = (req, res, middleware) => {
-    return new Promise((resolve, reject) => {
-        middleware(req, res, (error) => {
-            if (error) reject(error);
-            else resolve();
-        });
-    });
-};
-
-// Helper para parsear parámetros de query string
-const parseQueryParams = (url) => {
-    const params = {};
-    const queryString = url.split('?')[1];
-    if (queryString) {
-        const pairs = queryString.split('&');
-        pairs.forEach(pair => {
-            const [key, value] = pair.split('=');
-            if (key && value) {
-                params[decodeURIComponent(key)] = decodeURIComponent(value);
-            }
-        });
-    }
-    return params;
-};
-
-// Middleware de autenticación simple (DEPRECATED - usar authenticateJWT)
-const authenticateToken = (req) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    return token != null;
-};
 
 const server = http.createServer(async (req, res) => {
     // CORS headers
@@ -447,11 +400,8 @@ const server = http.createServer(async (req, res) => {
     // Actualizar producto
     if (req.url.startsWith('/api/productos/') && req.method === 'PUT') {
         try {
-            if (!authenticateToken(req)) {
-                res.writeHead(401, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: false, message: 'No autorizado' }));
-                return;
-            }
+            const usuario = verifyToken(req, res);
+            if (!usuario) return; // verifyToken ya envió la respuesta de error
 
             const id = req.url.split('/')[3];
             const datos = await parseBody(req);
@@ -504,11 +454,8 @@ const server = http.createServer(async (req, res) => {
     // Eliminar producto (soft delete)
     if (req.url.startsWith('/api/productos/') && req.method === 'DELETE') {
         try {
-            if (!authenticateToken(req)) {
-                res.writeHead(401, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: false, message: 'No autorizado' }));
-                return;
-            }
+            const usuario = verifyToken(req, res);
+            if (!usuario) return;
 
             const id = req.url.split('/')[3];
             const resultado = await ProductoDAO.eliminar(id);
@@ -646,11 +593,8 @@ const server = http.createServer(async (req, res) => {
     // Registrar entrada
     if (req.url === '/api/movimientos/entrada' && req.method === 'POST') {
         try {
-            if (!authenticateToken(req)) {
-                res.writeHead(401, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: false, message: 'No autorizado' }));
-                return;
-            }
+            const usuario = verifyToken(req, res);
+            if (!usuario) return;
 
             const { id_producto, cantidad, motivo, usuario_id } = await parseBody(req);
 
@@ -682,11 +626,8 @@ const server = http.createServer(async (req, res) => {
     // Registrar salida
     if (req.url === '/api/movimientos/salida' && req.method === 'POST') {
         try {
-            if (!authenticateToken(req)) {
-                res.writeHead(401, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: false, message: 'No autorizado' }));
-                return;
-            }
+            const usuario = verifyToken(req, res);
+            if (!usuario) return;
 
             const { id_producto, cantidad, motivo, usuario_id } = await parseBody(req);
 
@@ -739,11 +680,8 @@ const server = http.createServer(async (req, res) => {
     // Eliminar movimiento
     if (req.url.startsWith('/api/movimientos/') && req.method === 'DELETE') {
         try {
-            if (!authenticateToken(req)) {
-                res.writeHead(401, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: false, message: 'No autorizado' }));
-                return;
-            }
+            const usuario = verifyToken(req, res);
+            if (!usuario) return;
 
             const id = req.url.split('/')[3];
 
