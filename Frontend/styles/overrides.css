@@ -72,6 +72,45 @@
     color: var(--text-dark) !important;
 }
 
+/* Estilos para opciones del select - Corregir contraste en light mode */
+select.form-control option,
+select.form-select option {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    padding: 8px 0 !important;
+}
+
+select.form-control option:checked,
+select.form-select option:checked {
+    background: linear-gradient(#3b82f6, #3b82f6) !important;
+    background-color: #3b82f6 !important;
+    color: white !important;
+}
+
+select.form-control option:hover,
+select.form-select option:hover {
+    background-color: #f0f0f0 !important;
+}
+
+/* Estilos para opciones del select - Dark mode */
+body.dark-mode select.form-control option,
+body.dark-mode select.form-select option {
+    background-color: #1f2937 !important;
+    color: #f9fafb !important;
+}
+
+body.dark-mode select.form-control option:checked,
+body.dark-mode select.form-select option:checked {
+    background: linear-gradient(#667eea, #667eea) !important;
+    background-color: #667eea !important;
+    color: white !important;
+}
+
+body.dark-mode select.form-control option:hover,
+body.dark-mode select.form-select option:hover {
+    background-color: #374151 !important;
+}
+
 /* Labels */
 .form-label {
     font-weight: 600 !important;
@@ -398,14 +437,48 @@
     }
 }
 
-/* Fix para Tailwind Utilities (si aplica) */
+/* Fondo decorativo global con "burbujas" suaves para todas las páginas */
+body::before,
+body::after {
+    content: '';
+    position: fixed;
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: -1;
+    opacity: 0.22;
+    filter: blur(2px);
+}
 
-@layer components {
-    .badge-estado {
-        @apply inline-flex items-center px-3 py-1.5 rounded-full font-semibold text-sm whitespace-nowrap;
-    }
-    
-    .container-wrapper {
-        @apply bg-white rounded-xl shadow-lg p-6 my-6;
-    }
+body::before {
+    top: 8%;
+    left: -4%;
+    background: radial-gradient(circle at 30% 30%, rgba(59, 130, 246, 0.8), transparent 60%);
+}
+
+body::after {
+    bottom: -6%;
+    right: -4%;
+    background: radial-gradient(circle at 70% 70%, rgba(147, 51, 234, 0.8), transparent 60%);
+}
+
+/* Custom component classes */
+
+.badge-estado {
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 6px 12px !important;
+    border-radius: 20px !important;
+    font-weight: 600 !important;
+    font-size: var(--font-size-sm) !important;
+    white-space: nowrap !important;
+}
+
+.container-wrapper {
+    background: white !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-lg) !important;
+    padding: var(--spacing-lg) !important;
+    margin: var(--spacing-lg) 0 !important;
 }

@@ -183,10 +183,8 @@ touch logs/error.html
 │   ├── schemas.js
 │   └── passwordSchemas.js
 │
-├── 📁 migrations/                       # Historial de cambios BD
-│   ├── 001_crear_tablas_facturacion.sql
-│   ├── 006_agregar_rol_cajero.sql
-│   └── [otros migrations]
+├── 📁 migrations/                       # 📚 Historial (consolidado)
+│   └── README.md                       # Explica la consolidación
 │
 ├── 📁 logs/                             # 🔴 CRÍTICO: Archivos temporales
 │   ├── index.html                      # ⭐ GENERADO AUTOMÁTICAMENTE

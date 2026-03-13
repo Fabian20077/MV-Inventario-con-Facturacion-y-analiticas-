@@ -50,8 +50,8 @@ CREATE TABLE usuario (
 -- Usuario admin con password: admin123
 -- Usuario gerente con password: gerente123
 INSERT INTO usuario (nombre, correo, password, rol_id) VALUES
-('Admin', 'admin@mv.com', '$2b$10$cGds3o0Knwou4Xs/HB4e6uP50tWi3guEmVVcqqbqxoauXWXMCNIFtW', 1),
-('Gerente Demo', 'gerente@mv.com', '$2b$10$YlGOrTZeg0V/mHn5zgeTYe/eEvqqKw3NNnidj2JVGT8gcY/WQ/ehIG', 2);
+('Admin', 'admin@mv.com', '$2b$10$5uoqkgvHvMQmFJesADdfoeVnLyzW0g980XeMFokct0m4r.mc33QWu', 1),
+('Gerente Demo', 'gerente@mv.com', '$2b$10$F6sAZiQvbHOOvWf0SP5/JeUz3fUQx3oUI.bxVgif/PltJGbz2vfm2', 2);
 
 -- =====================================================
 -- TABLA DE CATEGORÍAS
@@ -205,7 +205,18 @@ INSERT INTO configuracion (clave, valor, tipo_dato, categoria, descripcion, bloq
 
 -- SEGURIDAD
 ('seguridad.auth.token_expiracion', '24', 'number', 'Seguridad', 'Tiempo de vida del token de acceso en horas', TRUE, FALSE),
-('seguridad.usuarios.registro_abierto', 'false', 'boolean', 'Seguridad', 'Permitir el registro de nuevos usuarios desde el login', FALSE, TRUE)
+('seguridad.usuarios.registro_abierto', 'false', 'boolean', 'Seguridad', 'Permitir el registro de nuevos usuarios desde el login', FALSE, TRUE),
+
+-- IMPUESTOS (control global)
+('finanzas.impuestos.habilitado', 'true', 'boolean', 'Finanzas', 'Habilitar o deshabilitar impuestos globalmente', FALSE, TRUE),
+
+-- CORREO ELECTRÓNICO (SMTP)
+('smtp.host', 'smtp.gmail.com', 'string', 'Correo', 'Servidor SMTP para envios de correo', FALSE, FALSE),
+('smtp.port', '587', 'number', 'Correo', 'Puerto SMTP (587 TLS, 465 SSL)', FALSE, FALSE),
+('smtp.user', '', 'string', 'Correo', 'Usuario del servidor SMTP', FALSE, FALSE),
+('smtp.pass', '', 'string', 'Correo', 'Contrasena o Token de aplicacion SMTP', FALSE, FALSE),
+('smtp.from', 'Inventario MV <no-reply@mv-inventario.com>', 'string', 'Correo', 'Remitente de los correos', FALSE, TRUE),
+('app.url', 'http://localhost:3000', 'string', 'Sistema', 'URL base de la aplicacion para enlaces en correos', FALSE, TRUE)
 
 ON DUPLICATE KEY UPDATE
     descripcion = VALUES(descripcion),

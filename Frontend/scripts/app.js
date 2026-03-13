@@ -80,12 +80,36 @@ function getAuthHeaders() {
 function showAlert(elementId, message, type = 'success') {
     const alertElement = document.getElementById(elementId);
     alertElement.className = `alert alert-${type}`;
-    alertElement.innerHTML = message;
+    alertElement.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+            <span>${message}</span>
+            <button onclick="cerrarAlertaManual('${elementId}')" style="background: none; border: none; cursor: pointer; color: inherit; font-size: 1.2rem; padding: 0; opacity: 0.7;" title="Cerrar">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+    `;
     alertElement.style.display = 'block';
 
-    setTimeout(() => {
-        alertElement.style.display = 'none';
+    // Auto-cerrar después de 5 segundos
+    const timeoutId = setTimeout(() => {
+        if (alertElement.style.display !== 'none') {
+            alertElement.style.display = 'none';
+        }
     }, 5000);
+    
+    // Guardar el ID del timeout en el elemento para poder cancelarlo si se cierra manualmente
+    alertElement.timeoutId = timeoutId;
+}
+
+// Función para cerrar alertas manualmente
+function cerrarAlertaManual(elementId) {
+    const alertElement = document.getElementById(elementId);
+    if (alertElement) {
+        if (alertElement.timeoutId) {
+            clearTimeout(alertElement.timeoutId);
+        }
+        alertElement.style.display = 'none';
+    }
 }
 
 // Formatear moneda COP (con puntos como separadores de miles)
@@ -1076,10 +1100,17 @@ async function handleSalida(event) {
             let mensaje = '✅ Salida registrada exitosamente';
             if (data.factura) {
                 mensaje += ` - Factura ${data.factura.numero} generada`;
-                // Descargar PDF automáticamente
-                setTimeout(() => {
-                    window.location.href = `${API_BASE_URL}${data.factura.pdf_url}`;
-                }, 500);
+                // Guardar factura en variable global y mostrar opciones
+                window.facturaGenerada = data.factura;
+                form.reset();
+                setTimeout(async () => {
+                    await loadDashboardData();
+                    closeModal('salidaModal');
+                    // Mostrar opción de descarga/impresión
+                    mostrarOpcionesFactura(data.factura);
+                }, 300);
+                showAlert('salidaAlert', mensaje, 'success');
+                return;
             }
             showAlert('salidaAlert', mensaje, 'success');
 
@@ -1336,6 +1367,108 @@ async function eliminarMovimiento(id, nombreProducto) {
         alert('❌ Error de conexión con la API');
     }
 }
+// =====================================================
+// 🖨️ OPCIONES DE FACTURA (Descarga/Impresión)
+// =====================================================
+function mostrarOpcionesFactura(factura) {
+    // Crear un modal o usar SweetAlert2 para mostrar opciones
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: `Factura ${factura.numero}`,
+            html: `<p>Total: <strong>${factura.total_formateado || '$' + factura.total}</strong></p>`,
+            icon: 'success',
+            showCancelButton: false,
+            allowOutsideClick: false,
+            buttons: false,
+            didOpen: (modal) => {
+                // Crear botones personalizados dentro del modal
+                const htmlContent = modal.querySelector('p').parentElement;
+                const buttonsDiv = document.createElement('div');
+                buttonsDiv.style.cssText = 'display: flex; gap: 10px; margin-top: 20px; justify-content: center;';
+                
+                const btnDescargar = document.createElement('button');
+                btnDescargar.className = 'btn btn-success';
+                btnDescargar.style.cssText = 'padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;';
+                btnDescargar.textContent = '📥 Descargar PDF';
+                btnDescargar.onclick = () => {
+                    descargarFacturaDashboard(factura);
+                    Swal.close();
+                };
+                
+                const btnImprimir = document.createElement('button');
+                btnImprimir.className = 'btn btn-primary';
+                btnImprimir.style.cssText = 'padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;';
+                btnImprimir.textContent = '🖨️ Imprimir';
+                btnImprimir.onclick = () => {
+                    imprimirFacturaDashboard(factura);
+                    Swal.close();
+                };
+                
+                const btnCerrar = document.createElement('button');
+                btnCerrar.className = 'btn btn-secondary';
+                btnCerrar.style.cssText = 'padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;';
+                btnCerrar.textContent = '✕ Cerrar';
+                btnCerrar.onclick = () => Swal.close();
+                
+                buttonsDiv.appendChild(btnDescargar);
+                buttonsDiv.appendChild(btnImprimir);
+                buttonsDiv.appendChild(btnCerrar);
+                htmlContent.appendChild(buttonsDiv);
+            }
+        });
+    } else {
+        // Fallback si sweetalert2 no está disponible
+        alert('Factura generada: ' + factura.numero + '\nIntenta descargar o imprimir desde el modal de opciones.');
+    }
+}
+
+function descargarFacturaDashboard(factura) {
+    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+    const url = `${API_BASE_URL}/api/facturas/${factura.id}/pdf?token=${token}`;
+    
+    const nombreCliente = (factura.cliente_nombre || 'General')
+        .replace(/[^a-zA-Z0-9]/g, '_')
+        .substring(0, 20);
+    const fecha = new Date().toISOString().split('T')[0];
+    const fileName = `Factura_${nombreCliente}_${fecha}.pdf`;
+    
+    fetch(url, { headers: { 'Authorization': `Bearer ${token}` } })
+        .then(response => {
+            if (!response.ok) throw new Error('Error ' + response.status);
+            return response.blob();
+        })
+        .then(blob => {
+            const blobUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = fileName;
+            link.click();
+            window.URL.revokeObjectURL(blobUrl);
+            showAlert('salidaAlert', '✅ Descarga completada', 'success');
+        })
+        .catch(error => {
+            console.error(error);
+            showAlert('salidaAlert', '❌ Error al descargar: ' + error.message, 'error');
+        });
+}
+
+function imprimirFacturaDashboard(factura) {
+    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+    const url = `${API_BASE_URL}/api/facturas/${factura.id}/pdf?token=${token}`;
+    
+    try {
+        const printWindow = window.open(url, '_blank');
+        if (printWindow) {
+            printWindow.focus();
+        } else {
+            showAlert('salidaAlert', '⚠️ Permite los pop-ups para imprimir', 'info');
+        }
+    } catch (error) {
+        showAlert('salidaAlert', '❌ Error al abrir impresión: ' + error.message, 'error');
+        console.error(error);
+    }
+}
+
 // =====================================================
 // 🖨️ EXPORTACIÓN UNIVERSAL (PDF, EXCEL, SQL)
 // =====================================================

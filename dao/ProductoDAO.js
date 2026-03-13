@@ -83,36 +83,65 @@ class ProductoDAO {
     }
 
     /**
-     * Listar y buscar productos con filtros
+     * Listar y buscar productos con filtros y paginación
      */
     async listar(filtros = {}) {
         try {
-            let sql = `
-                SELECT p.*, c.nombre as categoria_nombre
-                FROM producto p
-                LEFT JOIN categoria c ON p.id_categoria = c.id
-                WHERE p.activo = TRUE
-            `;
-
+            let whereClause = ' WHERE p.activo = TRUE ';
             const params = [];
 
             if (filtros.buscar) {
-                sql += ` AND (p.nombre LIKE ? OR p.codigo LIKE ?) `;
+                whereClause += ` AND (p.nombre LIKE ? OR p.codigo LIKE ?) `;
                 const t = `%${filtros.buscar}%`;
                 params.push(t, t);
             }
 
             if (filtros.categoria) {
-                sql += ` AND p.id_categoria = ? `;
+                whereClause += ` AND p.id_categoria = ? `;
                 params.push(filtros.categoria);
             }
 
-            sql += ` ORDER BY p.id DESC `;
+            // Si se solicita paginación
+            const pagina = parseInt(filtros.pagina) || 0;
+            const limite = parseInt(filtros.limite) || 0;
 
-            // console.log('📦 Ejecutando consulta SQL para productos con filtros:', filtros);
+            if (pagina > 0 && limite > 0) {
+                // Obtener total de registros para la paginación
+                const countSql = `SELECT COUNT(*) as total FROM producto p LEFT JOIN categoria c ON p.id_categoria = c.id ${whereClause}`;
+                const countResult = await query(countSql, [...params]);
+                const total = countResult[0].total;
+
+                const offset = (pagina - 1) * limite;
+                const sql = `
+                    SELECT p.*, c.nombre as categoria_nombre
+                    FROM producto p
+                    LEFT JOIN categoria c ON p.id_categoria = c.id
+                    ${whereClause}
+                    ORDER BY p.id DESC
+                    LIMIT ? OFFSET ?
+                `;
+
+                const productos = await query(sql, [...params, limite, offset]);
+
+                return {
+                    productos,
+                    total,
+                    pagina,
+                    limite,
+                    totalPaginas: Math.ceil(total / limite)
+                };
+            }
+
+            // Sin paginación (compatibilidad con dashboard, facturación, etc.)
+            const sql = `
+                SELECT p.*, c.nombre as categoria_nombre
+                FROM producto p
+                LEFT JOIN categoria c ON p.id_categoria = c.id
+                ${whereClause}
+                ORDER BY p.id DESC
+            `;
+
             const productos = await query(sql, params);
-            // console.log('📋 Productos encontrados:', productos?.length || 0);
-
             return productos;
         } catch (error) {
             console.error('Error en ProductoDAO.listar:', error);
@@ -129,8 +158,8 @@ class ProductoDAO {
             // Primero obtener datos anteriores para comparar precios
             const productoAnterior = await query('SELECT precio_compra, precio_venta FROM producto WHERE id = ?', [id]);
 
-            console.log('📊 ProductoDAO.actualizar - Datos anteriores:', productoAnterior);
-            console.log('📊 ProductoDAO.actualizar - Datos nuevos:', datos);
+            console.log(' ProductoDAO.actualizar - Datos anteriores:', productoAnterior);
+            console.log(' ProductoDAO.actualizar - Datos nuevos:', datos);
 
             const campos = [];
             const valores = [];
@@ -189,13 +218,13 @@ class ProductoDAO {
             const sql = `UPDATE producto SET ${campos.join(', ')} WHERE id = ?`;
             const result = await query(sql, valores);
 
-            console.log('✏️ UPDATE resultado:', { affectedRows: result.affectedRows });
+            console.log(' UPDATE resultado:', { affectedRows: result.affectedRows });
 
             // Registrar cambio de precio en historial si corresponde
             if (result.affectedRows > 0 && productoAnterior && productoAnterior.length > 0) {
                 const anterior = productoAnterior[0];
 
-                console.log('🔎 Verificando cambios de precio:', {
+                console.log(' Verificando cambios de precio:', {
                     precio_compra_enviado: datos.precio_compra,
                     precio_venta_enviado: datos.precio_venta,
                     hay_cambio_compra: datos.precio_compra !== undefined,

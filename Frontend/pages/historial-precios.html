@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MV Inventario - Historial de Precios</title>
+    <title>MV Inventario - Precios</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -142,8 +142,15 @@
         }
 
         @keyframes slideIn {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .history-item {
@@ -168,12 +175,25 @@
             border-left-color: #3b82f6 !important;
         }
 
-        .change-up { color: #10b981; }
-        .change-down { color: #ef4444; }
-        .no-change { color: #6b7280; }
+        .change-up {
+            color: #10b981;
+        }
 
-        body:not(.dark-mode) .change-up { color: #059669; }
-        body:not(.dark-mode) .change-down { color: #dc2626; }
+        .change-down {
+            color: #ef4444;
+        }
+
+        .no-change {
+            color: #6b7280;
+        }
+
+        body:not(.dark-mode) .change-up {
+            color: #059669;
+        }
+
+        body:not(.dark-mode) .change-down {
+            color: #dc2626;
+        }
 
         .loading-spinner {
             width: 40px;
@@ -184,7 +204,11 @@
             animation: spin 1s linear infinite;
         }
 
-        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
 
         .empty-state {
             text-align: center;
@@ -192,11 +216,17 @@
             color: #94a3b8;
         }
 
-        body:not(.dark-mode) .empty-state { color: #64748b; }
+        body:not(.dark-mode) .empty-state {
+            color: #64748b;
+        }
 
-        .empty-state i { font-size: 4rem; margin-bottom: 1rem; opacity: 0.5; }
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
 
-        body:not(.dark-mode) input, 
+        body:not(.dark-mode) input,
         body:not(.dark-mode) select {
             background: #ffffff !important;
             border-color: #cbd5e1 !important;
@@ -240,13 +270,13 @@
 
 <body class="p-4 md:p-6 lg:p-8">
     <div id="unified-navbar"></div>
-    
+
     <div class="max-w-7xl mx-auto pt-6">
         <!-- Header -->
         <div class="mb-8">
             <h1 class="text-3xl font-bold flex items-center gap-3">
                 <i class="bi bi-currency-dollar" style="color: #3b82f6;"></i>
-                <span class="text-white">Historial de Precios</span>
+                <span class="text-white">Precios</span>
             </h1>
             <p class="mt-2" style="color: #94a3b8;">Consulta el historial de cambios de precios de tus productos</p>
         </div>
@@ -255,18 +285,18 @@
         <div class="card-custom p-6 mb-6">
             <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
                 <div class="md:col-span-5">
-                    <label class="block text-sm font-semibold mb-2" style="color: #94a3b8;">
+                    <label class="block text-sm font-semibold mb-2" style="color: #e2e8f0;">
                         <i class="bi bi-search mr-2"></i>Buscar Producto
                     </label>
-                    <input type="text" id="searchProduct" 
+                    <input type="text" id="searchProduct"
                         class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
                         placeholder="Nombre, código o descripción...">
                 </div>
                 <div class="md:col-span-4">
-                    <label class="block text-sm font-semibold mb-2" style="color: #94a3b8;">
+                    <label class="block text-sm font-semibold mb-2" style="color: #e2e8f0;">
                         <i class="bi bi-folder mr-2"></i>Categoría
                     </label>
-                    <select id="filterCategory" 
+                    <select id="filterCategory"
                         class="w-full px-4 py-3 rounded-xl border focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all">
                         <option value="">Todas las categorías</option>
                     </select>
@@ -279,36 +309,39 @@
             </div>
         </div>
 
-            <!-- Stats -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div class="card-custom p-4 flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: rgba(59, 130, 246, 0.2);">
-                        <i class="bi bi-box-seam text-xl" style="color: #60a5fa;"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm" style="color: #94a3b8;">Total Productos</p>
-                        <p class="text-2xl font-bold text-white" id="totalProductos">0</p>
-                    </div>
+        <!-- Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="card-custom p-4 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center"
+                    style="background: rgba(59, 130, 246, 0.2);">
+                    <i class="bi bi-box-seam text-xl" style="color: #60a5fa;"></i>
                 </div>
-                <div class="card-custom p-4 flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: rgba(16, 185, 129, 0.2);">
-                        <i class="bi bi-cash-stack text-xl" style="color: #34d399;"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm" style="color: #94a3b8;">Precio Promedio</p>
-                        <p class="text-2xl font-bold text-white" id="precioPromedio">$0</p>
-                    </div>
-                </div>
-                <div class="card-custom p-4 flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: rgba(245, 158, 11, 0.2);">
-                        <i class="bi bi-clock-history text-xl" style="color: #fbbf24;"></i>
-                    </div>
-                    <div>
-                        <p class="text-sm" style="color: #94a3b8;">Con Cambios</p>
-                        <p class="text-2xl font-bold text-white" id="productosConCambios">0</p>
-                    </div>
+                <div>
+                    <p class="text-sm" style="color: #94a3b8;">Total Productos</p>
+                    <p class="text-2xl font-bold text-white" id="totalProductos">0</p>
                 </div>
             </div>
+            <div class="card-custom p-4 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center"
+                    style="background: rgba(16, 185, 129, 0.2);">
+                    <i class="bi bi-cash-stack text-xl" style="color: #34d399;"></i>
+                </div>
+                <div>
+                    <p class="text-sm" style="color: #94a3b8;">Precio Promedio</p>
+                    <p class="text-2xl font-bold text-white" id="precioPromedio">$0</p>
+                </div>
+            </div>
+            <div class="card-custom p-4 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center"
+                    style="background: rgba(245, 158, 11, 0.2);">
+                    <i class="bi bi-clock-history text-xl" style="color: #fbbf24;"></i>
+                </div>
+                <div>
+                    <p class="text-sm" style="color: #94a3b8;">Con Cambios</p>
+                    <p class="text-2xl font-bold text-white" id="productosConCambios">0</p>
+                </div>
+            </div>
+        </div>
 
         <!-- Tabla de Productos -->
         <div class="card-custom overflow-hidden">
@@ -341,14 +374,22 @@
                     </tbody>
                 </table>
             </div>
+            <!-- Pagination controls -->
+            <div id="paginacionControles" class="p-4 flex items-center justify-between"
+                style="border-top: 1px solid rgba(255,255,255,0.1);">
+                <span class="text-sm" style="color:#94a3b8;" id="paginacionInfo">Página 1 de 1</span>
+                <div class="flex items-center gap-2" id="paginacionBotones"></div>
+            </div>
         </div>
     </div>
 
     <!-- Modal de Historial -->
-    <div id="historialModal" style="display:none;" class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
-        <div class="modal-content card-custom" style="max-width: 55rem; width: 100%; max-height: 90vh; overflow-y: auto;">
+    <div id="historialModal" style="display:none;"
+        class="fixed inset-0 modal-overlay z-50 flex items-center justify-center p-4">
+        <div class="modal-content card-custom"
+            style="max-width: 55rem; width: 100%; max-height: 90vh; overflow-y: auto;">
             <!-- Header -->
-            <div class="p-6 text-white flex justify-between items-center" 
+            <div class="p-6 text-white flex justify-between items-center"
                 style="background: linear-gradient(135deg, rgba(0, 51, 102, 0.9) 0%, rgba(0, 77, 153, 0.9) 100%); border-radius: 1rem 1rem 0 0;">
                 <div>
                     <h2 class="text-xl font-bold flex items-center gap-2">
@@ -357,9 +398,10 @@
                     </h2>
                     <p class="text-sm mt-1" style="color: #bfdbfe;" id="productoNombre"></p>
                 </div>
-                <button onclick="cerrarModalHistorial()" class="text-white hover:text-gray-200 text-3xl leading-none">&times;</button>
+                <button onclick="cerrarModalHistorial()"
+                    class="text-white hover:text-gray-200 text-3xl leading-none">&times;</button>
             </div>
-            
+
             <!-- Body -->
             <div class="p-6">
                 <!-- Stats del producto -->
@@ -386,12 +428,16 @@
         </div>
     </div>
 
+    <script src="../scripts/notification-manager.js"></script>
     <script src="../scripts/navbar.js?v=2"></script>
     <script>
         // Variables globales
         const API_BASE_URL = window.location.origin;
         let productosData = [];
         let historialData = [];
+        let paginaActual = 1;
+        const LIMITE_POR_PAGINA = 15;
+        let totalRegistrosGlobal = 0;
 
         // Headers auth
         function getAuthHeaders() {
@@ -402,7 +448,7 @@
             };
         }
 
-        // Cargar productos
+        // Cargar productos con paginación
         async function cargarProductos() {
             const tabla = document.getElementById('productosTable');
             tabla.innerHTML = `
@@ -414,16 +460,36 @@
                 </tr>`;
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/productos`, {
+                const buscar = (document.getElementById('searchProduct')?.value || '').trim();
+                const categoria = document.getElementById('filterCategory')?.value || '';
+                const params = new URLSearchParams();
+                params.set('pagina', paginaActual);
+                params.set('limite', LIMITE_POR_PAGINA);
+                if (buscar) params.set('buscar', buscar);
+                if (categoria) params.set('categoria', categoria);
+
+                const response = await fetch(`${API_BASE_URL}/api/productos?${params.toString()}`, {
                     headers: getAuthHeaders()
                 });
                 const data = await response.json();
-                
+
                 if (data.success) {
-                    productosData = data.data || data.productos || [];
-                    cargarCategorias(productosData);
-                    renderizarProductos(productosData);
-                    actualizarStats(productosData);
+                    if (data.totalPaginas !== undefined) {
+                        // Paginado
+                        productosData = data.data || data.productos || [];
+                        totalRegistrosGlobal = data.total;
+                        cargarCategorias(productosData);
+                        renderizarProductos(productosData);
+                        actualizarStats(productosData, data.total);
+                        renderPaginacion(data.pagina, data.totalPaginas, data.total);
+                    } else {
+                        // Sin paginación (fallback)
+                        productosData = data.data || data.productos || [];
+                        totalRegistrosGlobal = productosData.length;
+                        cargarCategorias(productosData);
+                        renderizarProductos(productosData);
+                        actualizarStats(productosData, productosData.length);
+                    }
                 }
             } catch (error) {
                 console.error('Error:', error);
@@ -437,14 +503,42 @@
             }
         }
 
+        function renderPaginacion(pagina, totalPaginas, total) {
+            const info = document.getElementById('paginacionInfo');
+            const btns = document.getElementById('paginacionBotones');
+            if (!info || !btns) return;
+
+            info.textContent = `Página ${pagina} de ${totalPaginas} — ${total} productos`;
+
+            let html = '';
+            html += `<button onclick="irAPagina(${pagina - 1})" ${pagina <= 1 ? 'disabled' : ''} style="padding:6px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.1);color:#f1f5f9;cursor:${pagina <= 1 ? 'not-allowed' : 'pointer'};opacity:${pagina <= 1 ? '0.5' : '1'}"><i class="bi bi-chevron-left"></i> Anterior</button>`;
+
+            const start = Math.max(1, pagina - 2);
+            const end = Math.min(totalPaginas, start + 4);
+            for (let i = start; i <= end; i++) {
+                const isActive = i === pagina;
+                html += `<button onclick="irAPagina(${i})" style="padding:6px 10px;border-radius:6px;border:1px solid ${isActive ? '#3b82f6' : 'rgba(255,255,255,0.15)'};background:${isActive ? 'linear-gradient(135deg,#3b82f6,#2563eb)' : 'rgba(255,255,255,0.1)'};color:white;cursor:pointer;font-weight:${isActive ? '700' : '400'}">${i}</button>`;
+            }
+
+            html += `<button onclick="irAPagina(${pagina + 1})" ${pagina >= totalPaginas ? 'disabled' : ''} style="padding:6px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.1);color:#f1f5f9;cursor:${pagina >= totalPaginas ? 'not-allowed' : 'pointer'};opacity:${pagina >= totalPaginas ? '0.5' : '1'}">Siguiente <i class="bi bi-chevron-right"></i></button>`;
+
+            btns.innerHTML = html;
+        }
+
+        window.irAPagina = function (pagina) {
+            if (pagina < 1) return;
+            paginaActual = pagina;
+            cargarProductos();
+        };
+
         // Actualizar estadísticas
-        function actualizarStats(productos) {
-            document.getElementById('totalProductos').textContent = productos.length;
-            document.getElementById('productCount').textContent = `${productos.length} productos`;
-            
+        function actualizarStats(productos, total) {
+            document.getElementById('totalProductos').textContent = total || productos.length;
+            document.getElementById('productCount').textContent = `${total || productos.length} productos`;
+
             const promedio = productos.reduce((sum, p) => sum + (Number(p.precio_venta) || 0), 0) / (productos.length || 1);
-            document.getElementById('precioPromedio').textContent = `$${promedio.toLocaleString('es-CO', {maximumFractionDigits: 0})}`;
-            
+            document.getElementById('precioPromedio').textContent = `$${promedio.toLocaleString('es-CO', { maximumFractionDigits: 0 })}`;
+
             document.getElementById('productosConCambios').textContent = productos.filter(p => p.tiene_historial).length || '-';
         }
 
@@ -468,10 +562,10 @@
 
             let html = '';
             productos.forEach(p => {
-                const margen = p.precio_venta && p.precio_compra 
-                    ? Math.round(((p.precio_venta - p.precio_compra) / p.precio_venta) * 100) 
+                const margen = p.precio_venta && p.precio_compra
+                    ? Math.round(((p.precio_venta - p.precio_compra) / p.precio_venta) * 100)
                     : 0;
-                
+
                 html += `
                     <tr class="history-item" data-product-id="${p.id}" data-category="${p.categoria_nombre || ''}">
                         <td class="p-4">
@@ -523,9 +617,9 @@
                 document.getElementById('productoNombre').textContent = nombreProducto;
                 document.getElementById('modalPrecioVenta').textContent = `$${Number(precioVenta || 0).toLocaleString('es-CO')}`;
                 document.getElementById('modalPrecioCompra').textContent = `$${Number(precioCompra || 0).toLocaleString('es-CO')}`;
-                
-                const margen = precioVenta && precioCompra 
-                    ? Math.round(((precioVenta - precioCompra) / precioVenta) * 100) 
+
+                const margen = precioVenta && precioCompra
+                    ? Math.round(((precioVenta - precioCompra) / precioVenta) * 100)
                     : 0;
                 document.getElementById('modalMargen').textContent = `${margen}%`;
 
@@ -533,7 +627,7 @@
                     <div class="flex justify-center py-12">
                         <div class="loading-spinner"></div>
                     </div>`;
-                
+
                 document.getElementById('historialModal').style.display = 'flex';
 
                 const response = await fetch(`${API_BASE_URL}/api/productos/${productoId}/historial-precio`, {
@@ -583,17 +677,17 @@
 
             historial.forEach((h, index) => {
                 const fecha = h.fecha_cambio ? new Date(h.fecha_cambio).toLocaleString('es-CO') : 'Fecha no disponible';
-                
+
                 const compraAnterior = Number(h.precio_compra_anterior || 0);
                 const compraNuevo = Number(h.precio_compra_nuevo || 0);
                 const ventaAnterior = Number(h.precio_venta_anterior || 0);
                 const ventaNuevo = Number(h.precio_venta_nuevo || 0);
 
-                const cambioCompra = compraAnterior > 0 && compraNuevo !== compraAnterior 
-                    ? ((compraNuevo - compraAnterior) / compraAnterior * 100) 
+                const cambioCompra = compraAnterior > 0 && compraNuevo !== compraAnterior
+                    ? ((compraNuevo - compraAnterior) / compraAnterior * 100)
                     : 0;
-                const cambioVenta = ventaAnterior > 0 && ventaNuevo !== ventaAnterior 
-                    ? ((ventaNuevo - ventaAnterior) / ventaAnterior * 100) 
+                const cambioVenta = ventaAnterior > 0 && ventaNuevo !== ventaAnterior
+                    ? ((ventaNuevo - ventaAnterior) / ventaAnterior * 100)
                     : 0;
 
                 const usuario = h.usuario_nombre || h.usuario || 'Sistema';
@@ -603,11 +697,10 @@
                         <div class="flex justify-between items-start mb-3">
                             <div>
                                 <span class="text-sm font-medium text-white">${fecha}</span>
-                                <span class="ml-2 text-xs px-2 py-1 rounded-full ${
-                                    h.tipo_cambio === 'INCREMENTO' ? '' : 
-                                    h.tipo_cambio === 'DECREMENTO' ? '' : 
-                                    ''
-                                }" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa;">
+                                <span class="ml-2 text-xs px-2 py-1 rounded-full ${h.tipo_cambio === 'INCREMENTO' ? '' :
+                        h.tipo_cambio === 'DECREMENTO' ? '' :
+                            ''
+                    }" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa;">
                                     ${h.tipo_cambio || 'Actualización'}
                                 </span>
                             </div>
@@ -676,45 +769,40 @@
             document.getElementById('historialModal').style.display = 'none';
         }
 
-        // Filtrar
+        // Filtrar (usa API backend)
+        let filtroTimer = null;
         function filtrarHistorial() {
-            const search = document.getElementById('searchProduct').value.toLowerCase();
-            const category = document.getElementById('filterCategory').value;
-
-            const filtered = productosData.filter(p => {
-                const texto = `${p.codigo} ${p.nombre} ${p.descripcion || ''}`.toLowerCase();
-                const coincideSearch = search === '' || texto.includes(search);
-                const coincideCategoria = category === '' || p.categoria_nombre === category;
-                return coincideSearch && coincideCategoria;
-            });
-
-            renderizarProductos(filtered);
-            actualizarStats(filtered);
+            paginaActual = 1;
+            cargarProductos();
         }
 
-        // Event listeners
-        document.getElementById('searchProduct').addEventListener('keyup', filtrarHistorial);
+        // Event listeners con debounce
+        document.getElementById('searchProduct').addEventListener('keyup', function () {
+            clearTimeout(filtroTimer);
+            filtroTimer = setTimeout(filtrarHistorial, 350);
+        });
         document.getElementById('filterCategory').addEventListener('change', filtrarHistorial);
 
         // Cerrar modal al hacer click fuera
-        document.getElementById('historialModal').addEventListener('click', function(e) {
+        document.getElementById('historialModal').addEventListener('click', function (e) {
             if (e.target === this) {
                 cerrarModalHistorial();
             }
         });
 
         // Cerrar modal con Escape
-        document.addEventListener('keydown', function(e) {
+        document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape') {
                 cerrarModalHistorial();
             }
         });
 
         // Inicializar
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             console.log('DOM cargado, inicializando...');
             cargarProductos();
         });
     </script>
 </body>
+
 </html>

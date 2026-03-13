@@ -116,6 +116,7 @@
         <div class="text-body">
             <div><span class="font-bold">Factura #:</span> {{numero_factura}}</div>
             <div><span class="font-bold">Fecha:</span> {{fecha_emision}}</div>
+            {{#if hora_emision}}<div><span class="font-bold">Hora:</span> {{hora_emision}}</div>{{/if}}
         </div>
 
         <!-- CLIENTE INFO -->
@@ -144,11 +145,11 @@
                 <!-- Line 1: Name -->
                 <div class="w-full font-medium truncate mb-0.5">{{this.nombre}}</div>
                 <!-- Line 2: Details -->
-                <div class="flex">
+                <div class="flex" style="align-items: center;">
                     <div style="width: 45%"></div> <!-- Spacer matches name col -->
-                    <div style="width: 15%" class="text-right">{{this.cantidad}}</div>
-                    <div style="width: 20%" class="text-right text-small">{{this.precio_unitario_clean}}</div>
-                    <div style="width: 20%" class="text-right font-medium">{{this.subtotal_linea_clean}}</div>
+                    <div style="width: 15%" class="text-right text-body">{{this.cantidad}}</div>
+                    <div style="width: 20%" class="text-right text-body">{{this.precio_unitario_clean}}</div>
+                    <div style="width: 20%" class="text-right font-medium text-body">{{this.subtotal_linea_clean}}</div>
                 </div>
             </div>
             {{/each}}

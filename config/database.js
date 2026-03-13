@@ -12,7 +12,7 @@ const dbConfig = {
     enableKeepAlive: true,
     keepAliveInitialDelay: 0,
     charset: 'utf8mb4',
-    timezone: 'America/Guatemala',
+    timezone: 'America/Colombia',
     multipleStatements: true
 };
 

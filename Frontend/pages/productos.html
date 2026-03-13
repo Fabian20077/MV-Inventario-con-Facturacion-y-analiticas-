@@ -198,8 +198,8 @@
         }
 
         body.dark-mode .filter-card {
-            background: #2a2a3e;
-            border-color: #404050;
+            background: #111827;
+            border-color: #4b5563;
         }
 
         .form-control {
@@ -209,7 +209,7 @@
             border: 1.5px solid #e5e7eb;
             border-radius: 8px;
             background-color: #fff;
-            color: #1f2937;
+            color: #111827;
         }
 
         .form-control:focus {
@@ -219,21 +219,25 @@
         }
 
         body.dark-mode .form-control {
-            background-color: #374151;
-            border-color: #4b5563;
-            color: #f1f5f9;
+            background-color: #020617;
+            border-color: #6b7280;
+            color: #f9fafb;
+        }
+
+        body.dark-mode .form-control::placeholder {
+            color: #e5e7eb;
         }
 
         .form-label {
             display: block;
             font-size: 0.875rem;
             font-weight: 500;
-            color: #374151;
+            color: #111827;
             margin-bottom: 0.5rem;
         }
 
         body.dark-mode .form-label {
-            color: #e5e7eb;
+            color: #f9fafb;
         }
 
         .btn-primary-custom {
@@ -514,6 +518,11 @@
                     </tbody>
                 </table>
             </div>
+            <!-- Pagination controls -->
+            <div id="paginacionControles" class="flex items-center justify-between p-4" style="border-top: 1px solid rgba(226,232,240,0.3);">
+                <span class="text-sm" style="color:#94a3b8;" id="paginacionInfo">Página 1 de 1</span>
+                <div class="flex items-center gap-2" id="paginacionBotones"></div>
+            </div>
         </div>
     </div>
 
@@ -580,9 +589,10 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    <script src="../scripts/notification-manager.js"></script>
     <script src="../scripts/navbar.js?v=2"></script>
     <script>
-        const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://127.0.0.1:3001' : 'http://' + window.location.hostname + ':3001';
+        const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://127.0.0.1:3000' : 'http://' + window.location.hostname + ':3000';
 
         function getToken() { return localStorage.getItem('authToken') || localStorage.getItem('token'); }
         function getAuthHeaders() { const token = getToken(); return { 'Authorization': token ? 'Bearer ' + token : '', 'Content-Type': 'application/json' }; }
@@ -630,6 +640,11 @@
             return Promise.resolve();
         }
 
+        // Estado de paginación
+        let paginaActual = 1;
+        const LIMITE_POR_PAGINA = 15;
+        let totalRegistrosGlobal = 0;
+
         function renderTabla(productos) {
             const cont = document.getElementById('productosTable');
             if (!cont) return;
@@ -638,7 +653,7 @@
                 document.getElementById('totalRegistros').textContent = '0';
                 return;
             }
-            document.getElementById('totalRegistros').textContent = productos.length;
+            document.getElementById('totalRegistros').textContent = totalRegistrosGlobal || productos.length;
             let stockBajo = 0, valorTotal = 0, margenPromedio = 0, productosConMargen = 0;
             cont.innerHTML = productos.map(p => {
                 const cat = p.categoria_nombre || '';
@@ -655,17 +670,65 @@
                 }
                 return '<tr><td><strong>' + p.codigo + '</strong></td><td>' + p.nombre + '</td><td>' + (cat || '-') + '</td><td>$' + pc.toLocaleString('es-CO') + '</td><td>$' + pv.toLocaleString('es-CO') + '</td><td class="' + (cant <= sm ? 'text-danger' : '') + '">' + cant + '</td><td>' + sm + '</td><td>' + estado + '</td><td><button class="btn btn-sm btn-primary" onclick="editarProducto(' + p.id + ')"><i class="bi bi-pencil"></i></button> <button class="btn btn-sm btn-danger" onclick="eliminarProducto(' + p.id + ')"><i class="bi bi-trash"></i></button></td></tr>';
             }).join('');
-            document.getElementById('totalProductos').textContent = productos.length;
+            document.getElementById('totalProductos').textContent = totalRegistrosGlobal || productos.length;
             document.getElementById('stockBajo').textContent = stockBajo;
             document.getElementById('valorInventario').textContent = '$' + valorTotal.toLocaleString('es-CO');
             document.getElementById('margenPromedio').textContent = (productosConMargen > 0 ? (margenPromedio / productosConMargen).toFixed(1) : 0) + '%';
         }
 
+        function renderPaginacion(pagina, totalPaginas, total) {
+            const info = document.getElementById('paginacionInfo');
+            const btns = document.getElementById('paginacionBotones');
+            if (!info || !btns) return;
+
+            info.textContent = `Página ${pagina} de ${totalPaginas} — ${total} productos`;
+
+            let html = '';
+            html += `<button onclick="irAPagina(${pagina - 1})" ${pagina <= 1 ? 'disabled' : ''} style="padding:6px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.1);color:#f1f5f9;cursor:${pagina <= 1 ? 'not-allowed' : 'pointer'};opacity:${pagina <= 1 ? '0.5' : '1'}"><i class="bi bi-chevron-left"></i> Anterior</button>`;
+
+            // Page numbers (show max 5)
+            const start = Math.max(1, pagina - 2);
+            const end = Math.min(totalPaginas, start + 4);
+            for (let i = start; i <= end; i++) {
+                const isActive = i === pagina;
+                html += `<button onclick="irAPagina(${i})" style="padding:6px 10px;border-radius:6px;border:1px solid ${isActive ? '#3b82f6' : 'rgba(255,255,255,0.15)'};background:${isActive ? 'linear-gradient(135deg,#3b82f6,#2563eb)' : 'rgba(255,255,255,0.1)'};color:white;cursor:pointer;font-weight:${isActive ? '700' : '400'}">${i}</button>`;
+            }
+
+            html += `<button onclick="irAPagina(${pagina + 1})" ${pagina >= totalPaginas ? 'disabled' : ''} style="padding:6px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.1);color:#f1f5f9;cursor:${pagina >= totalPaginas ? 'not-allowed' : 'pointer'};opacity:${pagina >= totalPaginas ? '0.5' : '1'}">Siguiente <i class="bi bi-chevron-right"></i></button>`;
+
+            btns.innerHTML = html;
+        }
+
+        window.irAPagina = function(pagina) {
+            if (pagina < 1) return;
+            paginaActual = pagina;
+            cargarProductos();
+        };
+
         async function cargarProductos() {
             try {
-                const resp = await fetch('/api/productos', { headers: getAuthHeaders() });
+                const buscar = (document.getElementById('filtroNombre')?.value || '').trim();
+                const categoria = document.getElementById('filtroCategoria')?.value || '';
+                const params = new URLSearchParams();
+                params.set('pagina', paginaActual);
+                params.set('limite', LIMITE_POR_PAGINA);
+                if (buscar) params.set('buscar', buscar);
+                if (categoria) params.set('categoria', categoria);
+
+                const resp = await fetch('/api/productos?' + params.toString(), { headers: getAuthHeaders() });
                 const data = await resp.json();
-                renderTabla(data.data || data);
+
+                if (data.totalPaginas !== undefined) {
+                    // Respuesta paginada
+                    totalRegistrosGlobal = data.total;
+                    renderTabla(data.data || data.productos || []);
+                    renderPaginacion(data.pagina, data.totalPaginas, data.total);
+                } else {
+                    // Respuesta sin paginación (fallback)
+                    const productos = data.data || data;
+                    totalRegistrosGlobal = productos.length;
+                    renderTabla(productos);
+                }
             } catch (err) {
                 console.error(err);
                 document.getElementById('productosTable').innerHTML = '<tr><td colspan="9" class="text-center py-8 text-danger">Error al cargar</td></tr>';
@@ -945,9 +1008,14 @@
             document.getElementById('precioCompra').oninput = calcularMargen;
             document.getElementById('precioVenta').oninput = calcularMargen;
             document.getElementById('btnCrearCategoria').onclick = crearCategoria;
-            document.getElementById('filtroNombre').oninput = function () { filtrar(); };
-            document.getElementById('filtroCategoria').onchange = function () { filtrar(); };
-            document.getElementById('filtroEstado').onchange = function () { filtrar(); };
+            // Debounce para búsqueda
+            let filtroTimer = null;
+            document.getElementById('filtroNombre').oninput = function () {
+                clearTimeout(filtroTimer);
+                filtroTimer = setTimeout(function() { paginaActual = 1; cargarProductos(); }, 350);
+            };
+            document.getElementById('filtroCategoria').onchange = function () { paginaActual = 1; cargarProductos(); };
+            document.getElementById('filtroEstado').onchange = function () { paginaActual = 1; cargarProductos(); };
 
             // Cerrar dropdown al hacer click fuera
             document.addEventListener('click', function (event) {
@@ -958,19 +1026,6 @@
                 }
             });
         });
-
-        function filtrar() {
-            const nom = document.getElementById('filtroNombre').value.toLowerCase();
-            const cat = document.getElementById('filtroCategoria').value;
-            const est = document.getElementById('filtroEstado').value;
-            fetch('/api/productos', { headers: getAuthHeaders() }).then(r => r.json()).then(d => {
-                let ps = d.data || d;
-                if (nom) ps = ps.filter(p => (p.nombre?.toLowerCase().includes(nom)) || (p.codigo?.toLowerCase().includes(nom)));
-                if (cat) ps = ps.filter(p => p.id_categoria == cat);
-                if (est) ps = ps.filter(p => { if (est === 'VIGENTE') { if (!p.fecha_vencimiento) return true; try { const f = new Date(p.fecha_vencimiento); const h = new Date(); h.setHours(0, 0, 0, 0); return !isNaN(f.getTime()) && f >= h; } catch (e) { return true; } } else if (est === 'VENCIDO') { if (!p.fecha_vencimiento) return false; try { const f = new Date(p.fecha_vencimiento); const h = new Date(); h.setHours(0, 0, 0, 0); return !isNaN(f.getTime()) && f < h; } catch (e) { return false; } } return true; });
-                renderTabla(ps);
-            });
-        }
     </script>
 </body>
 

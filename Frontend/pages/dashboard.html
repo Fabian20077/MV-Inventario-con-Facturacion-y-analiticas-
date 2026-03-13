@@ -1893,9 +1893,17 @@
                 });
                 const result = await response.json();
                 if (result.success && result.data) {
-                    if (result.data['empresa.nombre']) document.getElementById('companyName').textContent = result.data['empresa.nombre'];
+                    if (result.data['empresa.nombre']) {
+                        const companyNameEl = document.getElementById('companyName');
+                        if (companyNameEl) {
+                            companyNameEl.textContent = result.data['empresa.nombre'];
+                        }
+                    }
                     if (result.data['empresa.logo_path']) {
-                        document.getElementById('dashboardLogo').src = result.data['empresa.logo_path'] + '?t=' + Date.now();
+                        const logoEl = document.getElementById('dashboardLogo');
+                        if (logoEl) {
+                            logoEl.src = result.data['empresa.logo_path'] + '?t=' + Date.now();
+                        }
                     }
                 }
             } catch (e) { console.error('Error loading identity:', e); }
@@ -1964,31 +1972,16 @@
 
             // Cargar app.js primero
             loadScript('../scripts/app.js', function () {
-                console.log('📊 App.js cargado, verificando funciones...');
+                console.log('📊 App.js cargado correctamente');
 
-                // Verificar si las funciones principales están disponibles
-                const requiredFunctions = ['loadProducts', 'renderizarTabla', 'calcularEstadisticas', 'applyFiltros'];
-                const missingFunctions = requiredFunctions.filter(func => typeof window[func] === 'undefined');
+                // El app.js se inicializa automáticamente, sin necesidad de verificar funciones específicas
+                // El sistema está configurado para ejecutar loadDashboardData automáticamente
 
-                if (missingFunctions.length > 0) {
-                    console.error('❌ Funciones faltantes en app.js:', missingFunctions);
-                } else {
-                    console.log('✅ Funciones principales disponibles en app.js');
-
-                    // Ejecutar inicialización automática si existe
-                    if (typeof window.loadProducts === 'function') {
-                        console.log('🔄 Iniciando carga automática de productos...');
-                        try {
-                            window.loadProducts();
-                        } catch (error) {
-                            console.error('❌ Error en carga automática:', error);
-                        }
-                    }
-                }
-
-                // Cargar navbar.js y theme-manager.js con versionado
-                loadScript('../scripts/navbar.js?v=2');
-                loadScript('../scripts/theme-manager.js?v=2');
+                // Cargar notification-manager.js primero, luego navbar.js y theme-manager.js
+                loadScript('../scripts/notification-manager.js', function () {
+                    loadScript('../scripts/navbar.js?v=2');
+                    loadScript('../scripts/theme-manager.js?v=2');
+                });
             });
         }
 
