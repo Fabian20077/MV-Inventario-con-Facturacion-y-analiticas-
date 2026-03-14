@@ -4,6 +4,7 @@ import UsuarioDAO from './dao/UsuarioDAO.js';
 import ProductoDAO from './dao/ProductoDAO.js';
 import PasswordResetDAO from './dao/PasswordResetDAO.js';
 import ConfiguracionDAO from './dao/ConfiguracionDAO.js';
+import ImpuestoDAO from './dao/ImpuestoDAO.js';
 import ReportesService from './routes/reportes.js';
 import { generateToken } from './auth/jwt.js';
 import { authenticateJWT } from './middleware/auth.js';
@@ -295,6 +296,50 @@ const server = http.createServer(async (req, res) => {
         return;
     }
     
+    // Obtener configuración específica por clave (admin) (ej: /api/admin/configuracion/inventario.vencimiento.habilitado)
+    if (req.url.startsWith('/api/admin/configuracion/') && req.method === 'GET') {
+        try {
+            // Extraer la clave de la URL (ej: inventario.vencimiento.habilitado)
+            const clave = req.url.split('/api/admin/configuracion/')[1];
+            
+            if (!clave) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    message: 'Clave de configuración no especificada'
+                }));
+                return;
+            }
+            
+            const configItem = await ConfiguracionDAO.getByClave(clave);
+            
+            if (!configItem) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    message: 'Configuración no encontrada'
+                }));
+                return;
+            }
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                data: {
+                    [configItem.clave]: configItem.valor
+                }
+            }));
+        } catch (error) {
+            console.error('Error obteniendo configuración específica (admin):', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error al obtener configuración'
+            }));
+        }
+        return;
+    }
+    
     // Obtener configuración general (admin)
     if (req.url === '/api/admin/configuracion' && req.method === 'GET') {
         try {
@@ -370,6 +415,57 @@ const server = http.createServer(async (req, res) => {
             res.end(JSON.stringify({
                 success: false,
                 message: 'Error al obtener alertas de stock bajo'
+            }));
+        }
+        return;
+    }
+
+    // ==================== IMPUESTOS ====================
+    
+    // Obtener todos los impuestos
+    if (req.url === '/api/impuestos' && req.method === 'GET') {
+        try {
+            const impuestos = await ImpuestoDAO.obtenerTodos();
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                data: impuestos
+            }));
+        } catch (error) {
+            console.error('Error obteniendo impuestos:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error al obtener impuestos'
+            }));
+        }
+        return;
+    }
+    
+    // Obtener impuesto por ID
+    if (req.url.startsWith('/api/impuestos/') && req.method === 'GET') {
+        try {
+            const id = req.url.split('/')[3];
+            const impuesto = await ImpuestoDAO.obtenerPorId(id);
+            if (!impuesto) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    message: 'Impuesto no encontrado'
+                }));
+                return;
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                data: impuesto
+            }));
+        } catch (error) {
+            console.error('Error obteniendo impuesto:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error al obtener impuesto'
             }));
         }
         return;
