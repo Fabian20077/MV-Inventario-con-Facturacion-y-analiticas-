@@ -1,10 +1,13 @@
 import http from 'http';
+import fs from 'fs';
+import path from 'path';
 import { testConnection, query } from './config/database.js';
 import UsuarioDAO from './dao/UsuarioDAO.js';
 import ProductoDAO from './dao/ProductoDAO.js';
 import PasswordResetDAO from './dao/PasswordResetDAO.js';
 import ConfiguracionDAO from './dao/ConfiguracionDAO.js';
 import ImpuestoDAO from './dao/ImpuestoDAO.js';
+import FacturaDAO from './dao/FacturaDAO.js';
 import ReportesService from './routes/reportes.js';
 import { generateToken } from './auth/jwt.js';
 import { authenticateJWT } from './middleware/auth.js';
@@ -466,6 +469,163 @@ const server = http.createServer(async (req, res) => {
             res.end(JSON.stringify({
                 success: false,
                 message: 'Error al obtener impuesto'
+            }));
+        }
+        return;
+    }
+
+    // ==================== FACTURAS ====================
+    
+    // Listar facturas
+    if (req.url.startsWith('/api/facturas') && req.method === 'GET') {
+        try {
+            const queryParams = parseQueryParams(req.url);
+            const filtros = {
+                pagina: parseInt(queryParams.pagina) || 1,
+                limite: parseInt(queryParams.limite) || 20,
+                estado: queryParams.estado,
+                fecha_desde: queryParams.fecha_desde,
+                fecha_hasta: queryParams.fecha_hasta,
+                usuario_id: queryParams.usuario_id
+            };
+            const resultado = await FacturaDAO.listarFacturas(filtros);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                data: resultado.facturas,
+                total: resultado.total,
+                paginas: resultado.paginas,
+                pagina_actual: resultado.pagina_actual
+            }));
+        } catch (error) {
+            console.error('Error obteniendo facturas:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error al obtener facturas'
+            }));
+        }
+        return;
+    }
+
+    // ==================== ANALYTICS ====================
+    
+    // Salud del inventario
+    if (req.url === '/api/analytics/salud-inventario' && req.method === 'GET') {
+        try {
+            const sql = `
+                SELECT 
+                    COUNT(*) as totalProductos,
+                    SUM(cantidad) as stockTotal,
+                    SUM(cantidad * precio_venta) as valorInventario,
+                    COUNT(CASE WHEN cantidad < stock_minimo THEN 1 END) as productosBajoStock,
+                    COUNT(CASE WHEN cantidad = 0 THEN 1 END) as productosSinStock
+                FROM producto
+                WHERE activo = TRUE
+            `;
+            const [result] = await query(sql);
+            const data = result[0];
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                data: {
+                    totalProductos: parseInt(data.totalProductos) || 0,
+                    stockTotal: parseFloat(data.stockTotal) || 0,
+                    valorInventario: parseFloat(data.valorInventario) || 0,
+                    productosBajoStock: parseInt(data.productosBajoStock) || 0,
+                    productosSinStock: parseInt(data.productosSinStock) || 0
+                }
+            }));
+        } catch (error) {
+            console.error('Error obteniendo salud del inventario:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error al obtener salud del inventario'
+            }));
+        }
+        return;
+    }
+
+    // ==================== IMPUESTOS (ACTIVAR/DESACTIVAR) ====================
+    
+    // Activar impuesto
+    if (req.url.match(/^\/api\/impuestos\/\d+\/activar$/) && req.method === 'PUT') {
+        try {
+            const id = req.url.split('/')[3];
+            const resultado = await ImpuestoDAO.actualizarSeleccionado(id);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                message: 'Impuesto activado correctamente'
+            }));
+        } catch (error) {
+            console.error('Error activando impuesto:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error al activar impuesto'
+            }));
+        }
+        return;
+    }
+    
+    // Subir logo de empresa
+    if (req.url === '/api/admin/configuracion/logo' && req.method === 'POST') {
+        try {
+            const body = await parseBody(req);
+            const { imageBase64, apply_ui, apply_reports } = body;
+            
+            if (!imageBase64) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    message: 'No se proporcionó imagen'
+                }));
+                return;
+            }
+            
+            // Decodificar Base64
+            const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+            const buffer = Buffer.from(base64Data, 'base64');
+            
+            // Generar nombre de archivo único
+            const timestamp = Date.now();
+            const filename = `logo_${timestamp}.png`;
+            const uploadDir = path.join(process.cwd(), 'uploads', 'logo');
+            const filepath = path.join(uploadDir, filename);
+            
+            // Crear directorio si no existe
+            if (!fs.existsSync(uploadDir)) {
+                fs.mkdirSync(uploadDir, { recursive: true });
+            }
+            
+            // Guardar archivo
+            fs.writeFileSync(filepath, buffer);
+            
+            // Guardar ruta en base de datos
+            const logoPath = `/uploads/logo/${filename}`;
+            await query("UPDATE configuracion SET valor = ? WHERE clave = 'empresa.logo_path'", [logoPath]);
+            if (apply_ui !== undefined) {
+                await query("UPDATE configuracion SET valor = ? WHERE clave = 'empresa.logo.apply_ui'", [apply_ui]);
+            }
+            if (apply_reports !== undefined) {
+                await query("UPDATE configuracion SET valor = ? WHERE clave = 'empresa.logo.apply_reports'", [apply_reports]);
+            }
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                message: 'Logo subido correctamente',
+                data: { logoPath }
+            }));
+        } catch (error) {
+            console.error('Error subiendo logo:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error al subir logo'
             }));
         }
         return;

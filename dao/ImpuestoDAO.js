@@ -113,6 +113,23 @@ class ImpuestoDAO {
             throw new Error(`Error al verificar uso de impuesto: ${error.message}`);
         }
     }
+
+    /**
+     * Actualizar impuesto seleccionado (activar)
+     */
+    static async actualizarSeleccionado(id) {
+        try {
+            // Primero deseleccionar todos los impuestos
+            await pool.query('UPDATE impuesto SET seleccionado = FALSE');
+            
+            // Luego seleccionar el impuesto especificado
+            await pool.query('UPDATE impuesto SET seleccionado = TRUE WHERE id = ?', [id]);
+            
+            return { id, selected: true };
+        } catch (error) {
+            throw new Error(`Error al actualizar impuesto seleccionado: ${error.message}`);
+        }
+    }
 }
 
 export default ImpuestoDAO;
