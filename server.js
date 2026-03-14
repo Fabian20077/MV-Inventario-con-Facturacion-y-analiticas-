@@ -295,7 +295,33 @@ const server = http.createServer(async (req, res) => {
         return;
     }
     
-    // Obtener configuración general
+    // Obtener configuración general (admin)
+    if (req.url === '/api/admin/configuracion' && req.method === 'GET') {
+        try {
+            const configuracion = await ConfiguracionDAO.getAll();
+            // Convertir array de objetos a un objeto con claves como propiedades
+            const configMap = {};
+            configuracion.forEach(item => {
+                configMap[item.clave] = item.valor;
+            });
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                data: configMap
+            }));
+        } catch (error) {
+            console.error('Error obteniendo configuración:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error al obtener configuración'
+            }));
+        }
+        return;
+    }
+    
+    // Obtener configuración general (pública)
     if (req.url === '/api/configuracion' && req.method === 'GET') {
         try {
             const configuracion = await ConfiguracionDAO.getAll();
