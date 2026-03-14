@@ -523,8 +523,14 @@ const server = http.createServer(async (req, res) => {
                 FROM producto
                 WHERE activo = TRUE
             `;
-            const [result] = await query(sql);
-            const data = result[0];
+            const rows = await query(sql);
+            const data = rows && rows.length > 0 ? rows[0] : {
+                totalProductos: 0,
+                stockTotal: 0,
+                valorInventario: 0,
+                productosBajoStock: 0,
+                productosSinStock: 0
+            };
             
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
@@ -543,6 +549,101 @@ const server = http.createServer(async (req, res) => {
             res.end(JSON.stringify({
                 success: false,
                 message: 'Error al obtener salud del inventario'
+            }));
+        }
+        return;
+    }
+    
+    // Ganancias por mes
+    if (req.url === '/api/analytics/ganancias-por-mes' && req.method === 'GET') {
+        try {
+            const sql = `
+                SELECT 
+                    DATE_FORMAT(fecha_emision, '%Y-%m') as mes,
+                    SUM(total) as ventas,
+                    SUM(subtotal) as subtotal,
+                    SUM(impuesto_monto) as impuestos
+                FROM factura
+                WHERE estado IN ('emitida', 'pagada')
+                GROUP BY DATE_FORMAT(fecha_emision, '%Y-%m')
+                ORDER BY mes DESC
+                LIMIT 12
+            `;
+            const rows = await query(sql);
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                data: rows || []
+            }));
+        } catch (error) {
+            console.error('Error obteniendo ganancias por mes:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error al obtener ganancias por mes'
+            }));
+        }
+        return;
+    }
+    
+    // Productos bajo stock
+    if (req.url === '/api/analytics/productos-bajo-stock' && req.method === 'GET') {
+        try {
+            const sql = `
+                SELECT id, codigo, nombre, cantidad, stock_minimo
+                FROM producto
+                WHERE activo = TRUE AND cantidad < stock_minimo
+                ORDER BY cantidad ASC
+                LIMIT 10
+            `;
+            const rows = await query(sql);
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                data: rows || []
+            }));
+        } catch (error) {
+            console.error('Error obteniendo productos bajo stock:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error al obtener productos bajo stock'
+            }));
+        }
+        return;
+    }
+    
+    // Productos con mayor margen
+    if (req.url === '/api/analytics/productos-mayor-margen' && req.method === 'GET') {
+        try {
+            const sql = `
+                SELECT 
+                    id, 
+                    codigo, 
+                    nombre, 
+                    precio_compra, 
+                    precio_venta,
+                    ROUND(((precio_venta - precio_compra) / precio_compra) * 100, 2) as margen_porcentaje
+                FROM producto
+                WHERE activo = TRUE AND precio_compra > 0
+                ORDER BY margen_porcentaje DESC
+                LIMIT 10
+            `;
+            const rows = await query(sql);
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                data: rows || []
+            }));
+        } catch (error) {
+            console.error('Error obteniendo productos con mayor margen:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error al obtener productos con mayor margen'
             }));
         }
         return;
@@ -643,12 +744,26 @@ const server = http.createServer(async (req, res) => {
                 buscar: queryParams.buscar,
                 categoria: queryParams.categoria
             };
-            const productos = await ProductoDAO.listar(filtros);
+            const resultado = await ProductoDAO.listar(filtros);
+            // Si el resultado tiene propiedad 'productos', usar esa estructura
+            // De lo contrario, asumir que es un array directo
+            const productosArray = resultado.productos || resultado;
+            
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({
+            const response = {
                 success: true,
-                data: productos
-            }));
+                data: productosArray
+            };
+            
+            // Agregar metadatos de paginación si existen
+            if (resultado.total !== undefined) {
+                response.total = resultado.total;
+                response.pagina = resultado.pagina_actual;
+                response.limite = resultado.limite;
+                response.totalPaginas = resultado.totalPaginas;
+            }
+            
+            res.end(JSON.stringify(response));
         } catch (error) {
             console.error('Error obteniendo productos:', error);
             res.writeHead(500, { 'Content-Type': 'application/json' });
