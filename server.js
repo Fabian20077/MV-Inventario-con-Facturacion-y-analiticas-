@@ -251,6 +251,50 @@ const server = http.createServer(async (req, res) => {
 
     // ==================== CONFIGURACIÓN ====================
     
+    // Obtener configuración específica por clave (ej: /api/configuracion/inventario.vencimiento.habilitado)
+    if (req.url.startsWith('/api/configuracion/') && req.method === 'GET') {
+        try {
+            // Extraer la clave de la URL (ej: inventario.vencimiento.habilitado)
+            const clave = req.url.split('/api/configuracion/')[1];
+            
+            if (!clave) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    message: 'Clave de configuración no especificada'
+                }));
+                return;
+            }
+            
+            const configItem = await ConfiguracionDAO.getByClave(clave);
+            
+            if (!configItem) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    message: 'Configuración no encontrada'
+                }));
+                return;
+            }
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                data: {
+                    [configItem.clave]: configItem.valor
+                }
+            }));
+        } catch (error) {
+            console.error('Error obteniendo configuración específica:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error al obtener configuración'
+            }));
+        }
+        return;
+    }
+    
     // Obtener configuración general
     if (req.url === '/api/configuracion' && req.method === 'GET') {
         try {
