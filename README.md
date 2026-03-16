@@ -546,7 +546,7 @@ Todos los derechos reservados. Este software no puede ser distribuido, modificad
 ## Soporte
 
 ¿Necesitas ayuda?
-- **Email:** soporte@mv.com
+- **Email:** fabianenriquepilonieta@gmail.com
 - **GitHub Issues:** Reporta errores en el repositorio
 
 ---
