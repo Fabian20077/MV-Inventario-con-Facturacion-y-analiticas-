@@ -520,13 +520,11 @@
             </div>
         </div>
     </div>
-    <script src="../scripts/notification-manager.js"></script>
+    <script src="../scripts/notification-manager.js?v=3"></script>
     <script src="../scripts/navbar.js?v=2"></script>
     <script>
         console.log('🚀 Iniciando script de movimientos...');
-        const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-            ? 'http://127.0.0.1:3000'
-            : `http://${window.location.hostname}:3000`;
+        const MOV_API_BASE_URL = window.API_BASE_URL || 'http://localhost:3000';
 
         function getAuthHeaders() { const token = localStorage.getItem('authToken') || localStorage.getItem('token'); return { 'Authorization': token ? 'Bearer ' + token : '', 'Content-Type': 'application/json' }; }
 
@@ -542,7 +540,7 @@
 
         async function loadCompanyInfo() {
             try {
-                const response = await fetch(API_BASE_URL + '/api/configuracion', { headers: getAuthHeaders() });
+                const response = await fetch(`${MOV_API_BASE_URL}/api/configuracion`, { headers: getAuthHeaders() });
                 const result = await response.json();
                 if (result.success && result.data) {
                     if (result.data['empresa.nombre']) document.title = `${result.data['empresa.nombre']} - Movimientos`;
@@ -559,7 +557,7 @@
 
         async function loadMovimientos() {
             try {
-                const response = await fetch(API_BASE_URL + '/api/movimientos', { headers: getAuthHeaders() });
+                const response = await fetch(`${MOV_API_BASE_URL}/api/movimientos`, { headers: getAuthHeaders() });
                 const result = await response.json();
                 console.log('Movimientos cargados:', result); // Debug
 

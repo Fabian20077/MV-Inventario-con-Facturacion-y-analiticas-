@@ -188,13 +188,13 @@
         // Cargar logo dinámicamente
         async function loadHeaderLogo() {
             try {
-                // Usar ruta relativa para evitar dependencias de API_BASE_URL
-                const response = await fetch('/api/configuracion');
+                // Usar API_BASE_URL para direccionar al backend correcto
+                const response = await fetch(`${API_BASE_URL}/api/configuracion`);
                 const result = await response.json();
                 if (result.success && result.data) {
                     const logoPath = result.data['empresa.logo_path'];
                     if (logoPath) {
-                        const src = `${logoPath}?t=${Date.now()}`;
+                        const src = `${API_BASE_URL}${logoPath}?t=${Date.now()}`;
                         const headerLogo = document.getElementById('headerLogo');
                         if (headerLogo) headerLogo.src = src;
                     }

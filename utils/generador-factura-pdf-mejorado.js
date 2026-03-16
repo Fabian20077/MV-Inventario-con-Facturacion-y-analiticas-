@@ -86,6 +86,9 @@ class GeneradorFacturaPDF {
             const fechaRaw = factura.fecha_emision || factura.fecha || new Date();
             const fechaFormateada = this._formatearFecha(fechaRaw);
 
+            const logoData = (configuracion && configuracion.logo_data) ? String(configuracion.logo_data) : null;
+            const logoMime = (configuracion && configuracion.logo_mime) ? String(configuracion.logo_mime) : 'image/png';
+
             const data = {
                 numero_factura: factura.numero_factura,
                 fecha_emision: fechaFormateada,
@@ -98,7 +101,9 @@ class GeneradorFacturaPDF {
                 telefono: configuracion.telefono || '',
                 nit: configuracion.nit || '',
                 nombre_negocio: configuracion.nombre_negocio || 'MI NEGOCIO',
-                logo_data: configuracion.logo_data || null,
+                mostrar_logo: configuracion.mostrar_logo === true || configuracion.mostrar_logo === '1' || configuracion.mostrar_logo === 1,
+                logo_data: logoData,
+                logo_mime: logoMime,
 
                 detalles: items,
 
@@ -126,11 +131,10 @@ class GeneradorFacturaPDF {
                 ]
             };
 
-            // En Docker, Google Chrome está instalado en /usr/bin/google-chrome
-            if (process.env.NODE_ENV === 'production' || !process.env.PUPPETEER_EXECUTABLE_PATH) {
-                launchConfig.executablePath = '/usr/bin/google-chrome-stable';
-            } else if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+            if (process.env.PUPPETEER_EXECUTABLE_PATH) {
                 launchConfig.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+            } else if (process.platform === 'linux' && !process.env.PUPPETEER_EXECUTABLE_PATH) {
+                launchConfig.executablePath = '/usr/bin/google-chrome-stable';
             }
 
             console.log('🔧 Puppeteer config:', {

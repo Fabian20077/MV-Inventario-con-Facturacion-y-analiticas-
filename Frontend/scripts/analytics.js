@@ -1,6 +1,6 @@
 // Analytics - Animaciones fluidas y diseño mejorado
 
-const API_BASE_URL = '';
+const API_BASE_URL = 'http://localhost:3000';
 
 function getAuthHeaders() {
     const token = localStorage.getItem('authToken') || localStorage.getItem('token');

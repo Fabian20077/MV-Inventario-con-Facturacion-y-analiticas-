@@ -1,7 +1,19 @@
 // =====================================================
 // CONFIGURACIÓN DE LA API
 // =====================================================
-const API_BASE_URL = ''; // Ruta relativa automática para evitar errores de CORS/Puerto
+window.API_BASE_URL = window.API_BASE_URL || 'http://localhost:3000';
+const API_BASE_URL = window.API_BASE_URL; // Backend API URL
+
+if (!window.fetch.__apiProxyInstalled) {
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = function (input, init) {
+        if (typeof input === 'string' && input.startsWith('/api/')) {
+            input = `${window.API_BASE_URL}${input}`;
+        }
+        return originalFetch(input, init);
+    };
+    window.fetch.__apiProxyInstalled = true;
+}
 
 // =====================================================
 // HELPERS

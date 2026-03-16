@@ -97,8 +97,10 @@
     <div class="receipt">
         <!-- HEADER / LOGO -->
         <div class="text-center mb-2">
+            {{#if mostrar_logo}}
             {{#if logo_data}}
-            <img src="data:image/png;base64,{{logo_data}}" class="logo-img mb-2" alt="Logo">
+            <img src="data:{{logo_mime}};base64,{{logo_data}}" class="logo-img mb-2" alt="Logo">
+            {{/if}}
             {{/if}}
 
             <div class="text-header my-1">{{nombre_negocio}}</div>

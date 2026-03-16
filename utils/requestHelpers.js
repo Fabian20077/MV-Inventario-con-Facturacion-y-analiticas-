@@ -63,14 +63,13 @@ export const verifyToken = (req, res) => {
     if (authHeader && authHeader.startsWith('Bearer ')) {
         token = authHeader.substring(7);
     } else {
-        // Intento alternativo: token en query
-        if (authHeader && authHeader.includes('?')) {
-            try {
-                const url = new URL('http://localhost' + req.url);
-                token = url.searchParams.get('token');
-            } catch (e) {
-                // ignore parse errors
-            }
+        // Intento alternativo: token en query (?token=...)
+        try {
+            const base = `http://${req.headers.host || 'localhost'}`;
+            const url = new URL(req.url, base);
+            token = url.searchParams.get('token');
+        } catch (e) {
+            // ignore parse errors
         }
     }
 

@@ -10,7 +10,7 @@ async function populateHistorialPrecios() {
         console.log('🔍 Verificando si existe historial de precios...');
         
         // Verificar si ya hay datos
-        const existingCount = await query('SELECT COUNT(*) as count FROM historial_precios');
+        const existingCount = await query('SELECT COUNT(*) as count FROM historial_precio');
         
         if (existingCount[0].count > 0) {
             console.log('✅ El historial de precios ya tiene datos. No se necesita poblar.');
@@ -20,7 +20,7 @@ async function populateHistorialPrecios() {
         console.log('📝 Poblando historial de precios con datos de ejemplo...');
         
         // Obtener productos actuales
-        const productos = await query('SELECT id, nombre, precio_compra, precio_venta FROM productos WHERE activo = 1 ORDER BY id LIMIT 10');
+        const productos = await query('SELECT id, nombre, precio_compra, precio_venta FROM producto WHERE activo = TRUE ORDER BY id LIMIT 10');
         
         if (productos.length === 0) {
             console.log('⚠️ No hay productos para crear historial');
@@ -28,7 +28,7 @@ async function populateHistorialPrecios() {
         }
         
         // Obtener primer usuario para asignar cambios
-        const usuarios = await query('SELECT id, nombre FROM usuarios LIMIT 1');
+        const usuarios = await query('SELECT id, nombre FROM usuario LIMIT 1');
         const usuarioDemo = usuarios.length > 0 ? usuarios[0] : { id: 1, nombre: 'Demo User' };
         
         // Datos de ejemplo de historial
@@ -79,11 +79,11 @@ async function populateHistorialPrecios() {
                 
                 // Insertar en historial
                 await query(`
-                    INSERT INTO historial_precios 
+                    INSERT INTO historial_precio 
                     (producto_id, precio_compra_anterior, precio_compra_nuevo, 
                      precio_venta_anterior, precio_venta_nuevo, 
-                     usuario_id, razon, fecha_cambio, tipo_cambio)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     usuario_id, razon, fecha_cambio)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 `, [
                     producto.id,
                     precioCompraAnterior,
@@ -92,8 +92,7 @@ async function populateHistorialPrecios() {
                     precioVentaActual,
                     usuarioDemo.id,
                     ejemplo.razon,
-                    fechaCambio,
-                    ejemplo.tipo_cambio
+                    fechaCambio
                 ]);
                 
                 totalInserts++;

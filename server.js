@@ -1,13 +1,19 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
+import dotenv from 'dotenv';
+
+// Load environment variables from .env file
+dotenv.config();
 import { testConnection, query } from './config/database.js';
 import UsuarioDAO from './dao/UsuarioDAO.js';
 import ProductoDAO from './dao/ProductoDAO.js';
 import PasswordResetDAO from './dao/PasswordResetDAO.js';
 import ConfiguracionDAO from './dao/ConfiguracionDAO.js';
+import configuracionLoader from './config/configuracionLoader.js';
 import ImpuestoDAO from './dao/ImpuestoDAO.js';
 import FacturaDAO from './dao/FacturaDAO.js';
+import HistorialPrecioDAO from './dao/HistorialPrecioDAO.js';
 import ReportesService from './routes/reportes.js';
 import { generateToken } from './auth/jwt.js';
 import { authenticateJWT } from './middleware/auth.js';
@@ -37,8 +43,48 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    // Parse URL once to get pathname (handling query params)
+    let pathname;
+    try {
+        pathname = new URL(req.url, `http://${req.headers.host}`).pathname;
+    } catch (e) {
+        pathname = req.url.split('?')[0]; // Fallback
+    }
+
+    // Servir archivos estáticos del directorio uploads
+    if (pathname.startsWith('/uploads/')) {
+        const safePath = path.normalize(path.join(process.cwd(), pathname));
+        const uploadsDir = path.join(process.cwd(), 'uploads');
+        if (!safePath.startsWith(uploadsDir)) {
+            res.writeHead(403);
+            res.end('Forbidden');
+            return;
+        }
+
+        if (!fs.existsSync(safePath)) {
+            res.writeHead(404);
+            res.end('Not found');
+            return;
+        }
+
+        const mimeMap = {
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.webp': 'image/webp',
+            '.gif': 'image/gif',
+            '.svg': 'image/svg+xml'
+        };
+
+        const mimeType = mimeMap[path.extname(safePath).toLowerCase()] || 'application/octet-stream';
+        res.writeHead(200, { 'Content-Type': mimeType });
+        const stream = fs.createReadStream(safePath);
+        stream.pipe(res);
+        return;
+    }
+
     // Health check
-    if (req.url === '/api/health' && req.method === 'GET') {
+    if (pathname === '/api/health' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ status: 'ok', database: 'connected' }));
         return;
@@ -47,7 +93,7 @@ const server = http.createServer(async (req, res) => {
     // ==================== AUTENTICACIÓN ====================
 
     // Login con JWT y validación
-    if (req.url === '/api/auth/login' && req.method === 'POST') {
+    if (pathname === '/api/auth/login' && req.method === 'POST') {
         try {
             const body = await parseBody(req);
 
@@ -107,7 +153,7 @@ const server = http.createServer(async (req, res) => {
     // =====================================================
 
     // Forgot Password - Solicitar recuperación
-    if (req.url === '/api/auth/forgot-password' && req.method === 'POST') {
+    if (pathname === '/api/auth/forgot-password' && req.method === 'POST') {
         try {
             const body = await parseBody(req);
 
@@ -169,7 +215,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Reset Password - Actualizar contraseña
-    if (req.url === '/api/auth/reset-password' && req.method === 'POST') {
+    if (pathname === '/api/auth/reset-password' && req.method === 'POST') {
         try {
             const body = await parseBody(req);
 
@@ -236,7 +282,7 @@ const server = http.createServer(async (req, res) => {
 
 
     // Registro de usuario
-    if (req.url === '/api/auth/register' && req.method === 'POST') {
+    if (pathname === '/api/auth/register' && req.method === 'POST') {
         try {
             const usuario = await parseBody(req);
             const resultado = await UsuarioDAO.crear(usuario);
@@ -256,10 +302,10 @@ const server = http.createServer(async (req, res) => {
     // ==================== CONFIGURACIÓN ====================
     
     // Obtener configuración específica por clave (ej: /api/configuracion/inventario.vencimiento.habilitado)
-    if (req.url.startsWith('/api/configuracion/') && req.method === 'GET') {
+    if (pathname.startsWith('/api/configuracion/') && req.method === 'GET') {
         try {
             // Extraer la clave de la URL (ej: inventario.vencimiento.habilitado)
-            const clave = req.url.split('/api/configuracion/')[1];
+            const clave = pathname.split('/api/configuracion/')[1];
             
             if (!clave) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -300,10 +346,10 @@ const server = http.createServer(async (req, res) => {
     }
     
     // Obtener configuración específica por clave (admin) (ej: /api/admin/configuracion/inventario.vencimiento.habilitado)
-    if (req.url.startsWith('/api/admin/configuracion/') && req.method === 'GET') {
+    if (pathname.startsWith('/api/admin/configuracion/') && req.method === 'GET') {
         try {
             // Extraer la clave de la URL (ej: inventario.vencimiento.habilitado)
-            const clave = req.url.split('/api/admin/configuracion/')[1];
+            const clave = pathname.split('/api/admin/configuracion/')[1];
             
             if (!clave) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -342,21 +388,74 @@ const server = http.createServer(async (req, res) => {
         }
         return;
     }
+
+    // Actualizar una configuración específica (admin)
+    if (pathname.startsWith('/api/admin/configuracion/') && req.method === 'PUT') {
+        try {
+            const clave = pathname.split('/api/admin/configuracion/')[1];
+            if (!clave) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    message: 'Clave de configuración no especificada'
+                }));
+                return;
+            }
+
+            const body = await parseBody(req);
+            const valor = body?.valor;
+            if (valor === undefined) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    message: 'Valor de configuración no provisto'
+                }));
+                return;
+            }
+
+            await ConfiguracionDAO.update(clave, valor);
+            await configuracionLoader.reloadClave(clave);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                message: 'Configuración actualizada'
+            }));
+        } catch (error) {
+            console.error('Error actualizando configuración (admin):', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error al actualizar configuración'
+            }));
+        }
+        return;
+    }
     
-    // Obtener configuración general (admin)
-    if (req.url === '/api/admin/configuracion' && req.method === 'GET') {
+    // Obtener configuración general (admin) - Agrupada por categoría
+    if (pathname === '/api/admin/configuracion' && req.method === 'GET') {
         try {
             const configuracion = await ConfiguracionDAO.getAll();
-            // Convertir array de objetos a un objeto con claves como propiedades
-            const configMap = {};
+            // Agrupar por categoría (formato array para compatibilidad con frontend)
+            const configByCategory = {};
             configuracion.forEach(item => {
-                configMap[item.clave] = item.valor;
+                if (!configByCategory[item.categoria]) {
+                    configByCategory[item.categoria] = [];
+                }
+                configByCategory[item.categoria].push({
+                    clave: item.clave,
+                    valor: item.valor,
+                    descripcion: item.descripcion,
+                    tipo_dato: item.tipo_dato,
+                    bloqueado: item.bloqueado === 1 || item.bloqueado === true,
+                    publico: item.publico === 1 || item.publico === true
+                });
             });
             
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 success: true,
-                data: configMap
+                data: configByCategory
             }));
         } catch (error) {
             console.error('Error obteniendo configuración:', error);
@@ -370,7 +469,7 @@ const server = http.createServer(async (req, res) => {
     }
     
     // Obtener configuración general (pública)
-    if (req.url === '/api/configuracion' && req.method === 'GET') {
+    if (pathname === '/api/configuracion' && req.method === 'GET') {
         try {
             const configuracion = await ConfiguracionDAO.getAll();
             // Convertir array de objetos a un objeto con claves como propiedades
@@ -398,7 +497,7 @@ const server = http.createServer(async (req, res) => {
     // ==================== ALERTAS ====================
 
     // Obtener alertas de stock bajo
-    if (req.url === '/api/alertas/stock-bajo' && req.method === 'GET') {
+    if (pathname === '/api/alertas/stock-bajo' && req.method === 'GET') {
         try {
             const sql = `
                 SELECT id, codigo, nombre, cantidad, stock_minimo
@@ -422,11 +521,53 @@ const server = http.createServer(async (req, res) => {
         }
         return;
     }
+    
+    // Obtener alertas de vencimiento
+    if (pathname === '/api/alertas/vencimiento' && req.method === 'GET') {
+        try {
+            // Obtener días de alerta de la configuración
+            const configRows = await query("SELECT valor FROM configuracion WHERE clave = 'inventario.vencimiento.dias_alerta'");
+            const diasAlerta = configRows.length > 0 ? parseInt(configRows[0].valor) : 30;
+            
+            // Calcular fecha límite (hoy + días de alerta)
+            const fechaLimite = new Date();
+            fechaLimite.setDate(fechaLimite.getDate() + diasAlerta);
+            const fechaLimiteStr = fechaLimite.toISOString().split('T')[0];
+            
+            const sql = `
+                SELECT id, codigo, nombre, fecha_vencimiento, cantidad
+                FROM producto
+                WHERE fecha_vencimiento IS NOT NULL 
+                  AND fecha_vencimiento <= ? 
+                  AND activo = TRUE
+                ORDER BY fecha_vencimiento ASC
+            `;
+            const productos = await query(sql, [fechaLimiteStr]);
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                data: productos,
+                meta: {
+                    diasAlerta: diasAlerta,
+                    fechaLimite: fechaLimiteStr
+                }
+            }));
+        } catch (error) {
+            console.error('Error obteniendo alertas de vencimiento:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error al obtener alertas de vencimiento'
+            }));
+        }
+        return;
+    }
 
     // ==================== IMPUESTOS ====================
     
     // Obtener todos los impuestos
-    if (req.url === '/api/impuestos' && req.method === 'GET') {
+    if (pathname === '/api/impuestos' && req.method === 'GET') {
         try {
             const impuestos = await ImpuestoDAO.obtenerTodos();
             res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -446,9 +587,9 @@ const server = http.createServer(async (req, res) => {
     }
     
     // Obtener impuesto por ID
-    if (req.url.startsWith('/api/impuestos/') && req.method === 'GET') {
+    if (pathname.startsWith('/api/impuestos/') && req.method === 'GET') {
         try {
-            const id = req.url.split('/')[3];
+            const id = pathname.split('/')[3];
             const impuesto = await ImpuestoDAO.obtenerPorId(id);
             if (!impuesto) {
                 res.writeHead(404, { 'Content-Type': 'application/json' });
@@ -477,7 +618,8 @@ const server = http.createServer(async (req, res) => {
     // ==================== FACTURAS ====================
     
     // Listar facturas
-    if (req.url.startsWith('/api/facturas') && req.method === 'GET') {
+    // Importante: NO usar startsWith aquí, porque rompería rutas como /api/facturas/:id/pdf.
+    if (pathname === '/api/facturas' && req.method === 'GET') {
         try {
             const queryParams = parseQueryParams(req.url);
             const filtros = {
@@ -508,10 +650,108 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    // Crear factura
+    if (pathname === '/api/facturas' && req.method === 'POST') {
+        try {
+            // Autenticar con JWT
+            const usuario = verifyToken(req, res);
+            if (!usuario) return; // verifyToken ya envió la respuesta de error
+
+            const body = await parseBody(req);
+            const datos = {
+                usuario_id: usuario.id,
+                detalles: body.detalles,
+                iva_porcentaje: body.iva_porcentaje,
+                impuesto_id: body.impuesto_id,
+                observaciones: body.observaciones || '',
+                cliente_nombre: body.cliente_nombre || 'Consumidor Final'
+            };
+
+            const factura = await FacturaDAO.crearFactura(datos);
+
+            res.writeHead(201, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                mensaje: '✅ Factura creada exitosamente',
+                factura
+            }));
+        } catch (error) {
+            console.error('Error al crear factura:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                error: error.message || 'Error al crear factura'
+            }));
+        }
+        return;
+    }
+
+    // Generar PDF de factura
+    if (pathname.match(/^\/api\/facturas\/\d+\/pdf$/) && req.method === 'GET') {
+        try {
+            const id = pathname.split('/')[3];
+            // Verificar token (opcional, pero recomendado)
+            const usuario = verifyToken(req, res);
+            if (!usuario) return;
+
+            const factura = await FacturaDAO.obtenerFacturaPorId(id);
+            if (!factura) {
+                res.writeHead(404, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    error: 'Factura no encontrada'
+                }));
+                return;
+            }
+
+            // Verificar permisos (si no es admin, solo sus propias facturas)
+            if (usuario.rol_id !== 1 && factura.usuario_id !== usuario.id) {
+                res.writeHead(403, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                    success: false,
+                    error: 'No tienes permiso para descargar esta factura'
+                }));
+                return;
+            }
+
+            const config = await ConfiguracionDAO.obtenerConfiguracionParaPDF();
+            const GeneradorFacturaPDF = (await import('./utils/generador-factura-pdf-mejorado.js')).default;
+            const generador = new GeneradorFacturaPDF();
+            
+            const tempDir = path.join(process.cwd(), 'logs');
+            if (!fs.existsSync(tempDir)) {
+                fs.mkdirSync(tempDir, { recursive: true });
+            }
+            const tempPath = path.join(tempDir, `factura_temp_${id}_${Date.now()}.pdf`);
+
+            await generador.generarFactura(factura, config, tempPath);
+
+            // Enviar el PDF como response
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', `inline; filename="Factura-${factura.numero_factura}.pdf"`);
+
+            const stream = fs.createReadStream(tempPath);
+            stream.pipe(res);
+
+            // Limpiar archivo temporal después de enviar
+            stream.on('end', () => {
+                fs.unlink(tempPath).catch(() => {});
+            });
+        } catch (error) {
+            console.error('Error al generar PDF:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                error: error.message || 'Error al generar PDF de factura'
+            }));
+        }
+        return;
+    }
+
     // ==================== ANALYTICS ====================
     
     // Salud del inventario
-    if (req.url === '/api/analytics/salud-inventario' && req.method === 'GET') {
+    if (pathname === '/api/analytics/salud-inventario' && req.method === 'GET') {
         try {
             const sql = `
                 SELECT 
@@ -555,7 +795,7 @@ const server = http.createServer(async (req, res) => {
     }
     
     // Ganancias por mes
-    if (req.url === '/api/analytics/ganancias-por-mes' && req.method === 'GET') {
+    if (pathname === '/api/analytics/ganancias-por-mes' && req.method === 'GET') {
         try {
             const sql = `
                 SELECT 
@@ -588,7 +828,7 @@ const server = http.createServer(async (req, res) => {
     }
     
     // Productos bajo stock
-    if (req.url === '/api/analytics/productos-bajo-stock' && req.method === 'GET') {
+    if (pathname === '/api/analytics/productos-bajo-stock' && req.method === 'GET') {
         try {
             const sql = `
                 SELECT id, codigo, nombre, cantidad, stock_minimo
@@ -616,7 +856,7 @@ const server = http.createServer(async (req, res) => {
     }
     
     // Productos con mayor margen
-    if (req.url === '/api/analytics/productos-mayor-margen' && req.method === 'GET') {
+    if (pathname === '/api/analytics/productos-mayor-margen' && req.method === 'GET') {
         try {
             const sql = `
                 SELECT 
@@ -652,9 +892,9 @@ const server = http.createServer(async (req, res) => {
     // ==================== IMPUESTOS (ACTIVAR/DESACTIVAR) ====================
     
     // Activar impuesto
-    if (req.url.match(/^\/api\/impuestos\/\d+\/activar$/) && req.method === 'PUT') {
+    if (pathname.match(/^\/api\/impuestos\/\d+\/activar$/) && req.method === 'PUT') {
         try {
-            const id = req.url.split('/')[3];
+            const id = pathname.split('/')[3];
             const resultado = await ImpuestoDAO.actualizarSeleccionado(id);
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
@@ -673,11 +913,11 @@ const server = http.createServer(async (req, res) => {
     }
     
     // Subir logo de empresa
-    if (req.url === '/api/admin/configuracion/logo' && req.method === 'POST') {
+    if (pathname === '/api/admin/configuracion/logo' && req.method === 'POST') {
         try {
             const body = await parseBody(req);
             const { imageBase64, apply_ui, apply_reports } = body;
-            
+
             if (!imageBase64) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({
@@ -686,40 +926,67 @@ const server = http.createServer(async (req, res) => {
                 }));
                 return;
             }
-            
-            // Decodificar Base64
-            const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+
+            const parseFlag = (value, fallback = true) => {
+                if (value === undefined || value === null) return fallback;
+                if (typeof value === 'boolean') return value;
+                if (typeof value === 'number') return value === 1;
+                if (typeof value === 'string') {
+                    const normalized = value.toLowerCase();
+                    return ['1', 'true', 'yes', 'on'].includes(normalized);
+                }
+                return Boolean(value);
+            };
+
+            const applyUiBool = parseFlag(apply_ui, true);
+            const applyReportsBool = parseFlag(apply_reports, true);
+
+            const mimeMatch = imageBase64.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/);
+            const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+            const base64Data = imageBase64.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '');
             const buffer = Buffer.from(base64Data, 'base64');
-            
-            // Generar nombre de archivo único
+
             const timestamp = Date.now();
-            const filename = `logo_${timestamp}.png`;
+            const extension = (mimeType.split('/')[1] || 'png').split('+')[0];
+            const filename = `logo_${timestamp}.${extension}`;
             const uploadDir = path.join(process.cwd(), 'uploads', 'logo');
             const filepath = path.join(uploadDir, filename);
-            
-            // Crear directorio si no existe
+
             if (!fs.existsSync(uploadDir)) {
                 fs.mkdirSync(uploadDir, { recursive: true });
             }
-            
-            // Guardar archivo
+
             fs.writeFileSync(filepath, buffer);
-            
-            // Guardar ruta en base de datos
+
             const logoPath = `/uploads/logo/${filename}`;
-            await query("UPDATE configuracion SET valor = ? WHERE clave = 'empresa.logo_path'", [logoPath]);
-            if (apply_ui !== undefined) {
-                await query("UPDATE configuracion SET valor = ? WHERE clave = 'empresa.logo.apply_ui'", [apply_ui]);
-            }
-            if (apply_reports !== undefined) {
-                await query("UPDATE configuracion SET valor = ? WHERE clave = 'empresa.logo.apply_reports'", [apply_reports]);
-            }
-            
+            const updates = [
+                'empresa.logo_path',
+                'empresa.logo_data',
+                'empresa.logo_mime',
+                'empresa.logo.apply_ui',
+                'empresa.logo.apply_reports',
+                'empresa.mostrar_logo'
+            ];
+            await Promise.all([
+                ConfiguracionDAO.setValue('empresa.logo_path', logoPath),
+                ConfiguracionDAO.setValue('empresa.logo_data', base64Data),
+                ConfiguracionDAO.setValue('empresa.logo_mime', mimeType),
+                ConfiguracionDAO.setValue('empresa.logo.apply_ui', applyUiBool ? '1' : '0'),
+                ConfiguracionDAO.setValue('empresa.logo.apply_reports', applyReportsBool ? '1' : '0'),
+                ConfiguracionDAO.setValue('empresa.mostrar_logo', '1')
+            ]);
+            await Promise.all(updates.map(clave => configuracionLoader.reloadClave(clave)));
+
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 success: true,
                 message: 'Logo subido correctamente',
-                data: { logoPath }
+                data: {
+                    path: logoPath,
+                    mime: mimeType,
+                    apply_ui: applyUiBool ? '1' : '0',
+                    apply_reports: applyReportsBool ? '1' : '0'
+                }
             }));
         } catch (error) {
             console.error('Error subiendo logo:', error);
@@ -734,8 +1001,29 @@ const server = http.createServer(async (req, res) => {
 
     // ==================== PRODUCTOS ====================
 
+    // Historial de precios de un producto - usa regex para mayor precisión
+    if (pathname.match(/^\/api\/productos\/\d+\/historial-precio$/) && req.method === 'GET') {
+        try {
+            const id = pathname.split('/')[3];
+            const historial = await HistorialPrecioDAO.obtenerHistorialProducto(id);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: true,
+                data: historial
+            }));
+        } catch (error) {
+            console.error('Error obteniendo historial de precios:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error al obtener historial de precios'
+            }));
+        }
+        return;
+    }
+
     // Listar productos
-    if (req.url.startsWith('/api/productos') && req.method === 'GET') {
+    if (pathname.startsWith('/api/productos') && req.method === 'GET') {
         try {
             const queryParams = parseQueryParams(req.url);
             const filtros = {
@@ -752,7 +1040,8 @@ const server = http.createServer(async (req, res) => {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             const response = {
                 success: true,
-                data: productosArray
+                data: productosArray,
+                productos: productosArray // Compatible con facturacion.js
             };
             
             // Agregar metadatos de paginación si existen
@@ -776,7 +1065,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Crear producto (con JWT y validación)
-    if (req.url === '/api/productos' && req.method === 'POST') {
+    if (pathname === '/api/productos' && req.method === 'POST') {
         try {
             // Autenticar con JWT
             await runMiddleware(req, res, authenticateJWT);
@@ -839,12 +1128,12 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Actualizar producto
-    if (req.url.startsWith('/api/productos/') && req.method === 'PUT') {
+    if (pathname.startsWith('/api/productos/') && req.method === 'PUT') {
         try {
             const usuario = verifyToken(req, res);
             if (!usuario) return; // verifyToken ya envió la respuesta de error
 
-            const id = req.url.split('/')[3];
+            const id = pathname.split('/')[3];
             const datos = await parseBody(req);
 
             // Manejar categoría: si viene categoria_nombre, buscar o crear
@@ -893,12 +1182,12 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Eliminar producto (soft delete)
-    if (req.url.startsWith('/api/productos/') && req.method === 'DELETE') {
+    if (pathname.startsWith('/api/productos/') && req.method === 'DELETE') {
         try {
             const usuario = verifyToken(req, res);
             if (!usuario) return;
 
-            const id = req.url.split('/')[3];
+            const id = pathname.split('/')[3];
             const resultado = await ProductoDAO.eliminar(id);
 
             res.writeHead(resultado.success ? 200 : 404, { 'Content-Type': 'application/json' });
@@ -915,7 +1204,7 @@ const server = http.createServer(async (req, res) => {
 
     // ==================== CATEGORÍAS ====================
 
-    if (req.url === '/api/categorias' && req.method === 'GET') {
+    if (pathname === '/api/categorias' && req.method === 'GET') {
         try {
             const sql = 'SELECT * FROM categoria WHERE activo = TRUE ORDER BY nombre';
             const categorias = await query(sql);
@@ -936,7 +1225,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Crear categoría
-    if (req.url === '/api/categorias' && req.method === 'POST') {
+    if (pathname === '/api/categorias' && req.method === 'POST') {
         try {
             // Autenticar con JWT
             await runMiddleware(req, res, authenticateJWT);
@@ -995,7 +1284,7 @@ const server = http.createServer(async (req, res) => {
     // ==================== MOVIMIENTOS ====================
 
     // Listar movimientos
-    if (req.url === '/api/movimientos' && req.method === 'GET') {
+    if (pathname === '/api/movimientos' && req.method === 'GET') {
         try {
             const sql = `
                 SELECT 
@@ -1032,7 +1321,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Registrar entrada
-    if (req.url === '/api/movimientos/entrada' && req.method === 'POST') {
+    if (pathname === '/api/movimientos/entrada' && req.method === 'POST') {
         try {
             const usuario = verifyToken(req, res);
             if (!usuario) return;
@@ -1065,7 +1354,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Registrar salida
-    if (req.url === '/api/movimientos/salida' && req.method === 'POST') {
+    if (pathname === '/api/movimientos/salida' && req.method === 'POST') {
         try {
             const usuario = verifyToken(req, res);
             if (!usuario) return;
@@ -1119,12 +1408,12 @@ const server = http.createServer(async (req, res) => {
 
 
     // Eliminar movimiento
-    if (req.url.startsWith('/api/movimientos/') && req.method === 'DELETE') {
+    if (pathname.startsWith('/api/movimientos/') && req.method === 'DELETE') {
         try {
             const usuario = verifyToken(req, res);
             if (!usuario) return;
 
-            const id = req.url.split('/')[3];
+            const id = pathname.split('/')[3];
 
             // Obtener info del movimiento antes de eliminarlo
             const sqlGet = 'SELECT id_producto, tipo, cantidad FROM movimientos_inventario WHERE id = ?';
@@ -1167,7 +1456,7 @@ const server = http.createServer(async (req, res) => {
     }
     // ==================== ESTADÍSTICAS ====================
 
-    if (req.url === '/api/stats' && req.method === 'GET') {
+    if (pathname === '/api/stats' && req.method === 'GET') {
         try {
             const productos = await ProductoDAO.listar();
             const totalStock = productos.reduce((sum, p) => sum + (p.cantidad || 0), 0);
@@ -1206,7 +1495,7 @@ const server = http.createServer(async (req, res) => {
     // ==================== REPORTES ====================
 
     // Exportar productos a CSV
-    if (req.url === '/api/reportes/productos/csv' && req.method === 'GET') {
+    if (pathname === '/api/reportes/productos/csv' && req.method === 'GET') {
         try {
             const resultado = await ReportesService.exportarProductosCSV();
 
@@ -1216,17 +1505,19 @@ const server = http.createServer(async (req, res) => {
             });
             res.end(resultado.data);
         } catch (error) {
+            console.error('Error exportando productos a Excel:', error);
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 success: false,
-                message: 'Error al exportar productos a CSV'
+                message: 'Error al exportar productos a Excel'
             }));
         }
         return;
     }
 
     // Exportar productos a Excel
-    if (req.url === '/api/reportes/productos/excel' && req.method === 'GET') {
+    if (pathname === '/api/reportes/productos/excel' && req.method === 'GET') {
+        console.log('[DEBUG] Matched route: /api/reportes/productos/excel');
         try {
             const resultado = await ReportesService.exportarProductosExcel();
 
@@ -1236,6 +1527,7 @@ const server = http.createServer(async (req, res) => {
             });
             res.end(resultado.data);
         } catch (error) {
+            console.error('Error exportando productos a Excel:', error);
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 success: false,
@@ -1246,7 +1538,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Exportar movimientos a CSV
-    if (req.url === '/api/reportes/movimientos/csv' && req.method === 'GET') {
+    if (pathname === '/api/reportes/movimientos/csv' && req.method === 'GET') {
         try {
             const resultado = await ReportesService.exportarMovimientosCSV();
 
@@ -1266,7 +1558,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Exportar movimientos a Excel
-    if (req.url === '/api/reportes/movimientos/excel' && req.method === 'GET') {
+    if (pathname === '/api/reportes/movimientos/excel' && req.method === 'GET') {
         try {
             const resultado = await ReportesService.exportarMovimientosExcel();
 
@@ -1285,8 +1577,60 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    // Exportar productos a PDF
+    if (pathname === '/api/reportes/productos/pdf' && (req.method === 'GET' || req.method === 'HEAD')) {
+        if (req.method === 'HEAD') {
+            res.writeHead(200, { 'Content-Type': 'application/pdf' });
+            res.end();
+            return;
+        }
+        try {
+            const resultado = await ReportesService.exportarProductosPDF();
+
+            res.writeHead(200, {
+                'Content-Type': resultado.contentType,
+                'Content-Disposition': `attachment; filename="${resultado.filename}"`
+            });
+            res.end(resultado.data);
+        } catch (error) {
+            console.error('Error exportando productos a PDF:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error al exportar productos a PDF'
+            }));
+        }
+        return;
+    }
+
+    // Exportar movimientos a PDF
+    if (pathname === '/api/reportes/movimientos/pdf' && (req.method === 'GET' || req.method === 'HEAD')) {
+        if (req.method === 'HEAD') {
+            res.writeHead(200, { 'Content-Type': 'application/pdf' });
+            res.end();
+            return;
+        }
+        try {
+            const resultado = await ReportesService.exportarMovimientosPDF();
+
+            res.writeHead(200, {
+                'Content-Type': resultado.contentType,
+                'Content-Disposition': `attachment; filename="${resultado.filename}"`
+            });
+            res.end(resultado.data);
+        } catch (error) {
+            console.error('Error exportando movimientos a PDF:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error al exportar movimientos a PDF'
+            }));
+        }
+        return;
+    }
+
     // Exportar análisis a Excel
-    if (req.url === '/api/reportes/analytics/excel' && req.method === 'GET') {
+    if (pathname === '/api/reportes/analytics/excel' && req.method === 'GET') {
         try {
             const resultado = await ReportesService.exportarAnalyticsExcel();
 
@@ -1306,8 +1650,54 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    // Exportar productos a SQL (INSERTs)
+    if (pathname === '/api/reportes/productos/sql' && req.method === 'GET') {
+        try {
+            const productos = await query(`
+                SELECT p.*, c.nombre as categoria_nombre 
+                FROM producto p 
+                LEFT JOIN categoria c ON p.id_categoria = c.id 
+                WHERE p.activo = TRUE 
+                ORDER BY p.nombre ASC
+            `);
+
+            let sqlContent = '-- Exportación de Productos\n';
+            sqlContent += `-- Generado: ${new Date().toLocaleString('es-CO')}\n\n`;
+
+            productos.forEach(p => {
+                // Formatear fechas para SQL
+                const formatDate = (date) => {
+                    if (!date) return 'NULL';
+                    const d = new Date(date);
+                    return `'${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}'`;
+                };
+                
+                sqlContent += `INSERT INTO producto (id, codigo, nombre, descripcion, precio_compra, precio_venta, cantidad, stock_minimo, ubicacion, id_categoria, activo, fecha_creacion, fecha_vencimiento) VALUES (${p.id}, '${p.codigo.replace(/'/g, "''")}', '${p.nombre.replace(/'/g, "''")}', ${p.descripcion ? `'${p.descripcion.replace(/'/g, "''")}'` : 'NULL'}, ${p.precio_compra}, ${p.precio_venta}, ${p.cantidad}, ${p.stock_minimo}, '${p.ubicacion.replace(/'/g, "''")}', ${p.id_categoria}, ${p.activo}, ${formatDate(p.fecha_creacion)}, ${formatDate(p.fecha_vencimiento)});\n`;
+            });
+
+            res.writeHead(200, {
+                'Content-Type': 'application/sql',
+                'Content-Disposition': `attachment; filename="productos_${Date.now()}.sql"`
+            });
+            res.end(sqlContent);
+        } catch (error) {
+            console.error('Error exportando productos a SQL:', error);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+                success: false,
+                message: 'Error al exportar productos a SQL'
+            }));
+        }
+        return;
+    }
+
     // Exportar análisis a PDF
-    if (req.url === '/api/reportes/analytics/pdf' && req.method === 'GET') {
+    if (pathname === '/api/reportes/analytics/pdf' && (req.method === 'GET' || req.method === 'HEAD')) {
+        if (req.method === 'HEAD') {
+            res.writeHead(200, { 'Content-Type': 'application/pdf' });
+            res.end();
+            return;
+        }
         try {
             const resultado = await ReportesService.exportarAnalyticsPDF();
 
@@ -1330,7 +1720,7 @@ const server = http.createServer(async (req, res) => {
     // ==================== ANALYTICS ====================
 
     // Métricas del mes actual
-    if (req.url === '/api/analytics/metricas-mes' && req.method === 'GET') {
+    if (pathname === '/api/analytics/metricas-mes' && req.method === 'GET') {
         try {
             const mesActual = new Date().getMonth() + 1;
             const añoActual = new Date().getFullYear();
@@ -1380,7 +1770,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Productos más vendidos
-    if (req.url === '/api/analytics/productos-mas-vendidos' && req.method === 'GET') {
+    if (pathname === '/api/analytics/productos-mas-vendidos' && req.method === 'GET') {
         try {
             const sql = `
                 SELECT 
@@ -1411,7 +1801,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Ganancias por mes (últimos 6 meses)
-    if (req.url === '/api/analytics/ganancias-por-mes' && req.method === 'GET') {
+    if (pathname === '/api/analytics/ganancias-por-mes' && req.method === 'GET') {
         try {
             const sql = `
                 SELECT 
@@ -1445,7 +1835,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Productos con bajo stock
-    if (req.url === '/api/analytics/productos-bajo-stock' && req.method === 'GET') {
+    if (pathname === '/api/analytics/productos-bajo-stock' && req.method === 'GET') {
         try {
             const sql = `
                 SELECT 
@@ -1475,7 +1865,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Productos con mayor margen
-    if (req.url === '/api/analytics/productos-mayor-margen' && req.method === 'GET') {
+    if (pathname === '/api/analytics/productos-mayor-margen' && req.method === 'GET') {
         try {
             const sql = `
                 SELECT 
@@ -1519,8 +1909,15 @@ server.listen(PORT, async () => {
     console.log('║   Servidor ejecutándose en puerto 3000 ║');
     console.log('╚═══════════════════════════════════════╝\n');
 
-    // Probar conexión a MySQL
-    await testConnection();
+    // Probar conexión a MySQL e inyectar configuraciones clave
+    try {
+        await testConnection();
+        await ConfiguracionDAO.ensureDefaults();
+        await configuracionLoader.loadConfiguraciones();
+        console.log('✅ Configuración básica garantizada y caché cargada');
+    } catch (error) {
+        console.error('⛔ Error inicializando la base de datos o configuraciones:', error);
+    }
 
     console.log('\n🔌 Endpoints disponibles:');
     console.log('   AUTENTICACIÓN:');
@@ -1543,8 +1940,12 @@ server.listen(PORT, async () => {
     console.log('   REPORTES:');
     console.log('   GET  /api/reportes/productos/csv');
     console.log('   GET  /api/reportes/productos/excel');
+    console.log('   GET  /api/reportes/productos/pdf');
+    console.log('   GET  /api/reportes/productos/sql');
     console.log('   GET  /api/reportes/movimientos/csv');
-    console.log('   GET  /api/reportes/movimientos/excel\n');
+    console.log('   GET  /api/reportes/movimientos/excel');
+    console.log('   GET  /api/reportes/movimientos/pdf');
+    console.log('   GET  /api/reportes/analytics/pdf\n');
     console.log('   OTROS:');
     console.log('   GET  /api/health\n');
 });

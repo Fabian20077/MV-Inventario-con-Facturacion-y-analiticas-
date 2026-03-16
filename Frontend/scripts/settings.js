@@ -2,7 +2,7 @@
 // CONFIGURACIÓN DE LA PÁGINA DE AJUSTES
 // Módulo de Administración de Configuraciones (Admin Only)
 // =====================================================
-var API_BASE_URL = ''; // Ruta relativa automática para evitar errores de CORS/Puerto
+var API_BASE_URL = 'http://localhost:3000'; // Backend API URL
 console.log('🔗 API_BASE_URL in settings.js:', API_BASE_URL);
 
 // Verificar si el token ha expirado
@@ -236,6 +236,12 @@ async function loadSettings(category) {
         const result = await response.json();
 
         if (result.success) {
+            // Verificar que result.data es un objeto
+            if (typeof result.data !== 'object' || result.data === null) {
+                console.error('result.data no es un objeto:', result.data);
+                result.data = {};
+            }
+            
             const itemsInCategory = result.data[category] || [];
             renderSection(category, itemsInCategory);
         } else {
@@ -284,6 +290,12 @@ function renderSection(title, items) {
 
     // 🎨 DISEÑO ESPECÍFICO PARA LA SECCIÓN GENERAL
     if (title === 'General') {
+        // Verificar que items es un array
+        if (!Array.isArray(items)) {
+            console.error('items no es un array:', items);
+            items = [];
+        }
+        
         const logoItem = items.find(i => i.clave === 'empresa.logo_path');
         const urlItem = items.find(i => i.clave === 'empresa.logo_url');
         const currentLogoSrc = (logoItem && logoItem.valor) ? logoItem.valor : (urlItem ? urlItem.valor : '');
@@ -388,6 +400,12 @@ function renderSection(title, items) {
         <div class="space-y-4">
     `;
 
+    // Verificar que items es un array
+    if (!Array.isArray(items)) {
+        console.error('items no es un array:', items);
+        items = [];
+    }
+    
     if (items.length === 0) {
         html += `<p class="text-gray-400 italic text-center py-20">No hay configuraciones disponibles para "${title}".</p>`;
     } else {
@@ -915,7 +933,7 @@ window.uploadLogo = async function () {
 
         console.log('🚀 Iniciando subida de logo (JSON)...');
 
-        const response = await fetch('/api/admin/configuracion/logo', {
+        const response = await fetch(`${API_BASE_URL}/api/admin/configuracion/logo`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -941,11 +959,14 @@ window.uploadLogo = async function () {
             showToast('✅ ¡Logo actualizado correctamente!', 'success');
 
             // Actualización en Tiempo Real (Anti-Caché)
-            const newSrc = result.data.path + '?t=' + Date.now();
+            const normalizedPath = result.data.path || '';
+            const newSrc = normalizedPath
+                ? `${API_BASE_URL}${normalizedPath}?t=${Date.now()}`
+                : null;
 
             // Actualizar vista previa en settings
             const preview = document.getElementById('logoPreview');
-            if (preview) {
+            if (preview && newSrc) {
                 preview.src = newSrc;
                 preview.classList.remove('hidden');
                 const noLogoText = document.getElementById('noLogoText');
@@ -954,7 +975,7 @@ window.uploadLogo = async function () {
 
             // Actualizar logo del header globalmente
             const headerLogo = document.getElementById('headerLogo');
-            if (headerLogo) headerLogo.src = newSrc;
+            if (headerLogo && newSrc) headerLogo.src = newSrc;
 
             // Limpiar el input de archivo
             if (logoInput) logoInput.value = '';

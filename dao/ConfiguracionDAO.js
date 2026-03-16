@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { query } from '../config/database.js';
 
 /**
@@ -12,6 +14,119 @@ class ConfiguracionDAO {
     static async getAll() {
         const sql = 'SELECT * FROM configuracion ORDER BY categoria, clave';
         return await query(sql);
+    }
+
+    /**
+     * Asegura que las claves necesarias para branding y facturación existan con valores por defecto.
+     */
+    static async ensureDefaults() {
+        const defaults = [
+            {
+                clave: 'empresa.logo_path',
+                valor: '',
+                tipo_dato: 'string',
+                categoria: 'Branding',
+                descripcion: 'Ruta pública del logo corporativo',
+                bloqueado: 0,
+                publico: 1
+            },
+            {
+                clave: 'empresa.logo_data',
+                valor: '',
+                tipo_dato: 'string',
+                categoria: 'Branding',
+                descripcion: 'Imagen base64 del logo para PDFs',
+                bloqueado: 0,
+                publico: 0
+            },
+            {
+                clave: 'empresa.logo_mime',
+                valor: '',
+                tipo_dato: 'string',
+                categoria: 'Branding',
+                descripcion: 'Tipo MIME del logo (image/png, image/jpeg, etc.)',
+                bloqueado: 0,
+                publico: 0
+            },
+            {
+                clave: 'empresa.logo.apply_ui',
+                valor: '1',
+                tipo_dato: 'boolean',
+                categoria: 'Branding',
+                descripcion: 'Aplica el logo en la interfaz',
+                bloqueado: 0,
+                publico: 1
+            },
+            {
+                clave: 'empresa.logo.apply_reports',
+                valor: '1',
+                tipo_dato: 'boolean',
+                categoria: 'Branding',
+                descripcion: 'Aplica el logo en facturas y reportes',
+                bloqueado: 0,
+                publico: 0
+            },
+            {
+                clave: 'empresa.mostrar_logo',
+                valor: '1',
+                tipo_dato: 'boolean',
+                categoria: 'Branding',
+                descripcion: 'Si se debe mostrar el logo en los documentos',
+                bloqueado: 0,
+                publico: 1
+            },
+            {
+                clave: 'facturacion.pie_pagina',
+                valor: '¡Gracias por su compra!',
+                tipo_dato: 'string',
+                categoria: 'Facturación',
+                descripcion: 'Mensaje de pie de página en facturas',
+                bloqueado: 0,
+                publico: 1
+            }
+        ];
+
+        const promises = defaults.map(item => this._upsertDefaultConfig(item));
+        await Promise.all(promises);
+    }
+
+    static async _upsertDefaultConfig(config) {
+        const sql = `
+            INSERT INTO configuracion 
+                (clave, valor, tipo_dato, categoria, descripcion, bloqueado, publico)
+            VALUES
+                (?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                valor = VALUES(valor),
+                tipo_dato = VALUES(tipo_dato),
+                categoria = VALUES(categoria),
+                descripcion = VALUES(descripcion),
+                bloqueado = VALUES(bloqueado),
+                publico = VALUES(publico)
+        `;
+        await query(sql, [
+            config.clave,
+            config.valor,
+            config.tipo_dato,
+            config.categoria,
+            config.descripcion,
+            config.bloqueado,
+            config.publico
+        ]);
+    }
+
+    static async setValue(clave, valor) {
+        const sql = 'UPDATE configuracion SET valor = ? WHERE clave = ?';
+        const result = await query(sql, [String(valor), clave]);
+        if (result.affectedRows === 0) {
+            await query(
+                `INSERT INTO configuracion 
+                    (clave, valor, tipo_dato, categoria, descripcion, bloqueado, publico)
+                 VALUES (?, ?, 'string', 'Branding', 'Valor generado automáticamente', 0, 1)
+                 ON DUPLICATE KEY UPDATE valor = VALUES(valor)`,
+                [clave, String(valor)]
+            );
+        }
     }
 
     /**
@@ -75,7 +190,10 @@ class ConfiguracionDAO {
             telefono: '',
             nit: '',
             mostrar_logo: false,
+            apply_reports: true,
             logo_data: null,
+            logo_path: '',
+            logo_mime: '',
             pie_pagina: '¡Gracias por su compra!'
         };
 
@@ -86,6 +204,9 @@ class ConfiguracionDAO {
             'empresa.nit',
             'empresa.mostrar_logo',
             'empresa.logo_data',
+            'empresa.logo_path',
+            'empresa.logo_mime',
+            'empresa.logo.apply_reports',
             'facturacion.pie_pagina'
         ];
 
@@ -94,16 +215,51 @@ class ConfiguracionDAO {
                 const row = await this.getByClave(clave);
                 if (row) {
                     const key = clave.split('.').pop();
-                    if (key === 'mostrar_logo') {
-                        config[key] = row.valor === '1' || row.valor === true;
-                    } else if (key === 'logo_data' && row.valor) {
-                        config[key] = row.valor;
-                    } else {
-                        config[key] = row.valor;
+                    switch (clave) {
+                        case 'empresa.logo_data':
+                            if (row.valor) config.logo_data = row.valor;
+                            break;
+                        case 'empresa.logo_path':
+                            config.logo_path = row.valor || '';
+                            break;
+                        case 'empresa.logo_mime':
+                            config.logo_mime = row.valor || '';
+                            break;
+                        case 'empresa.mostrar_logo':
+                            config.mostrar_logo = row.valor === '1' || row.valor === true;
+                            break;
+                        case 'empresa.logo.apply_reports':
+                            config.apply_reports = row.valor === '1' || row.valor === true;
+                            break;
+                        default:
+                            if (row.valor) {
+                                config[key] = row.valor;
+                            }
                     }
                 }
             } catch (e) {
                 // Ignorar errores de claves no existentes
+            }
+        }
+
+        // Respetar bandera de uso en reportes/facturación.
+        config.mostrar_logo = Boolean(config.mostrar_logo && config.apply_reports);
+
+        if ((!config.logo_data || config.logo_data === '') && config.logo_path) {
+            try {
+                const absolutePath = path.isAbsolute(config.logo_path)
+                    ? config.logo_path
+                    : path.join(process.cwd(), config.logo_path);
+
+                if (fs.existsSync(absolutePath)) {
+                    const buffer = fs.readFileSync(absolutePath);
+                    config.logo_data = buffer.toString('base64');
+                    if (!config.logo_mime) {
+                        config.logo_mime = this._guessMimeType(absolutePath);
+                    }
+                }
+            } catch (e) {
+                // No hacemos nada si no se puede leer el archivo
             }
         }
 
@@ -147,6 +303,19 @@ class ConfiguracionDAO {
         if (!esValido) {
             throw new Error(`Error de tipado: La clave "${clave}" espera un tipo "${tipo_dato}", se recibió "${typeof valor}".`);
         }
+    }
+
+    static _guessMimeType(filePath) {
+        const ext = path.extname(filePath).toLowerCase();
+        const map = {
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.webp': 'image/webp',
+            '.gif': 'image/gif',
+            '.svg': 'image/svg+xml'
+        };
+        return map[ext] || 'application/octet-stream';
     }
 }
 

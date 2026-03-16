@@ -97,8 +97,13 @@ class ProductoDAO {
             }
 
             if (filtros.categoria) {
-                whereClause += ` AND p.id_categoria = ? `;
-                params.push(filtros.categoria);
+                const catValue = filtros.categoria;
+                if (isNaN(catValue)) {
+                    whereClause += ` AND c.nombre = ? `;
+                } else {
+                    whereClause += ` AND p.id_categoria = ? `;
+                }
+                params.push(catValue);
             }
 
             // Si se solicita paginación

@@ -4,6 +4,25 @@
  * Then load: <script src="../scripts/notification-manager.js"></script>
  *           <script src="../scripts/navbar.js"></script>
  */
+window.API_BASE_URL = window.API_BASE_URL || 'http://localhost:3000';
+
+if (!window.fetch.__apiProxyInstalled) {
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = function (input, init) {
+        if (typeof input === 'string' && input.startsWith('/api/')) {
+            input = `${window.API_BASE_URL}${input}`;
+        }
+        return originalFetch(input, init);
+    };
+    window.fetch.__apiProxyInstalled = true;
+}
+
+window.getApiUrl = function (relativePath) {
+    if (!relativePath) return window.API_BASE_URL;
+    if (relativePath.startsWith('http')) return relativePath;
+    return `${window.API_BASE_URL}${relativePath}`;
+};
+
 (function () {
     const NAV_LINKS = [
         { href: 'dashboard.html', icon: 'bi-speedometer2', label: 'Dashboard' },
@@ -144,7 +163,7 @@
 
     // Load company logo into navbar brand
     function loadNavbarLogo() {
-        const apiBase = window.location.origin;
+        const apiBase = 'http://localhost:3000';
 
         fetch(apiBase + '/api/configuracion')
             .then(r => r.json())
@@ -763,6 +782,15 @@
         `;
         document.head.appendChild(style);
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('a[href^="/api/"]').forEach(link => {
+            const href = link.getAttribute('href');
+            if (href) {
+                link.href = window.getApiUrl(href);
+            }
+        });
+    });
 
     // Init
     if (document.readyState === 'loading') {

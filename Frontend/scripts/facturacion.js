@@ -10,10 +10,10 @@
  * - Historial de facturas recientes
  */
 
-const API_BASE = '/api';
+const API_BASE = 'http://localhost:3000/api';
 let productosFactura = [];
 let ivaConfigurable = 19;
-let tokenActual = localStorage.getItem('authToken');
+let tokenActual = localStorage.getItem('authToken') || localStorage.getItem('token');
 
 // Productos de ejemplo para fallback cuando la API no está disponible
 const PRODUCTOS_EJEMPLO = [
@@ -380,7 +380,7 @@ function descargarFacturaPDF() {
     }
 
     const factura = window.facturaActual;
-    const url = `/api/facturas/${factura.id}/pdf?token=${tokenActual}`;
+    const url = `${API_BASE}/facturas/${factura.id}/pdf?token=${tokenActual}`;
 
     const nombreCliente = (factura.cliente_nombre || 'General')
         .replace(/[^a-zA-Z0-9]/g, '_')
@@ -414,7 +414,7 @@ async function imprimirFactura(id) {
         return;
     }
     const facturaId = id || window.facturaActual.id;
-    const url = `/api/facturas/${facturaId}/pdf?token=${tokenActual}`;
+    const url = `${API_BASE}/facturas/${facturaId}/pdf?token=${tokenActual}`;
 
     try {
         // Usar window.open en lugar de iframe oculto para evitar conflictos con extensiones (Brave Leo/Mojo)

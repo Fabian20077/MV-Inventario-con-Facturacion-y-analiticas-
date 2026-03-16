@@ -30,15 +30,15 @@ const HistorialPrecios = {
             const modal = new bootstrap.Modal(modalEl);
             modal.show();
 
-            // Fetch datos (Ruta relativa correcta)
-            const response = await fetch(`/api/productos/${productoId}/historial-precio`, {
+            // Fetch datos (Ruta absoluta al backend)
+            const response = await fetch(`http://localhost:3000/api/productos/${productoId}/historial-precio`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
             if (!response.ok) throw new Error('Error al obtener datos del servidor');
 
             const historial = await response.json();
-            this.renderizarTabla(historial);
+            this.renderizarTabla(historial.data || historial);
 
         } catch (error) {
             console.error('Error en HistorialPrecios:', error);

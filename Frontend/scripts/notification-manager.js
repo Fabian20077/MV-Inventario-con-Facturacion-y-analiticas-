@@ -3,6 +3,9 @@
  * Gestiona notificaciones globales sincronizadas entre todas las pestañas
  */
 
+// Evitar declarar constantes globales (rompe páginas que ya declaran API_BASE_URL).
+// Usar window.API_BASE_URL con fallback dentro de cada request.
+
 class NotificationManager {
     constructor() {
         this.notifications = [];
@@ -37,7 +40,8 @@ class NotificationManager {
             const headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = 'Bearer ' + token;
 
-            const response = await fetch(window.location.origin + '/api/alertas/stock-bajo', { headers });
+            const apiBaseUrl = window.API_BASE_URL || 'http://localhost:3000';
+            const response = await fetch(`${apiBaseUrl}/api/alertas/stock-bajo`, { headers });
             const data = await response.json();
             const items = data.data || data || [];
 
